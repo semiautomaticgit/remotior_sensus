@@ -1,0 +1,194 @@
+# Remotior Sensus , software to process remote sensing and GIS data.
+# Copyright (C) 2022-2023 Luca Congedo.
+# Author: Luca Congedo
+# Email: ing.congedoluca@gmail.com
+#
+# This file is part of Remotior Sensus.
+# Remotior Sensus is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by 
+# the Free Software Foundation, either version 3 of the License,
+# or (at your option) any later version.
+# Remotior Sensus is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
+
+"""
+Shared tools
+"""
+
+import os
+from typing import Union, Optional
+
+import numpy as np
+
+from remotior_sensus.core import configurations as cfg
+from remotior_sensus.core.bandset import BandSet
+from remotior_sensus.core.bandset_catalog import BandSetCatalog
+from remotior_sensus.util import files_directories, raster_vector
+
+
+# check input path converting to the same crs if necessary
+def prepare_input_list(
+        band_list, reference_raster_crs=None,
+        n_processes: int = None, src_nodata=None, dst_nodata=None
+):
+    cfg.logger.log.debug('start')
+    information_list = []
+    nodata_list = []
+    if reference_raster_crs is None:
+        reference_raster_crs = raster_vector.get_crs(band_list[0])
+    # get crs from file
+    elif files_directories.is_file(reference_raster_crs):
+        reference_raster_crs = raster_vector.get_crs(reference_raster_crs)
+    input_list = []
+    name_list = []
+    warped = False
+    for i in range(len(band_list)):
+        name_list.append(files_directories.file_name(band_list[i]))
+        crs = raster_vector.get_crs(band_list[i])
+        # check crs
+        same_crs = raster_vector.compare_crs(crs, reference_raster_crs)
+        if not same_crs:
+            t_pmd = cfg.temp.temporary_raster_path(
+                name=files_directories.file_name(band_list[i]),
+                extension=cfg.vrt_suffix
+            )
+            reference_raster = cfg.multiprocess.create_warped_vrt(
+                raster_path=band_list[i], output_path=t_pmd,
+                output_wkt=str(reference_raster_crs), n_processes=n_processes,
+                src_nodata=src_nodata, dst_nodata=dst_nodata
+            )
+            warped = True
+        else:
+            reference_raster = band_list[i]
+        input_list.append(reference_raster)
+        info = raster_vector.raster_info(band_list[i])
+        if info is not False:
+            (gt, crs, un, xy_count, nd, number_of_bands, block_size,
+             scale_offset, data_type) = info
+        else:
+            cfg.logger.log.error('unable to get raster info: %s', band_list[i])
+            return [], [], [], [], warped
+        information_list.append(
+            [gt, crs, un, xy_count, nd, number_of_bands, block_size,
+             scale_offset, data_type]
+        )
+        nodata_list.append(nd)
+    cfg.logger.log.debug('end; input_list: %s' % str(input_list))
+    return input_list, information_list, nodata_list, name_list, warped
+
+
+# prepare process files
+def prepare_process_files(
+        input_bands: Union[list, int, BandSet], output_path: str,
+        n_processes: Optional[int] = None,
+        bandset_catalog: Optional[BandSetCatalog] = None,
+        temporary_virtual_raster=True, prefix=None, multiple_output=False,
+        virtual_output=None
+):
+    cfg.logger.log.debug('input_bands: %s' % str(input_bands))
+    if n_processes is None:
+        n_processes = cfg.n_processes
+    # get input list
+    band_list = BandSetCatalog.get_band_list(input_bands, bandset_catalog)
+    # list of inputs
+    (input_raster_list, raster_info, nodata_list, name_list,
+     warped) = prepare_input_list(band_list, n_processes=n_processes)
+    # single output path
+    out_path = None
+    # multiple output path list
+    output_list = []
+    # multiple output virtual raster check list
+    vrt_list = []
+    if multiple_output:
+        if type(output_path) is not list and files_directories.is_directory(
+                output_path
+        ):
+            for r in input_raster_list:
+                p = os.path.join(
+                    output_path, '{}{}'.format(
+                        prefix, files_directories.file_name(r)
+                    )
+                ).replace('\\', '/')
+                # check output path
+                out_path, vrt_r = files_directories.raster_output_path(
+                    p, virtual_output
+                )
+                output_list.append(out_path)
+                vrt_list.append(vrt_r)
+        else:
+            for r in output_path:
+                # check output path
+                out_path, vrt_r = files_directories.raster_output_path(
+                    r, virtual_output
+                )
+                output_list.append(out_path)
+                vrt_list.append(vrt_r)
+    else:
+        # check output path
+        out_path, virtual_output = files_directories.raster_output_path(
+            output_path, virtual_output
+        )
+    # create virtual raster of input
+    if temporary_virtual_raster:
+        temporary_virtual_raster = \
+            raster_vector.create_temporary_virtual_raster(
+                input_raster_list
+            )
+    return [input_raster_list, raster_info, nodata_list, name_list, warped,
+            out_path, virtual_output,
+            temporary_virtual_raster, n_processes, output_list, vrt_list]
+
+
+# create base structure
+def create_base_structure(size: int):
+    structure = np.ones((size, size))
+    return structure
+
+
+# create a circular structure
+def create_circular_structure(radius):
+    circle = np.zeros([radius * 2 + 1, radius * 2 + 1])
+    for x in range(radius * 2 + 1):
+        for y in range(radius * 2 + 1):
+            if (x - radius) ** 2 + (y - radius) ** 2 <= radius ** 2:
+                circle[x, y] = 1
+    return circle
+
+
+# open structure file
+def open_structure(structure):
+    text = open(structure, 'r')
+    lines = text.readlines()
+    c = None
+    for b in lines:
+        b = b.replace('nan', 'np.nan').replace(cfg.new_line, '')
+        a = eval(b)
+        i = np.array(a, dtype=np.float32)
+        try:
+            c = np.append(c, [i], axis=0)
+        except Exception as err:
+            str(err)
+            try:
+                c = np.append([c], [i], axis=0)
+            except Exception as err:
+                str(err)
+                c = i
+    return c
+
+
+# expand list of lists
+def expand_list(input_list):
+    expanded_list = []
+    for c in input_list:
+        expanded_list.extend(c)
+    return expanded_list
+
+
+# join path
+def join_path(*argv):
+    path = os.path.join(*argv)
+    return path
