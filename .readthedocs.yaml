@@ -8,6 +8,7 @@ build:
     - gdal-bin
     - gdal-data
     - libgdal-dev
+    - python3-gdal
 
 sphinx:
    configuration: docs/source/conf.py
