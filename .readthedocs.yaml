@@ -4,9 +4,11 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.10"
-      install:
-        - requirements: requirements.txt
-        - method: pip
 
 sphinx:
    configuration: docs/source/conf.py
+
+python:
+  install:
+    - requirements: requirements.txt
+      method: pip
