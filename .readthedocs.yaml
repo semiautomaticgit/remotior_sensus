@@ -3,16 +3,10 @@ version: 2
 build:
   os: ubuntu-22.04
   tools:
-    python: "3.10"
-  apt_packages:
-    - gdal-bin
-    - gdal-data
-    - libgdal-dev
-    - python3-gdal
+    python: "miniconda3-4.7"
 
 sphinx:
    configuration: docs/source/conf.py
 
-python:
-  install:
-    - requirements: requirements.txt
+conda:
+  environment: environment.yml
