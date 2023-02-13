@@ -1,3 +1,2 @@
-gdal
 numpy
 scipy
