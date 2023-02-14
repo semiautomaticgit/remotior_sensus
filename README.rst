@@ -6,8 +6,8 @@ that allows for the processing of remote sensing images and GIS data.
 
 Remotior Sensus is developed by Luca Congedo.
 
-- **Website:** https://fromgistors.blogspot.com/p/remotior_sensus.html
-- **Documentation:** https://fromgistors.blogspot.com/p/remotior_sensus.html
+- **Website:** https://fromgistors.blogspot.com/p/remotior-sensus.html
+- **Documentation:** https://fromgistors.blogspot.com/p/remotior-sensus.html
 - **Source code:** https://github.com/semiautomaticgit/remotior_sensus
 - **Bug reports:** https://github.com/semiautomaticgit/remotior_sensus/issues
 
