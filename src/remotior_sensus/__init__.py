@@ -17,4 +17,4 @@
 
 from remotior_sensus.core.session import Session
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'
