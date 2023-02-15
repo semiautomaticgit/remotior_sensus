@@ -405,17 +405,21 @@ def query_sentinel_2_database(
     )
 
 
-# download Sentinel-2 images
-def download_sentinel2_images(
+# download products
+def download(
         product_table, output_directory, exporter=False, band_list=None,
-        virtual_download=False,
-        extent_coordinate_list=None, proxy_host=None, proxy_port=None,
-        proxy_user=None, proxy_password=None
+        virtual_download=False, extent_coordinate_list=None, proxy_host=None,
+        proxy_port=None, proxy_user=None, proxy_password=None,
+        authentication_uri=None, user=None, password=None, progress=True
 ) -> OutputManager:
-    """Download Sentinel-2 images.
+    """Download products.
 
-    This tool downloads Sentinel-2 images using the following Google service:
+    This tool downloads product.
+    Downloads Sentinel-2 images using the following Google service:
     https://storage.googleapis.com/gcp-public-data-sentinel-2 .
+    Downloads HLS images from:
+    https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html.
+
 
     Args:
         product_table:
@@ -444,9 +448,10 @@ def download_sentinel2_images(
     progress_step = 100 / (len(band_list) * total_products)
     min_progress = 0
     max_progress = min_progress + progress_step
-    top_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
     for i in range(total_products):
         if product_table['product'][i] == cfg.sentinel2:
+            top_url = \
+                'https://storage.googleapis.com/gcp-public-data-sentinel-2'
             product_name = product_table['product_id'][i]
             acquisition_date = product_table['acquisition_date'][i]
             image_name = product_table['image'][i]
@@ -556,6 +561,64 @@ def download_sentinel2_images(
                 )
                 min_progress += progress_step
                 max_progress += progress_step
+        elif (product_table['product'][i] == cfg.sentinel2_hls
+              or product_table['product'][i] == cfg.landsat_hls):
+            product_url = None
+            if authentication_uri is None:
+                authentication_uri = 'urs.earthdata.nasa.gov'
+            product_name = product_table['product_id'][i]
+            image_name = product_table['image'][i]
+            acquisition_date = product_table['acquisition_date'][i]
+            if product_table['product'][i] == cfg.sentinel2_hls:
+                top_url = 'https://data.lpdaac.earthdatacloud.nasa.gov/' \
+                          'lp-prod-protected'
+                product_url = '%s/HLSS30.020/%s/%s' % (
+                    top_url, image_name, image_name)
+            elif product_table['product'][i] == cfg.landsat_hls:
+                top_url = 'https://data.lpdaac.earthdatacloud.nasa.gov/' \
+                          'lp-prod-protected'
+                product_url = '%s/HLSL30.020/%s/%s' % (
+                    top_url, image_name, image_name)
+            base_output_dir = '%s/%s_%s' % (
+                output_directory, product_name.replace('.', '_'),
+                str(acquisition_date))
+            output_directory_list.append(base_output_dir)
+            # download bands
+            for band in band_list:
+                url = '%s.B%s%s' % (
+                    product_url, str(band).upper().zfill(2), cfg.tif_suffix)
+                if exporter:
+                    output_file_list.append(url)
+                else:
+                    output_file = '%s/%s_B%s%s' % (
+                        output_directory, product_name.replace('.', '_'),
+                        str(band).zfill(2), cfg.tif_suffix)
+                    download_tools.download_file(
+                        url=url, output_path=output_file,
+                        authentication_uri=authentication_uri,
+                        user=user, password=password, proxy_host=proxy_host,
+                        proxy_port=proxy_port,
+                        proxy_user=proxy_user, proxy_password=proxy_password,
+                        progress=progress,
+                        message='downloading band %s' % str(band),
+                        min_progress=min_progress,
+                        max_progress=max_progress
+                    )
+                    if files_directories.is_file(output_file):
+                        output_file_list.append(output_file)
+                        cfg.logger.log.debug(
+                            'downloaded file %s' % output_file
+                        )
+                    else:
+                        messages.error(
+                            'failed download %s_B%s' % (image_name[0:-7], band)
+                        )
+                        cfg.logger.log.error(
+                            'failed download %s_B%s' % (image_name[0:-7], band)
+                        )
+                min_progress += progress_step
+                max_progress += progress_step
+
     if exporter:
         output_csv_file = '%s/links%s%s' % (
             output_directory, dates_times.get_time_string(), cfg.csv_suffix)
@@ -565,7 +628,7 @@ def download_sentinel2_images(
     else:
         return OutputManager(
             paths=output_file_list,
-            extra={'directory_list': output_directory_list}
+            extra={'directory_paths': output_directory_list}
         )
 
 
@@ -871,105 +934,3 @@ def query_nasa_cmr(
             cfg.logger.log.error('error: search failed')
             messages.error('error: search failed')
             return OutputManager(check=False)
-
-
-# download HLS images
-def download_hls_images(
-        product_table, output_directory, exporter=False, band_list=None,
-        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
-        authentication_uri=None, user=None, password=None, progress=True
-) -> OutputManager:
-    """Download HLS images.
-
-    This tool downloads HLS images from:
-    https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html.
-
-    Args:
-        product_table:
-        output_directory:
-        exporter:
-        band_list:
-        proxy_host:
-        proxy_port:
-        proxy_user:
-        proxy_password:
-        authentication_uri:
-        user:
-        password:
-        progress:
-
-    Returns:
-        object OutputManger
-
-    """
-    if band_list is None:
-        band_list = cfg.satellites[cfg.satSentinel2][2]
-    if authentication_uri is None:
-        authentication_uri = 'urs.earthdata.nasa.gov'
-    # list of output files
-    output_file_list = []
-    # list of output directories
-    output_directory_list = []
-    total_products = product_table.shape[0]
-    progress_step = 100 / (len(band_list) * total_products)
-    min_progress = 0
-    max_progress = min_progress + progress_step
-    top_url = 'https://data.lpdaac.earthdatacloud.nasa.gov/lp-prod-protected'
-    for i in range(total_products):
-        product_name = product_table['product_id'][i]
-        image_name = product_table['image'][i]
-        acquisition_date = product_table['acquisition_date'][i]
-        if product_table['product'][i] == cfg.sentinel2_hls:
-            product_url = '%s/HLSS30.020/%s/%s' % (
-                top_url, image_name, image_name)
-        else:
-            product_url = '%s/HLSL30.020/%s/%s' % (
-                top_url, image_name, image_name)
-        base_output_dir = '%s/%s_%s' % (
-            output_directory, product_name.replace('.', '_'),
-            str(acquisition_date))
-        output_directory_list.append(base_output_dir)
-        # download bands
-        for band in band_list:
-            url = '%s.B%s%s' % (
-                product_url, str(band).upper().zfill(2), cfg.tif_suffix)
-            if exporter:
-                output_file_list.append(url)
-            else:
-                output_file = '%s/%s_B%s%s' % (
-                    output_directory, product_name.replace('.', '_'),
-                    str(band).zfill(2), cfg.tif_suffix)
-                download_tools.download_file(
-                    url=url, output_path=output_file,
-                    authentication_uri=authentication_uri,
-                    user=user, password=password, proxy_host=proxy_host,
-                    proxy_port=proxy_port,
-                    proxy_user=proxy_user, proxy_password=proxy_password,
-                    progress=progress,
-                    message='downloading band %s' % str(band),
-                    min_progress=min_progress,
-                    max_progress=max_progress
-                )
-                if files_directories.is_file(output_file):
-                    output_file_list.append(output_file)
-                    cfg.logger.log.debug('downloaded file %s' % output_file)
-                else:
-                    messages.error(
-                        'failed download %s_B%s' % (image_name[0:-7], band)
-                    )
-                    cfg.logger.log.error(
-                        'failed download %s_B%s' % (image_name[0:-7], band)
-                    )
-            min_progress += progress_step
-            max_progress += progress_step
-    if exporter:
-        output_csv_file = '%s/links%s%s' % (
-            output_directory, dates_times.get_time_string(), cfg.csv_suffix)
-        text = cfg.new_line.join(output_file_list)
-        read_write_files.write_file(data=text, output_path=output_csv_file)
-        return OutputManager(path=output_csv_file)
-    else:
-        return OutputManager(
-            paths=output_file_list,
-            extra={'directory_list': output_directory_list}
-        )

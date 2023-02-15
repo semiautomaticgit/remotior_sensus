@@ -19,7 +19,7 @@ version = '0.0.1.1'
 
 # -- General configuration ---------------------------------------------------
 
-master_doc = 'home'
+master_doc = 'index'
 locale_dirs = ['locale/']
 gettext_compact = False
 extensions = ['sphinx.ext.napoleon', 'sphinx.ext.doctest']
@@ -40,9 +40,6 @@ html_show_sphinx = False
 
 # -- Options for LaTeX output ---------------------------------------------
 
-latex_elements = {
-'papersize': 'a4paper',
-}
 latex_documents = [
   ('index', 'Remotior_Sensus.tex', 'Remotior Sensus Documentation',
    'Luca Congedo', 'manual'),
@@ -50,7 +47,13 @@ latex_documents = [
 latex_logo = '_static/logo.png'
 latex_use_parts = True
 latex_show_pagerefs = True
-
+latex_elements = {
+    'papersize': 'a4paper',
+    'sphinxsetup': """
+        pre_box-shadow=2pt 2pt,
+        pre_box-shadow-TeXcolor={RGB}{192,192,192},
+    """
+}
 # -- Options for manual page output ---------------------------------------
 
 man_pages = [

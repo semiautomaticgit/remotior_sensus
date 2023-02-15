@@ -34,6 +34,27 @@ from remotior_sensus.core.processor_functions import (
 from remotior_sensus.util import files_directories
 
 
+# create product table and preprocess
+def preprocess(
+        input_path, output_directory_path, metadata_file_path=None,
+        product=None, nodata_value=None, sensor=None, acquisition_date=None,
+        dos1_correction=False, output_prefix='', n_processes: int = None,
+        available_ram: int = None, progress_message=True
+):
+    table = create_product_table(
+        input_path=input_path, metadata_file_path=metadata_file_path,
+        product=product, nodata_value=nodata_value, sensor=sensor,
+        acquisition_date=acquisition_date
+    )
+    output = perform_preprocess(
+        product_table=table, output_directory_path=output_directory_path,
+        dos1_correction=dos1_correction, output_prefix=output_prefix,
+        n_processes=n_processes, available_ram=available_ram,
+        progress_message=progress_message
+    )
+    return output
+
+
 # preprocess products
 def perform_preprocess(
         product_table, output_directory_path, dos1_correction=False,
@@ -48,12 +69,12 @@ def perform_preprocess(
     surface temperature retrieval from LANDSAT TM 5. Remote Sensing of
     Environment, Elsevier, 90, 434-440)  approximating path radiance
     to path reflectance for level 1 data:
-    TOA reflectance λ = DN * reflectance_scale + reflectance_offset
+    TOA reflectance = DN * reflectance_scale + reflectance_offset
     path reflectance p =
-    DNmin_reflectance - Dark Object reflectance = DNm * reflectance_scale +
-    reflectance_offset - 0.01
-    land surface reflectance = λ - p = (DN * reflectance_scale) - (DNm *
-    reflectance_scale - 0.01)
+        DNmin_reflectance - Dark Object reflectance = DNm * reflectance_scale +
+        reflectance_offset - 0.01
+    land surface reflectance = TOA reflectance - p =
+        (DN * reflectance_scale) - (DNm * reflectance_scale - 0.01)
 
     Landsat's data Collection 1 and 2
     Level 1T
@@ -123,8 +144,8 @@ def perform_preprocess(
                 sentinel_product.processing_level != 'level-2a']
             # calculate DOS1 corrected reflectance approximating path
             # radiance to path reflectance
-            # land surface reflectance = λ - p = (DN * reflectance_scale) -
-            # (DNm * reflectance_scale - 0.01)
+            # land surface reflectance = TOA reflectance - p =
+            # (DN * reflectance_scale) - (DNm * reflectance_scale - 0.01)
             # raster and dnm are variables in the calculation
             string_1 = np.char.add(
                 'np.clip(( %s * ' % cfg.array_function_placeholder,
@@ -179,7 +200,9 @@ def perform_preprocess(
             output_datatype.extend([cfg.uint16_dt] * len(sentinel_product))
             scale_list.extend([0.0001] * len(sentinel_product))
             offset_list.extend([0] * len(sentinel_product))
-            output_nodata.extend([cfg.nodata_val_UInt16] * len(sentinel_product))
+            output_nodata.extend(
+                [cfg.nodata_val_UInt16] * len(sentinel_product)
+            )
     # Landsat
     elif len(landsat_product) > 0:
         # temperature
@@ -262,8 +285,8 @@ def perform_preprocess(
                 (landsat_product.k1 == 0)]
             # calculate DOS1 corrected reflectance approximating path
             # radiance to path reflectance
-            # land surface reflectance = λ - p = (DN * reflectance_scale) -
-            #  (DNm * reflectance_scale - 0.01)
+            # land surface reflectance = TOA reflectance - p =
+            # (DN * reflectance_scale) - (DNm * reflectance_scale - 0.01)
             # raster and dnm are variables in the calculation
             string_1 = np.char.add(
                 'np.clip(( %s * ' % cfg.array_function_placeholder,
@@ -365,7 +388,9 @@ def perform_preprocess(
             output_datatype.extend([cfg.uint16_dt] * len(landsat_product))
             scale_list.extend([0.0001] * len(landsat_product))
             offset_list.extend([0] * len(landsat_product))
-            output_nodata.extend([cfg.nodata_val_UInt16] * len(landsat_product))
+            output_nodata.extend(
+                [cfg.nodata_val_UInt16] * len(landsat_product)
+            )
     files_directories.create_directory(output_directory_path)
     # conversion
     if dos1_correction:
@@ -375,7 +400,7 @@ def perform_preprocess(
             use_value_as_nodata=dos1_nodata_list, n_processes=n_processes,
             available_ram=available_ram, keep_output_argument=True,
             progress_message='unique values', min_progress=1, max_progress=30
-            )
+        )
         cfg.multiprocess.find_minimum_dn()
         min_dn = cfg.multiprocess.output
         for i in range(len(dos1_expressions)):
@@ -394,7 +419,7 @@ def perform_preprocess(
         compress=cfg.raster_compression, n_processes=n_processes,
         available_ram=available_ram, scale=scale_list, offset=offset_list,
         progress_message='processing', min_progress=30, max_progress=99
-        )
+    )
     if len(output_raster_path_list) == 0:
         cfg.logger.log.error('unable to process files')
         messages.error('unable to process files')
@@ -409,14 +434,13 @@ def perform_preprocess(
     cfg.logger.log.info(
         'end; preprocess products: %s' % str(output_raster_path_list)
     )
-    return OutputManager()
+    return OutputManager(paths=output_raster_path_list)
 
 
 # create product table
 def create_product_table(
         input_path, metadata_file_path=None, product=None, nodata_value=None,
-        sensor=None,
-        acquisition_date=None
+        sensor=None, acquisition_date=None
 ):
     band_names = []
     band_number_list = []

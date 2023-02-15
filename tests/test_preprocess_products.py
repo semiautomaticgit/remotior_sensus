@@ -48,10 +48,17 @@ class TestPreprocessProducts(TestCase):
         )
         out_4 = rs.preprocess_products.perform_preprocess(
             product_table=table3,
-            output_directory_path=cfg.temp.dir + '/test_3',
+            output_directory_path=cfg.temp.dir + '/test_4',
             dos1_correction=True
             )
         self.assertTrue(out_4.check)
+        out_5 = rs.preprocess_products.preprocess(
+            input_path='data/L8_2020-01-01',
+            metadata_file_path='data/files/landsat_5_metadata_mtl.xml',
+            output_directory_path=cfg.temp.dir + '/test_5',
+            dos1_correction=True
+            )
+        self.assertTrue(out_5.check)
 
         # clear temporary directory
         rs.close()

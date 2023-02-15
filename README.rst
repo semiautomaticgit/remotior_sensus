@@ -113,4 +113,4 @@ _____________
 For more information and tutorials visit the official site
 
     `From GIS to Remote Sensing
-    <https://fromgistors.blogspot.com/p/remotior_sensus.html>`_
+    <https://fromgistors.blogspot.com/p/remotior-sensus.html>`_

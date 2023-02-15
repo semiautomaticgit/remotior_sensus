@@ -32,7 +32,7 @@ Typical usage example:
     >>> file_list = ['file_1.tif', 'file_2.tif', 'file_3.tif']
     >>> # create BandSet Catalog
     >>> catalog = rs.bandset_catalog()
-    >>> catalog.create_bandset(file_list)
+    >>> catalog.create_bandset(paths=file_list)
     >>> # for instance get BandSet count
     >>> print(catalog.get_bandset_count())
     1
@@ -418,7 +418,8 @@ class BandSetCatalog(object):
                 >>> bandset_date = '2021-01-01'
                 >>> data_directory = 'data'
                 >>> bandset = catalog.create_bandset(
-                ... file_list,wavelengths=['Sentinel-2'], date=bandset_date, root_directory=data_directory
+                ... paths=file_list, wavelengths=['Sentinel-2'], date=bandset_date, 
+                ... root_directory=data_directory
                 ... )
 
             Create a new BandSet from a file list with files inside a data directory (setting root_directory), defining the BandSet date, and explicitly defining the BandSet number.
@@ -427,8 +428,8 @@ class BandSetCatalog(object):
                 >>> bandset_date = '2021-01-01'
                 >>> data_directory = 'data'
                 >>> bandset = catalog.create_bandset(
-                ... file_list,wavelengths=['Sentinel-2'], date=bandset_date, bandset_number=2,
-                ... root_directory=data_directory
+                ... paths=file_list, wavelengths=['Sentinel-2'], date=bandset_date, 
+                ... bandset_number=2, root_directory=data_directory
                 ... )
         """  # noqa: E501
         cfg.logger.log.debug('start')

@@ -98,9 +98,9 @@ class Progress(object):
             if progress_time is None or progress_time > cfg.refresh_time:
                 self.previous_step_time = step_time
 
-    # print progress
+    # print progress always in a new line
     @staticmethod
-    def print_progress(
+    def print_progress_new_line(
             process=None, step=None, message=None, percentage=None,
             elapsed_time=None, progress_time=None, previous_step=None
     ):
@@ -152,6 +152,60 @@ class Progress(object):
             except Exception as err:
                 str(err)
                 print(str(process))
+
+    # print progress
+    @staticmethod
+    def print_progress(
+            process=None, step=None, message=None, percentage=None,
+            elapsed_time=None, progress_time=None, previous_step=None
+    ):
+        progress_symbols = ['○', '◔', '◑', '◕', '⬤', '⚙']
+        if not percentage and percentage is not None:
+            percentage = -25
+        if elapsed_time is not None:
+            e_time = (' [elapsed {}min{}sec]'.format(
+                int(elapsed_time / 60), str(
+                    int(
+                        60 * (
+                                (elapsed_time / 60) - int(elapsed_time / 60))
+                        )
+                    ).rjust(
+                    2, '0'
+                )
+            ))
+            if previous_step < step:
+                try:
+                    remaining_time = (
+                            (100 - int(step)) * elapsed_time / int(step))
+                    minutes = int(remaining_time / 60)
+                    seconds = round(
+                        60 * ((remaining_time / 60) - int(remaining_time / 60))
+                    )
+                    if seconds == 60:
+                        seconds = 0
+                        minutes += 1
+                    remaining = ' [remaining {}min{}sec]'.format(
+                        minutes, str(seconds).rjust(2, '0')
+                    )
+                    Progress.remaining = remaining
+                except Exception as err:
+                    str(err)
+                    remaining = ''
+            else:
+                remaining = Progress.remaining
+        else:
+            e_time = ''
+            remaining = ''
+        if progress_time is None or progress_time > cfg.refresh_time:
+            try:
+                print(
+                    '\r{} [{}%]{}{}:{} {}'.format(
+                        process, str(step).rjust(3, ' '), e_time, remaining,
+                        message, progress_symbols[int(percentage / 25)]
+                    ), end='\x1b[K')
+            except Exception as err:
+                str(err)
+                print('\r' + str(process), end='\x1b[K')
 
     # get progress
     def get(self):

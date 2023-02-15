@@ -15,7 +15,7 @@ class TestBandCalc(TestCase):
         cfg.logger.log.debug('test')
         catalog = rs.bandset_catalog()
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
-                     'S2_2020-01-01/S2_B04.tif']
+                     'S2_2020-01-01/S2_B04.tif', 'S2_2020-01-01/S2_B08.tif']
         date = '2021-01-01'
         root_directory = './data'
         catalog.create_bandset(
@@ -399,6 +399,35 @@ class TestBandCalc(TestCase):
             input_name_list=name_list, bandset_catalog=catalog
         )
         self.assertGreater(catalog.get_band_count(1), band_count)
+        self.assertTrue(output.check)
+        self.assertTrue(files_directories.is_file(output.paths[0]))
+        # bandset calculation
+        expression = (
+                cfg.variable_band_quotes + cfg.variable_bandset_name
+                + cfg.variable_current_bandset + cfg.variable_band_name + '1'
+                + cfg.variable_band_quotes
+        )
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        output = rs.band_calc(
+            output_path=temp, expression_string=expression,
+            bandset_catalog=catalog
+        )
+        self.assertTrue(output.check)
+        self.assertTrue(files_directories.is_file(output.paths[0]))
+        # NDVI calculation
+        expression = (
+                '(' + cfg.variable_band_quotes + cfg.variable_nir_name
+                + cfg.variable_band_quotes + ' - ' + cfg.variable_band_quotes
+                + cfg.variable_red_name + cfg.variable_band_quotes + ') / ('
+                + cfg.variable_band_quotes + cfg.variable_nir_name
+                + cfg.variable_band_quotes + ' + ' + cfg.variable_band_quotes
+                + cfg.variable_red_name + cfg.variable_band_quotes + ')'
+        )
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        output = rs.band_calc(
+            output_path=temp, expression_string=expression,
+            bandset_catalog=catalog
+        )
         self.assertTrue(output.check)
         self.assertTrue(files_directories.is_file(output.paths[0]))
 

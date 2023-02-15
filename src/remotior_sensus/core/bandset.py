@@ -1,4 +1,4 @@
-# Remotior Sensus , software to process remote sensing and GIS data.
+# Remotior Se13:30nsus , software to process remote sensing and GIS data.
 # Copyright (C) 2022-2023 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com

@@ -9,7 +9,7 @@ authors = [
   { name="Luca Congedo", email="ing.congedoluca@gmail.com" },
 ]
 description = "Remotior Sensus is software to process remote sensing and GIS data"
-readme = "src/remotior_sensus/README.rst"
+readme = "README.rst"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",

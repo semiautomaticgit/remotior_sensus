@@ -43,12 +43,6 @@ from copy import deepcopy
 from typing import Union, Optional
 
 import numpy as np
-from sklearn import svm
-from sklearn.base import clone
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import StratifiedKFold
-from sklearn.multiclass import OneVsRestClassifier
-from sklearn.neural_network import MLPClassifier
 
 from remotior_sensus.core import configurations as cfg, messages
 from remotior_sensus.core.bandset import BandSet
@@ -68,6 +62,19 @@ from remotior_sensus.util import (
 try:
     import torch
     from remotior_sensus.util.pytorch_tools import train_pytorch_model
+except Exception as error:
+    try:
+        cfg.logger.log.error(str(error))
+    except Exception as error:
+        print(str(error))
+
+try:
+    from sklearn import svm
+    from sklearn.base import clone
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import StratifiedKFold
+    from sklearn.multiclass import OneVsRestClassifier
+    from sklearn.neural_network import MLPClassifier
 except Exception as error:
     try:
         cfg.logger.log.error(str(error))

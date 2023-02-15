@@ -49,7 +49,8 @@ from remotior_sensus.util import (
 
 # perform band calc
 def band_calc(
-        input_raster_list: list, output_path: str, expression_string: str,
+        output_path: str, expression_string: str,
+        input_raster_list: Optional[list] = None,
         input_name_list: Optional[list] = None,
         n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,

@@ -29,14 +29,14 @@ class TestDownloadProducts(TestCase):
         self.assertEqual(product_table['product'][0], cfg.sentinel2)
         # export download links Sentinel-2
         cfg.logger.log.debug('>>> test export download links Sentinel-2')
-        output_manager = rs.download_products.download_sentinel2_images(
+        output_manager = rs.download_products.download(
             product_table=product_table,
             output_directory=cfg.temp.dir, exporter=True
             )
         self.assertTrue(files_directories.is_file(output_manager.path))
         # download Sentinel-2 bands
         cfg.logger.log.debug('>>> test download Sentinel-2 bands')
-        output_manager = rs.download_products.download_sentinel2_images(
+        output_manager = rs.download_products.download(
             product_table=product_table[product_table['cloud_cover'] < 10],
             output_directory=cfg.temp.dir + '/test_1',
             band_list=['01']
@@ -44,7 +44,7 @@ class TestDownloadProducts(TestCase):
         self.assertTrue(files_directories.is_file(output_manager.paths[0]))
         # download Sentinel-2 virtual bands
         cfg.logger.log.debug('>>> test download sentinel-2 virtual bands')
-        output_manager = rs.download_products.download_sentinel2_images(
+        output_manager = rs.download_products.download(
             product_table=product_table[product_table['cloud_cover'] < 10],
             output_directory=cfg.temp.dir + '/test_2',
             band_list=['01'], virtual_download=True
@@ -54,7 +54,7 @@ class TestDownloadProducts(TestCase):
         cfg.logger.log.debug(
             '>>> test download sentinel-2 virtual bands with subset'
             )
-        output_manager = rs.download_products.download_sentinel2_images(
+        output_manager = rs.download_products.download(
             product_table=product_table[product_table['cloud_cover'] < 10],
             output_directory=cfg.temp.dir + '/test_3',
             band_list=['01'], virtual_download=True,
@@ -72,7 +72,7 @@ class TestDownloadProducts(TestCase):
         self.assertEqual(product_table_2['product'][0], cfg.sentinel2_hls)
         # export download links HLS
         cfg.logger.log.debug('>>> test export download links HLS')
-        output_manager = rs.download_products.download_hls_images(
+        output_manager = rs.download_products.download(
             product_table=product_table_2, output_directory=cfg.temp.dir,
             exporter=True
         )
@@ -80,7 +80,7 @@ class TestDownloadProducts(TestCase):
         ''' user and password required
         # download HLS bands
         cfg.logger.log.debug('>>> test download HLS bands')
-        output_manager = download_products.download_hls_images(
+        output_manager = download_products.download_sentinel2_images(
             product_table=product_table_2[product_table_2['cloud_cover'] < 10],
             output_directory=cfg.temp.dir + '/test_4', band_list=['01'], 
             user='', password='')

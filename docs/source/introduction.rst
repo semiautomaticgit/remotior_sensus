@@ -29,9 +29,9 @@ The main features are:
 
 - **Search and Download** of remote sensing data such as Landsat and Sentinel-2.
 - **Preprocessing** of several products such as Landsat and Sentinel-2 images.
-- **Processing and postprocessing** tools to perform image classification
-through machine learning, manage GIS data and perform spatial analyses.
+- **Processing and postprocessing** tools to perform image classification through machine learning, manage GIS data and perform spatial analyses.
 - **Parallel processing** available for most processing tools.
+
 
 ``WARNING: Remotior Sensus is still in early development;
 new tools are going to be added, tools and APIs may change,
@@ -110,6 +110,6 @@ _____________
 For more information and tutorials visit the official site
 
     |fromGIStoRS| `From GIS to Remote Sensing
-    <https://fromgistors.blogspot.com/p/remotior_sensus.html>`_
+    <https://fromgistors.blogspot.com/p/remotior-sensus.html>`_
 
 
