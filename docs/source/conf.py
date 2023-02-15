@@ -51,7 +51,6 @@ latex_elements = {
     'papersize': 'a4paper',
     'sphinxsetup': """
         pre_box-shadow=2pt 2pt,
-        pre_box-shadow-TeXcolor={RGB}{192,192,192},
     """
 }
 # -- Options for manual page output ---------------------------------------
