@@ -102,7 +102,7 @@ def raster_report(
     )
     # save combination to table
     read_write_files.write_file(table, output_path)
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end; raster report: %s' % output_path)
     return OutputManager(path=output_path)
 

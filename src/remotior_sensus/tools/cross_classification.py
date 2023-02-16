@@ -210,7 +210,7 @@ def cross_classification(
             compress=cfg.raster_compression, compress_format='LZW',
             constant_value=slope
         )
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info(
         'end; cross classification: %s; table: %s'
         % (str(out_path), str(tbl_out))

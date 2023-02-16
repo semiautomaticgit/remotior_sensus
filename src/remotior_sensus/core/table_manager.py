@@ -163,7 +163,7 @@ def _open_dbf(file_path, field_name_list=None, progress_message=True):
     rec_array = np.rec.fromarrays(array_ml.T, dtype=dtype_list)
     cfg.logger.log.info('end')
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     return rec_array
 
 
@@ -265,7 +265,7 @@ def _open_csv(
                 dtype_list.append((field_list[t], 'U64'))
     rec_array = np.rec.fromarrays(array_data.T, dtype=dtype_list)
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return rec_array
 
@@ -288,7 +288,7 @@ def join_matrices(
         r2postfix=matrix2_postfix, asrecarray=True, usemask=use_mask
     )
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return new_matrix
 
@@ -316,7 +316,7 @@ def join_tables(
         min_progress=min_progress, max_progress=max_progress
     )
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return cfg.multiprocess.output
 
@@ -508,7 +508,7 @@ def pivot_matrix(
                     pivot[output_column_list[d + 1][0]][v] = s
                     d += 1
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return pivot
 
@@ -543,7 +543,7 @@ def get_values(
             cfg.logger.log.error(str(err))
             return
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return values
 
@@ -636,7 +636,7 @@ def calculate(
     except Exception as err:
         cfg.logger.log.error(str(err))
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return matrix1
 
@@ -729,7 +729,7 @@ def calculate_multi(
         except Exception as err:
             cfg.logger.log.error(str(err))
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return matrix1
 
@@ -773,7 +773,7 @@ def redefine_matrix_columns(
             except Exception as err:
                 cfg.logger.log.error(str(err))
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     return matrix_f
 
 
@@ -895,7 +895,7 @@ def matrix_to_csv(
     with open(output_path, 'w') as file:
         file.write(csv)
     if progress_message:
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
     cfg.logger.log.info('end')
 
 

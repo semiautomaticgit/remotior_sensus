@@ -163,7 +163,7 @@ def raster_reclassification(
         virtual_raster=vrt_r, progress_message='processing raster',
         min_progress=1, max_progress=99
     )
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end; band reclassification: %s' % str(out_path))
     return OutputManager(path=out_path)
 
@@ -210,7 +210,7 @@ def unique_values_table(
         matrix=table, input_field_names=[cfg.old_value, cfg.new_value],
         output_field_names=[cfg.old_value, cfg.new_value]
     )
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.debug('end')
     return table
 

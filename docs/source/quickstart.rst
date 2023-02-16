@@ -98,7 +98,7 @@ bands or single band rasters.
 A new raster file is created as result of calculation.
 
 It is possible to perform a calculation between raster files using custom expression.
-The following executes the summ between two files.
+The following executes the sum between two files.
 The arguments `input_raster_list` defines the path of the input files,
 and `input_name_list` defines the variable names used in expression corresponding
 to input raster files.

@@ -36,7 +36,7 @@ from remotior_sensus.util import files_directories
 
 # create product table and preprocess
 def preprocess(
-        input_path, output_directory_path, metadata_file_path=None,
+        input_path, output_path, metadata_file_path=None,
         product=None, nodata_value=None, sensor=None, acquisition_date=None,
         dos1_correction=False, output_prefix='', n_processes: int = None,
         available_ram: int = None, progress_message=True
@@ -47,17 +47,17 @@ def preprocess(
         acquisition_date=acquisition_date
     )
     output = perform_preprocess(
-        product_table=table, output_directory_path=output_directory_path,
+        product_table=table, output_path=output_path,
         dos1_correction=dos1_correction, output_prefix=output_prefix,
         n_processes=n_processes, available_ram=available_ram,
         progress_message=progress_message
-    )
+        )
     return output
 
 
 # preprocess products
 def perform_preprocess(
-        product_table, output_directory_path, dos1_correction=False,
+        product_table, output_path, dos1_correction=False,
         output_prefix='', n_processes: int = None, available_ram: int = None,
         progress_message=True
 ) -> OutputManager:
@@ -70,9 +70,8 @@ def perform_preprocess(
     Environment, Elsevier, 90, 434-440)  approximating path radiance
     to path reflectance for level 1 data:
     TOA reflectance = DN * reflectance_scale + reflectance_offset
-    path reflectance p =
-        DNmin_reflectance - Dark Object reflectance = DNm * reflectance_scale +
-        reflectance_offset - 0.01
+    path reflectance p = DNm - Dark Object reflectance =
+        DNm * reflectance_scale + reflectance_offset - 0.01
     land surface reflectance = TOA reflectance - p =
         (DN * reflectance_scale) - (DNm * reflectance_scale - 0.01)
 
@@ -98,7 +97,7 @@ def perform_preprocess(
 
     Args:
         product_table:
-        output_directory_path:
+        output_path:
         dos1_correction:
         output_prefix:
         n_processes:
@@ -161,7 +160,7 @@ def perform_preprocess(
             input_dos1_list.extend(sentinel_product_2a.product_path.tolist())
             # output raster list
             output_string_1 = np.char.add(
-                '%s/%s' % (output_directory_path, output_prefix),
+                '%s/%s' % (output_path, output_prefix),
                 sentinel_product_2a.band_name
             )
             output_raster_path_list.extend(
@@ -189,7 +188,7 @@ def perform_preprocess(
             input_list.extend(sentinel_product.product_path.tolist())
             # output raster list
             output_string_1 = np.char.add(
-                '%s/%s' % (output_directory_path, output_prefix),
+                '%s/%s' % (output_path, output_prefix),
                 sentinel_product.band_name
             )
             output_raster_path_list.extend(
@@ -238,7 +237,7 @@ def perform_preprocess(
         )
         # output raster list
         output_string_temperature_1 = np.char.add(
-            '%s/%s' % (output_directory_path, output_prefix),
+            '%s/%s' % (output_path, output_prefix),
             landsat_temperature_product.band_name
         )
         output_raster_path_list.extend(
@@ -270,7 +269,7 @@ def perform_preprocess(
         )
         # output raster list
         output_string_temperature_10 = np.char.add(
-            '%s/%s' % (output_directory_path, output_prefix),
+            '%s/%s' % (output_path, output_prefix),
             landsat_temperature_product_10.band_name
         )
         output_raster_path_list.extend(
@@ -302,7 +301,7 @@ def perform_preprocess(
             input_dos1_list.extend(landsat_product_l1.product_path.tolist())
             # output raster list
             output_string_1 = np.char.add(
-                '%s/%s' % (output_directory_path, output_prefix),
+                '%s/%s' % (output_path, output_prefix),
                 landsat_product_l1.band_name
             )
             output_raster_path_list.extend(
@@ -344,7 +343,7 @@ def perform_preprocess(
             input_list.extend(landsat_1_product.product_path.tolist())
             # output raster list
             output_string_1 = np.char.add(
-                '%s/%s' % (output_directory_path, output_prefix),
+                '%s/%s' % (output_path, output_prefix),
                 landsat_1_product.band_name
             )
             output_raster_path_list.extend(
@@ -377,7 +376,7 @@ def perform_preprocess(
             input_list.extend(landsat_2_product.product_path.tolist())
             # output raster list
             output_string_2 = np.char.add(
-                '%s/%s' % (output_directory_path, output_prefix),
+                '%s/%s' % (output_path, output_prefix),
                 landsat_2_product.band_name
             )
             output_raster_path_list.extend(
@@ -391,7 +390,7 @@ def perform_preprocess(
             output_nodata.extend(
                 [cfg.nodata_val_UInt16] * len(landsat_product)
             )
-    files_directories.create_directory(output_directory_path)
+    files_directories.create_directory(output_path)
     # conversion
     if dos1_correction:
         cfg.multiprocess.run_separated(
@@ -430,7 +429,7 @@ def perform_preprocess(
                 cfg.logger.log.error('unable to process file: %s' % str(i))
                 messages.error('unable to process file: %s' % str(i))
                 return OutputManager(check=False)
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info(
         'end; preprocess products: %s' % str(output_raster_path_list)
     )

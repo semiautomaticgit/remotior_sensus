@@ -159,6 +159,6 @@ def band_neighbor_pixels(
             max_progress=min_p + max_p * (n + 1)
         )
         n += 1
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end; neighbor pixel: %s' % str(output_list))
     return OutputManager(paths=output_list)

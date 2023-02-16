@@ -297,7 +297,7 @@ def band_combination(
             )
         ).replace('\\', '/')
         read_write_files.write_file(table, tbl_out)
-        cfg.progress.update(message='completed', step=100, percentage=False)
+        cfg.progress.update(end=True)
         cfg.logger.log.info(
             'end; band combination: %s; table: %s'
             % (str(out_path), str(tbl_out))

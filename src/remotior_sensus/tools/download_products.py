@@ -31,7 +31,34 @@ from remotior_sensus.util import download_tools, raster_vector, \
     files_directories, dates_times, read_write_files
 
 
-# Query Sentinel-2 database
+def search(
+        product, date_from, date_to, max_cloud_cover=100, result_number=50,
+        name_filter=None, coordinate_list=None, progress_message=True,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+) -> OutputManager:
+    """Perform the query of image databases.
+    
+    It allows for the search of image products, currently Landsat and Sentinel-2.
+    """  # noqa: E501
+    result = OutputManager(check=False)
+    if product == cfg.sentinel2:
+        result = query_sentinel_2_database(
+            date_from=date_from, date_to=date_to,
+            max_cloud_cover=max_cloud_cover,
+            result_number=result_number, name_filter=name_filter,
+            coordinate_list=coordinate_list, progress_message=progress_message)
+    elif product == cfg.landsat_hls or product == cfg.sentinel2_hls:
+        result = query_nasa_cmr(
+            product=product, date_from=date_from, date_to=date_to,
+            max_cloud_cover=max_cloud_cover, result_number=result_number,
+            name_filter=name_filter, coordinate_list=coordinate_list,
+            progress_message=progress_message,  proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
+        )
+    return result
+
+
 def query_sentinel_2_database(
         date_from, date_to, max_cloud_cover=100, result_number=50,
         name_filter=None, coordinate_list=None, progress_message=True
@@ -392,9 +419,7 @@ def query_sentinel_2_database(
             cfg.logger.log.error('error: search failed')
             messages.error('error: search failed')
             return OutputManager(check=False)
-    cfg.progress.update(
-        message='completed', step=100, percentage=False
-    )
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return OutputManager(
         extra={
@@ -405,9 +430,8 @@ def query_sentinel_2_database(
     )
 
 
-# download products
 def download(
-        product_table, output_directory, exporter=False, band_list=None,
+        product_table, output_path, exporter=False, band_list=None,
         virtual_download=False, extent_coordinate_list=None, proxy_host=None,
         proxy_port=None, proxy_user=None, proxy_password=None,
         authentication_uri=None, user=None, password=None, progress=True
@@ -423,7 +447,7 @@ def download(
 
     Args:
         product_table:
-        output_directory:
+        output_path:
         exporter:
         band_list:
         virtual_download: if True create a virtual raster of the linked image
@@ -458,7 +482,7 @@ def download(
             # download ancillary data MSI, TL and cloud mask GML
             if image_name[0:4] == 'L1C_':
                 base_output_dir = '%s/%s_%s' % (
-                    output_directory, image_name, str(acquisition_date))
+                    output_path, image_name, str(acquisition_date))
                 metadata_msi = base_output_dir + '/MTD_MSIL1C.xml'
                 metadata_tl = base_output_dir + '/MTD_TL.xml'
                 cloud_mask_gml = base_output_dir + '/MSK_CLOUDS_B00.gml'
@@ -475,7 +499,7 @@ def download(
                         base_url, image_name)
             elif image_name[0:4] == 'L2A_':
                 base_output_dir = '%s/%s_%s' % (
-                    output_directory, image_name, str(acquisition_date))
+                    output_path, image_name, str(acquisition_date))
                 metadata_msi = base_output_dir + '/MTD_MSIL2A.xml'
                 metadata_tl = base_output_dir + '/MTD_TL.xml'
                 cloud_mask_gml = base_output_dir + '/MSK_CLOUDS_B00.gml'
@@ -493,7 +517,7 @@ def download(
             # old structure version
             else:
                 base_output_dir = '%s/%s_%s' % (
-                    output_directory, image_name[0:-7], str(acquisition_date))
+                    output_path, image_name[0:-7], str(acquisition_date))
                 metadata_msi = base_output_dir + '/MTD_SAFL1C.xml'
                 metadata_tl = base_output_dir + '_MTD_L1C.xml'
                 cloud_mask_gml = base_output_dir + 'MSK_CLOUDS_B00.gml'
@@ -548,17 +572,14 @@ def download(
             for band in band_list:
                 _check_sentinel_2_bands(
                     band_number=band, product_name=product_name,
-                    image_name=image_name,
-                    output_directory=base_output_dir,
-                    output_list=output_file_list,
-                    exporter=exporter, progress=True,
-                    virtual_download=virtual_download,
+                    image_name=image_name, output_path=base_output_dir,
+                    output_list=output_file_list, exporter=exporter,
+                    progress=progress, virtual_download=virtual_download,
                     extent_coordinate_list=extent_coordinate_list,
-                    proxy_host=proxy_host,
-                    proxy_port=proxy_port, proxy_user=proxy_user,
-                    proxy_password=proxy_password,
+                    proxy_host=proxy_host, proxy_port=proxy_port,
+                    proxy_user=proxy_user, proxy_password=proxy_password,
                     min_progress=min_progress, max_progress=max_progress
-                )
+                    )
                 min_progress += progress_step
                 max_progress += progress_step
         elif (product_table['product'][i] == cfg.sentinel2_hls
@@ -580,7 +601,7 @@ def download(
                 product_url = '%s/HLSL30.020/%s/%s' % (
                     top_url, image_name, image_name)
             base_output_dir = '%s/%s_%s' % (
-                output_directory, product_name.replace('.', '_'),
+                output_path, product_name.replace('.', '_'),
                 str(acquisition_date))
             output_directory_list.append(base_output_dir)
             # download bands
@@ -591,7 +612,7 @@ def download(
                     output_file_list.append(url)
                 else:
                     output_file = '%s/%s_B%s%s' % (
-                        output_directory, product_name.replace('.', '_'),
+                        output_path, product_name.replace('.', '_'),
                         str(band).zfill(2), cfg.tif_suffix)
                     download_tools.download_file(
                         url=url, output_path=output_file,
@@ -621,7 +642,7 @@ def download(
 
     if exporter:
         output_csv_file = '%s/links%s%s' % (
-            output_directory, dates_times.get_time_string(), cfg.csv_suffix)
+            output_path, dates_times.get_time_string(), cfg.csv_suffix)
         text = cfg.new_line.join(output_file_list)
         read_write_files.write_file(data=text, output_path=output_csv_file)
         return OutputManager(path=output_csv_file)
@@ -632,19 +653,20 @@ def download(
         )
 
 
-# check and download Sentinel-2 bands using the service
-# https://storage.googleapis.com/gcp-public-data-sentinel-2
 def _check_sentinel_2_bands(
-        band_number, product_name, image_name, output_directory,
+        band_number, product_name, image_name, output_path,
         output_list=None, exporter=False, progress=True,
         virtual_download=False, extent_coordinate_list=None,
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
         min_progress=0, max_progress=100
 ):
-    """
-    :param extent_coordinate_list: list of coordinates for defining a subset
-        region [left, top, right, bottom]
-    """
+    """Checks and download Sentinel-2 bands.
+    
+    Checks and download Sentinel-2 bands using the service https://storage.googleapis.com/gcp-public-data-sentinel-2 .
+    
+        Args:
+        extent_coordinate_list: list of coordinates for defining a subset region [left, top, right, bottom]
+    """  # noqa: E501
     top_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
     if image_name[0:4] == 'L1C_':
         band_url = ''.join(
@@ -655,7 +677,7 @@ def _check_sentinel_2_bands(
              product_name.split('_')[2], '_B', band_number, '.jp2']
         )
         output_file = '%s/L1C_%s_B%s' % (
-            output_directory, image_name[4:], band_number)
+            output_path, image_name[4:], band_number)
     elif image_name[0:4] == 'L2A_':
         if band_number in ['02', '03', '04', '08']:
             band_url = ''.join(
@@ -666,7 +688,7 @@ def _check_sentinel_2_bands(
                  product_name.split('_')[2], '_B', band_number, '_10m.jp2']
             )
             output_file = '%s/%s_B%s' % (
-                output_directory, image_name[4:], band_number)
+                output_path, image_name[4:], band_number)
         elif band_number in ['05', '06', '07', '11', '12', '8A']:
             band_url = ''.join(
                 [top_url, '/L2/tiles/', product_name[39:41], '/',
@@ -676,7 +698,7 @@ def _check_sentinel_2_bands(
                  product_name.split('_')[2], '_B', band_number, '_20m.jp2']
             )
             output_file = '%s/%s_B%s' % (
-                output_directory, image_name[4:], band_number)
+                output_path, image_name[4:], band_number)
         elif band_number in ['01', '09']:
             band_url = ''.join(
                 [top_url, '/L2/tiles/', product_name[39:41], '/',
@@ -686,7 +708,7 @@ def _check_sentinel_2_bands(
                  product_name.split('_')[2], '_B', band_number, '_60m.jp2']
             )
             output_file = '%s/%s_B%s' % (
-                output_directory, image_name[4:], band_number)
+                output_path, image_name[4:], band_number)
         else:
             return
     else:
@@ -699,7 +721,7 @@ def _check_sentinel_2_bands(
              product_name.split('_')[2], '_B', band_number, '.jp2']
         )
         output_file = '%s/%s_B%s' % (
-            output_directory, image_name[0:-7], band_number)
+            output_path, image_name[0:-7], band_number)
     if exporter:
         output_list.append(band_url)
     else:
@@ -731,8 +753,8 @@ def _check_sentinel_2_bands(
             )
 
 
-# download virtual image
 def _download_virtual_image(url, output_path, extent_list=None):
+    """Downloads virtual image."""
     try:
         raster_vector.create_virtual_raster(
             input_raster_list=['/vsicurl/%s' % url], output=output_path,
@@ -744,13 +766,10 @@ def _download_virtual_image(url, output_path, extent_list=None):
         return False
 
 
-# Query NASA CMR
 def query_nasa_cmr(
         product, date_from, date_to, max_cloud_cover=100, result_number=50,
-        name_filter=None,
-        coordinate_list=None, progress_message=True, proxy_host=None,
-        proxy_port=None, proxy_user=None,
-        proxy_password=None
+        name_filter=None, coordinate_list=None, progress_message=True,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
 ) -> OutputManager:
     """Perform the query of NASA CMR.
 
@@ -919,9 +938,7 @@ def query_nasa_cmr(
                                     image=product_name
                                 )
                             )
-            cfg.progress.update(
-                message='completed', step=100, percentage=False
-            )
+            cfg.progress.update(end=True)
             cfg.logger.log.info('end')
             return OutputManager(
                 extra={

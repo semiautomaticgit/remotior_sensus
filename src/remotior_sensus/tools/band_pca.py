@@ -240,7 +240,7 @@ def band_pca(
                 cfg.logger.log.error('unable to process file: %s' % str(i))
                 messages.error('unable to process file: %s' % str(i))
                 return OutputManager(check=False)
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end; pca: %s' % str(output_raster_path_list))
     return OutputManager(paths=output_raster_path_list)
 

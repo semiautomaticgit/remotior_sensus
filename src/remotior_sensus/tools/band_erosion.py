@@ -118,6 +118,6 @@ def band_erosion(
             max_progress=min_p + max_p * (n + 1)
         )
         n += 1
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end; band erosion: %s' % output_list)
     return OutputManager(paths=output_list)

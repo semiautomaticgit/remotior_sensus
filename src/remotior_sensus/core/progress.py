@@ -55,10 +55,28 @@ class Progress(object):
     ):
         return cls(process, step, message, percentage, callback)
 
+    def finish(self):
+        """Ends progress and resets."""
+        if self.callback is not None:
+            self.callback(
+                process=self.process, message='finished', percentage=100,
+                elapsed_time=self.elapsed_time, step=100, previous_step=100
+            )
+        self.process = cfg.process
+        self.step = 0
+        self.message = cfg.message
+        self.percentage = False
+        self.callback = None
+        self.start_time = None
+        self.elapsed_time = None
+        self.previous_step_time = None
+        self.previous_step = 0
+        self.remaining = ''
+
     # update progress
     def update(
             self, process=None, step=None, message=None, percentage=None,
-            start=None, steps=None, minimum=None, maximum=None
+            start=None, end=None, steps=None, minimum=None, maximum=None
     ):
         if process is not None:
             self.process = str(process)
@@ -78,6 +96,9 @@ class Progress(object):
             self.start_time = datetime.datetime.now()
             self.previous_step = 0
             self.step = 0
+        if end:
+            self.finish()
+            return
         step_time = datetime.datetime.now()
         try:
             self.elapsed_time = (step_time - self.start_time).total_seconds()

@@ -209,6 +209,6 @@ def band_mosaic(
                 messages.error(str(err))
                 return OutputManager(check=False)
         n = n + 1
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end; mosaic: %s' % str(output_list))
     return OutputManager(paths=output_list)

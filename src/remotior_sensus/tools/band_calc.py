@@ -193,7 +193,7 @@ def band_calc(
         previous_output_list.append([output, out_name])
         cfg.logger.log.debug('output: %s' % output)
         n += 1
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end; band calc: %s', output_list)
     return OutputManager(paths=output_list)
 

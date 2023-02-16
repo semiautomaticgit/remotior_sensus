@@ -83,6 +83,6 @@ def raster_to_vector(
         dissolve_output=dissolve, min_progress=1, max_progress=100,
         available_ram=available_ram
     )
-    cfg.progress.update(message='completed', step=100, percentage=False)
+    cfg.progress.update(end=True)
     cfg.logger.log.info('end; output_path: %s' % output_path)
     return OutputManager(path=output_path)
