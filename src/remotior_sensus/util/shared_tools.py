@@ -36,6 +36,7 @@ def prepare_input_list(
         n_processes: int = None, src_nodata=None, dst_nodata=None
 ):
     cfg.logger.log.debug('start')
+    cfg.logger.log.debug('band_list: %s' % str(band_list))
     information_list = []
     nodata_list = []
     if reference_raster_crs is None:

@@ -1,4 +1,4 @@
-# Remotior Se13:30nsus , software to process remote sensing and GIS data.
+# Remotior Sensus , software to process remote sensing and GIS data.
 # Copyright (C) 2022-2023 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
@@ -43,7 +43,7 @@ Typical usage example:
     >>> date = '2020-01-01'
     >>> # create a BandSet
     >>> bandset = rs.bandset.create(
-    ... file_list,band_names=band_names,wavelengths=wavelengths,dates=date
+    ... file_list, band_names=band_names, wavelengths=wavelengths, dates=date
     ... )
     >>> # get list of absolute paths of bands
     >>> absolute_paths = bandset.get_absolute_paths()
@@ -61,6 +61,7 @@ Typical usage example:
 
 import random
 from typing import Union, Optional
+
 import numpy as np
 
 from remotior_sensus.core import (
@@ -436,9 +437,11 @@ class BandSet(object):
             file_list = paths.copy()
         # wavelength
         try:
-            if len(wavelengths) == 1:
+            if wavelengths is not None and len(wavelengths) == 1:
                 for sat in cfg.satWlList:
-                    if wavelengths[0].lower() in sat.lower():
+                    if (wavelengths[0].lower() in sat.lower()
+                            or wavelengths[0].lower().replace(' ', '')
+                            in sat.lower().replace(' ', '')):
                         satellite = sat
                         wavelengths = None
                         break

@@ -523,7 +523,7 @@ def create_virtual_raster(
         for i in input_raster_list:
             # raster extent and pixel size
             (gt, r_p, unit, xy_count, nd, number_of_bands, block_size,
-             scale_offset, dt) = raster_info(i)
+             scale_offset, dt) = raster_info(str(i))
             # check projections
             try:
                 if r_p is not None:

@@ -58,7 +58,7 @@ def relative_to_absolute_path(path, root=None):
     if root is None:
         a_path = path
     else:
-        a_path = os.path.join(root, path).replace('\\', '/')
+        a_path = os.path.join(root, path).replace('\\', '/').replace('//', '/')
     a = Path(a_path)
     p = Path(path)
     if a.is_dir() or a.is_file():
@@ -66,8 +66,8 @@ def relative_to_absolute_path(path, root=None):
     elif p.is_dir() or p.is_file():
         absolute = path
     else:
-        cfg.logger.log.error('path: %s' % path)
-        raise Exception(path)
+        absolute = a_path
+        cfg.logger.log.warning('file not found: %s' % path)
     cfg.logger.log.debug(
         'path:{}; root:{}; absolute:{}'.format(path, root, absolute)
     )

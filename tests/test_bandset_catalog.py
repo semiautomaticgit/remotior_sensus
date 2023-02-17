@@ -133,10 +133,12 @@ class TestBandSetCatalog(TestCase):
         band_1 = catalog.get_bandset(1).get_band_by_wavelength(wavelength=1)
         self.assertEqual(band_1.name, band_1_name)
         # get BandSet band from attribute
-        band_w = catalog.get_bandset_band_from_attribute(
+        band_w = catalog.get_bandset_bands_by_attribute(
             bandset_number=1, attribute='wavelength',
-            attribute_value=catalog.get(1).get(1).wavelength
-        )
+            attribute_value=catalog.get(
+                1
+                ).get(1).wavelength
+            )
         self.assertEqual(
             band_w[0].wavelength, catalog.get_bandset(1).get_band(1).wavelength
         )

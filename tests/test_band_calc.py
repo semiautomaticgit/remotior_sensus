@@ -281,10 +281,10 @@ class TestBandCalc(TestCase):
          swir_2_band) = catalog.get_bandset(1).spectral_range_bands(
             output_as_number=False
             )
-        band_number = catalog.get_bandset_band_from_attribute(
+        band_number = catalog.get_bandset_bands_by_attribute(
             1, 'wavelength', attribute_value=red_band.wavelength,
             output_number=True
-        )
+            )
         self.assertEqual(
             out_exp[0][0],
             'max(' + cfg.variable_band_quotes + cfg.variable_bandset_name + '1'

@@ -127,7 +127,7 @@ def band_calc(
             ... input_raster_list=['file1.tif', 'file2.tif'], output_path='output.tif',
             ... expression_string='"file1 + file2"', input_name_list=['file1', 'file2']
             ... )
-            >>> for instance print the output path
+            >>> # for instance display the output path
             >>> print(output_object.paths)
             ['output.tif']
             
@@ -433,12 +433,12 @@ def _band_names_alias(
                     band_names['%s%s%s' % (
                         cfg.variable_band_quotes, input_raster_list[i][1],
                         cfg.variable_band_quotes)
-                               ] = input_raster_list[i][0]
+                               ] = str(input_raster_list[i][0])
                 else:
                     band_names['%s%s%s' % (
                         cfg.variable_band_quotes, input_name_list[i],
                         cfg.variable_band_quotes)
-                               ] = input_raster_list[i]
+                               ] = str(input_raster_list[i])
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 messages.error(str(err))

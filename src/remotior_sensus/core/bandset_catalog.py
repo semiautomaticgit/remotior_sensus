@@ -295,7 +295,7 @@ class BandSetCatalog(object):
         cfg.logger.log.debug('bandset_number: %i' % bandset_number)
         return result
 
-    def get_bandset_band_from_attribute(
+    def get_bandset_bands_by_attribute(
             self, bandset_number: int, attribute: str,
             attribute_value: Union[float, int, str],
             output_number: Optional[bool] = False
@@ -318,17 +318,13 @@ class BandSetCatalog(object):
          Examples:
              Get the 'name' attribute of bands of the BandSet 1.
                  >>> catalog = BandSetCatalog()
-                 >>> band_number = catalog.get_bandset_band_from_attribute(
-                 ... bandset_number=1, attribute='wavelength',
-                 ... attribute_value=0.443, output_number=True)
+                 >>> band_number = catalog.get_bandset_bands_by_attribute(bandset_number=1,attribute='wavelength',attribute_value=0.443,output_number=True)
                  >>> print(band_number)
                  [2]
 
              Get the BandSet 1.
                  >>> catalog = BandSetCatalog()
-                 >>> band_x = catalog.get_bandset_band_from_attribute(
-                 ... bandset_number=1, attribute='wavelength',
-                 ... attribute_value=0.443, output_number=True)
+                 >>> band_x = catalog.get_bandset_bands_by_attribute(bandset_number=1,attribute='wavelength',attribute_value=0.443,output_number=True)
                  >>> print(band_x)
                  [(1, 1, '/data/file1.tif', '/data/file1.tif', 'file1', 0.443, 'µm (1 E-6m)', ...]
          """  # noqa: E501

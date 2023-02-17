@@ -70,10 +70,8 @@ def perform_preprocess(
     Environment, Elsevier, 90, 434-440)  approximating path radiance
     to path reflectance for level 1 data:
     TOA reflectance = DN * reflectance_scale + reflectance_offset
-    path reflectance p = DNm - Dark Object reflectance =
-        DNm * reflectance_scale + reflectance_offset - 0.01
-    land surface reflectance = TOA reflectance - p =
-        (DN * reflectance_scale) - (DNm * reflectance_scale - 0.01)
+    path reflectance p = DNm - Dark Object reflectance = DNm * reflectance_scale + reflectance_offset - 0.01
+    land surface reflectance = TOA reflectance - p = (DN * reflectance_scale) - (DNm * reflectance_scale - 0.01)
 
     Landsat's data Collection 1 and 2
     Level 1T
@@ -106,8 +104,7 @@ def perform_preprocess(
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager`
-
-    """
+    """  # noqa: E501
 
     if progress_message:
         cfg.logger.log.info('start')

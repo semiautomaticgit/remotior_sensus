@@ -80,7 +80,13 @@ For instance, get a band from the attribute center wavelength.
 
 .. code:: python
 
-    >>> band_number = catalog.get_bandset_band_from_attribute(
+    >>> band_number = catalog.get_bandset_bands_by_attribute(
+        ... bandset_number=1, attribute='wavelength',
+        ... attribute_value=0.443, output_number=True)
+        >>> print(band_number)
+        1
+
+    BandSets can be used in several tools.
     ... bandset_number=1, attribute='wavelength',
     ... attribute_value=0.443, output_number=True)
     >>> print(band_number)

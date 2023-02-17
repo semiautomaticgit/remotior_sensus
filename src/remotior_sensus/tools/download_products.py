@@ -731,6 +731,16 @@ def _check_sentinel_2_bands(
                 url=band_url, output_path=output_file,
                 extent_list=extent_coordinate_list
             )
+        elif extent_coordinate_list is not None:
+            vrt_file = cfg.temp.temporary_file_path(name_suffix='.vrt')
+            _download_virtual_image(
+                url=band_url, output_path=vrt_file,
+                extent_list=extent_coordinate_list
+            )
+            output_file += '.tif'
+            cfg.multiprocess.gdal_copy_raster(
+                vrt_file, output_file, 'GTiff', cfg.raster_compression, 'LZW'
+            )
         else:
             output_file += '.jp2'
             download_tools.download_file(
