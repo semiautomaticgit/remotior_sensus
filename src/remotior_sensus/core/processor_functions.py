@@ -729,19 +729,18 @@ def reclassify_raster(*argv):
                         exp = ('_o[%s] = %s' % (
                             function_argument[i][cfg.old_value].replace(
                                 function_variable, '_x'
-                            )),
-                               str(
-                                   int(
-                                       float(
-                                           function_argument[i][
-                                               cfg.new_value].lower().replace(
-                                               'np.nan', str(output_no_data)
-                                           ).replace(
-                                               'nan', str(output_no_data)
-                                           )
-                                       )
-                                   )
-                               )
+                            ),
+                            str(
+                                int(
+                                    float(
+                                        function_argument[i][
+                                            cfg.new_value].lower().replace(
+                                            'np.nan', str(output_no_data)
+                                        ).replace('nan', str(output_no_data))
+                                    )
+                                )
+                            )
+                        )
                                )
                         exec(exp)
                     except Exception as err:

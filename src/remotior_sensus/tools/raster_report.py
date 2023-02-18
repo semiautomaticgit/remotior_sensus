@@ -116,9 +116,9 @@ def _report_table(table, crs_unit, pixel_size_x, pixel_size_y):
     nl = cfg.new_line
     # table
     if 'degree' not in crs_unit:
-        output_field_names = ['RasterValue', 'PixelSum',
-                              'Area [%s^2]' % crs_unit, 'Percentage %']
-        input_field_names = ['new_val', 'sum', 'area', 'percentage']
+        output_field_names = ['RasterValue', 'PixelSum', 'Percentage %',
+                              'Area [%s^2]' % crs_unit]
+        input_field_names = ['new_val', 'sum', 'percentage', 'area']
         cross_class = tm.calculate_multi(
             matrix=table, expression_string_list=[
                 '"sum" * %s * %s' % (pixel_size_x, pixel_size_y),
@@ -127,12 +127,16 @@ def _report_table(table, crs_unit, pixel_size_x, pixel_size_y):
             progress_message=False
         )
     else:
-        output_field_names = ['RasterValue', 'PixelSum', 'Percentage %']
-        input_field_names = ['new_val', 'sum', 'percentage']
+        output_field_names = ['RasterValue', 'PixelSum', 'Percentage %',
+                              'Area not available']
+        input_field_names = ['new_val', 'sum', 'percentage', 'area']
+        # area is set to nan
         cross_class = tm.calculate_multi(
             matrix=table,
-            expression_string_list=['100 * "sum" / %s' % total_sum],
-            output_field_name_list=['percentage'], progress_message=False
+            expression_string_list=['100 * "sum" / %s' % total_sum,
+                                    'np.nan * "sum"'],
+            output_field_name_list=['percentage', 'area'],
+            progress_message=False
         )
     redefined = tm.redefine_matrix_columns(
         matrix=cross_class, input_field_names=input_field_names,

@@ -390,6 +390,7 @@ def perform_preprocess(
     files_directories.create_directory(output_path)
     # conversion
     if dos1_correction:
+        # get min dn values
         cfg.multiprocess.run_separated(
             raster_path_list=input_dos1_list,
             function=raster_unique_values_with_sum,

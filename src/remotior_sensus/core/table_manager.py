@@ -1140,17 +1140,18 @@ def create_band_table(
     ]
     if nodata is None:
         nodata = cfg.nodata_val_Int64
+    else:
+        try:
+            _array = np.array([nodata], dtype=int)
+        except Exception as err:
+            cfg.logger.log.error('%s; nodata: %s' % (err, nodata))
+            nodata = cfg.nodata_val_Int64
     if raster_band is None:
         raster_band = 1
     if scale is None:
         scale = 1
     if offset is None:
         offset = 0
-    try:
-        _array = np.array([nodata], dtype=int)
-    except Exception as err:
-        cfg.logger.log.error('%s; nodata: %s' % (err, nodata))
-        nodata = cfg.nodata_val_Int64
     try:
         rec_array = np.rec.fromrecords(
             [(band_number, raster_band, path, absolute_path, name,

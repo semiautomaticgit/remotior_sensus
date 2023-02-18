@@ -18,7 +18,7 @@
 """
 Raster reclassification.
 
-This tool allows for the reclassifcation of a raster based on
+This tool allows for the reclassification of a raster based on
 a reclassification table.
 
 Typical usage example:
@@ -217,7 +217,12 @@ def unique_values_table(
 
 def _list_to_reclassification_table(input_list):
     """# create reclassification table from list of values
-    [(old value, new value),  (old value, new value)]."""
+    [(old value, new value),  (old value, new value)].
+
+    configurations.variable_raster_name can be used as variable in old value
+    e.g.
+    raster > 0.3
+    """
     # table of values
     table = None
     dtype_list = [(cfg.old_value, 'U1024'), (cfg.new_value, 'U1024')]

@@ -31,7 +31,6 @@ class TestBandCombination(TestCase):
         table_f = read_write_files.format_csv_new_delimiter(
             table, cfg.tab_delimiter
             )
-        print('table_f', table_f)
         self.assertGreater(len(table_f), 0)
         cfg.logger.log.debug('>>> test band combination input BandSet number')
         combination = rs.band_combination(

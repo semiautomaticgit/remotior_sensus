@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 import remotior_sensus
+from remotior_sensus.core import progress
 from remotior_sensus.tools import band_calc
 from remotior_sensus.util import files_directories
 
@@ -9,7 +10,7 @@ class TestBandCalc(TestCase):
 
     def test_band_calc(self):
         rs = remotior_sensus.Session(
-            n_processes=2, available_ram=1000, log_level=10
+            n_processes=2, available_ram=1000, log_level=10,
         )
         cfg = rs.configurations
         cfg.logger.log.debug('test')

@@ -36,6 +36,12 @@ class TestRasterReclassification(TestCase):
             reclassification_table=[[1, -10], ['nan', 6000]]
             )
         self.assertTrue(files_directories.is_file(reclassification.path))
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        reclassification = rs.raster_reclassification(
+            raster_path=p, output_path=temp,
+            reclassification_table=[['raster <= 3000', 1], ['raster > 500', 2]]
+            )
+        self.assertTrue(files_directories.is_file(reclassification.path))
 
         # clear temporary directory
         rs.close()

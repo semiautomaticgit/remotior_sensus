@@ -110,7 +110,7 @@ class Session(object):
             self, n_processes: Optional[int] = 2, available_ram: int = 2048,
             temporary_directory: str = None,
             directory_prefix: str = None, log_level: int = 20,
-            log_time: bool = True, progress_callback: FunctionType = None
+            log_time: bool = True, progress_callback=None
     ):
         """Starts a session.
 
