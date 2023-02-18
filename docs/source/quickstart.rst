@@ -3,7 +3,7 @@ Quickstart
 
 .. raw:: html
 
-    <script src="https://gist.github.com/semiautomaticgit/38e4c942735e6cd58bc175840e320897.js"></script>
+    <script src="https://gist.github.com/semiautomaticgit/cd52dba7effc1d105f1883408710ff08.js"></script>
 
 Link to the guide:
-https://gist.github.com/semiautomaticgit/38e4c942735e6cd58bc175840e320897
+https://colab.research.google.com/gist/semiautomaticgit/cd52dba7effc1d105f1883408710ff08/quickstart.ipynb
