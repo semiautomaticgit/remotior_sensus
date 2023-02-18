@@ -124,9 +124,9 @@ class Progress(object):
             if progress_time is None or progress_time > cfg.refresh_time:
                 self.previous_step_time = step_time
 
-    # print progress
+    # print progress replacing line
     @staticmethod
-    def print_progress(
+    def print_progress_replace(
             process=None, step=None, message=None, percentage=None,
             elapsed_time=None, previous_step=None
     ):
@@ -180,7 +180,7 @@ class Progress(object):
 
     # print progress always in a new line
     @staticmethod
-    def print_progress_new_line(
+    def print_progress(
             process=None, step=None, message=None, percentage=None,
             elapsed_time=None, previous_step=None
     ):
