@@ -66,7 +66,6 @@ class Progress(object):
         self.step = 0
         self.message = cfg.message
         self.percentage = False
-        self.callback = None
         self.start_time = None
         self.elapsed_time = None
         self.previous_step_time = None

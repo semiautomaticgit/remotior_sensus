@@ -371,7 +371,8 @@ class BandSet(object):
 
         Args:
             name: BandSet name.
-            paths: list of file paths or a directory path.
+            paths: list of file paths or a string of directory path; also, a list of directory path 
+                and name filter is accepted.
             band_names: list of raster names used for identifying the bands, 
                 if None then the names are automatically extracted from file names.
             wavelengths: list of center wavelengths of bands or string of sensor names (also partial).
@@ -397,6 +398,9 @@ class BandSet(object):
                 >>> wavelength = [0.6, 0.7, 0.8]
                 >>> # create a BandSet
                 >>> bandset = rs.bandset.create(file,band_names=names,wavelengths=wavelength)
+                
+           Passing a directory with file name filter and the wavelenght from satellite name.
+                >>> bandset = rs.bandset.create(['directory_path', 'tif'], wavelengths='Sentinel-2')
         """  # noqa: E501
         cfg.logger.log.info('start')
         bandset_uid = cls.generate_uid()
@@ -411,14 +415,29 @@ class BandSet(object):
                     paths[0], root_directory
                 )
         ):
+            filters = None
             try:
-                filters = paths[1].strip("'").strip()
+                if len(paths) == 2:
+                    filters = paths[1].strip("'").strip()
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                filters = None
             file_list = files_directories.files_in_directory(
                 paths[0], sort_files=True, path_filter=filters,
                 root_directory=root_directory
+            )
+            # date from directory name
+            if dates is not None and type(dates) is not list:
+                if dates.lower() == cfg.date_auto:
+                    dates = dates_times.date_string_from_directory_name(
+                        paths[0]
+                    )
+        elif type(paths) is str and files_directories.is_directory(
+                files_directories.relative_to_absolute_path(
+                    paths, root_directory
+                )
+        ):
+            file_list = files_directories.files_in_directory(
+                paths, sort_files=True, root_directory=root_directory
             )
             # date from directory name
             if dates is not None and type(dates) is not list:

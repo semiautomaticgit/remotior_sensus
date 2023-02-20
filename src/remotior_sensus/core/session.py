@@ -165,7 +165,7 @@ class Session(object):
         # start progress
         progress = Progress()
         if progress_callback is None:
-            progress_callback = Progress.print_progress
+            progress_callback = Progress.print_progress_replace
         configurations.progress = progress.start(callback=progress_callback)
         system_tools.get_system_info()
         check = _check_dependencies(configurations)

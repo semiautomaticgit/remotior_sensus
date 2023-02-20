@@ -255,7 +255,7 @@ def query_sentinel_2_database(
             url=url, output_path=json_file, message='submitting request',
             progress=False
         )
-        cfg.progress.update(start=True)
+        #cfg.progress.update(start=True)
         if check:
             try:
                 with open(json_file) as json_search:
@@ -434,7 +434,8 @@ def download(
         product_table, output_path, exporter=False, band_list=None,
         virtual_download=False, extent_coordinate_list=None, proxy_host=None,
         proxy_port=None, proxy_user=None, proxy_password=None,
-        authentication_uri=None, user=None, password=None, progress=True
+        authentication_uri=None, user=None, password=None,
+        progress_message=True
 ) -> OutputManager:
     """Download products.
 
@@ -462,6 +463,12 @@ def download(
         object OutputManger
 
     """
+    cfg.logger.log.info('start')
+    if progress_message:
+        cfg.progress.update(
+            process=__name__.split('.')[-1].replace('_', ' '),
+            message='starting', start=True
+        )
     if band_list is None:
         band_list = cfg.satellites[cfg.satSentinel2][2]
     # list of output files
@@ -574,7 +581,8 @@ def download(
                     band_number=band, product_name=product_name,
                     image_name=image_name, output_path=base_output_dir,
                     output_list=output_file_list, exporter=exporter,
-                    progress=progress, virtual_download=virtual_download,
+                    progress=progress_message,
+                    virtual_download=virtual_download,
                     extent_coordinate_list=extent_coordinate_list,
                     proxy_host=proxy_host, proxy_port=proxy_port,
                     proxy_user=proxy_user, proxy_password=proxy_password,
@@ -620,7 +628,7 @@ def download(
                         user=user, password=password, proxy_host=proxy_host,
                         proxy_port=proxy_port,
                         proxy_user=proxy_user, proxy_password=proxy_password,
-                        progress=progress,
+                        progress=progress_message,
                         message='downloading band %s' % str(band),
                         min_progress=min_progress,
                         max_progress=max_progress
@@ -639,14 +647,17 @@ def download(
                         )
                 min_progress += progress_step
                 max_progress += progress_step
-
     if exporter:
         output_csv_file = '%s/links%s%s' % (
             output_path, dates_times.get_time_string(), cfg.csv_suffix)
         text = cfg.new_line.join(output_file_list)
         read_write_files.write_file(data=text, output_path=output_csv_file)
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
         return OutputManager(path=output_csv_file)
     else:
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
         return OutputManager(
             paths=output_file_list,
             extra={'directory_paths': output_directory_list}

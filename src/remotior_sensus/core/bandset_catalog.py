@@ -388,7 +388,8 @@ class BandSetCatalog(object):
         - nm (1 E-9m) nanometers.
 
         Args:
-            paths: list of file paths or a directory path.
+            paths: list of file paths or a string of directory path; also, a list of directory path 
+                and name filter is accepted.
             band_names: list of raster names used for identifying the bands, 
                 if None then the names are automatically extracted from file names.
             wavelengths: list of center wavelengths of bands or string of sensor names (also partial).
@@ -408,7 +409,7 @@ class BandSetCatalog(object):
             The created BandSet.
 
         Examples:
-            Create a first BandSet from a file list with files inside a data directory, setting root_directory, defining the BandSet date.
+            Create a first BandSet from a file list with files inside a data directory, setting root_directory, defining the BandSet date, and the wavelenght from satellite name.
                 >>> catalog = BandSetCatalog()
                 >>> file_list = ['file1.tif', 'file2.tif', 'file3.tif']
                 >>> bandset_date = '2021-01-01'
@@ -427,6 +428,9 @@ class BandSetCatalog(object):
                 ... paths=file_list, wavelengths=['Sentinel-2'], date=bandset_date, 
                 ... bandset_number=2, root_directory=data_directory
                 ... )
+                
+           Passing a directory with file name filter and the wavelenght from satellite name.
+                >>> bandset = catalog.create_bandset(['directory_path', 'tif'], wavelengths='Sentinel-2')
         """  # noqa: E501
         cfg.logger.log.debug('start')
         bst = BandSet.create(
