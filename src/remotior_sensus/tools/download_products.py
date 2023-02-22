@@ -46,13 +46,14 @@ def search(
             date_from=date_from, date_to=date_to,
             max_cloud_cover=max_cloud_cover,
             result_number=result_number, name_filter=name_filter,
-            coordinate_list=coordinate_list, progress_message=progress_message)
+            coordinate_list=coordinate_list, progress_message=progress_message
+        )
     elif product == cfg.landsat_hls or product == cfg.sentinel2_hls:
         result = query_nasa_cmr(
             product=product, date_from=date_from, date_to=date_to,
             max_cloud_cover=max_cloud_cover, result_number=result_number,
             name_filter=name_filter, coordinate_list=coordinate_list,
-            progress_message=progress_message,  proxy_host=proxy_host,
+            progress_message=progress_message, proxy_host=proxy_host,
             proxy_port=proxy_port, proxy_user=proxy_user,
             proxy_password=proxy_password
         )
@@ -255,7 +256,7 @@ def query_sentinel_2_database(
             url=url, output_path=json_file, message='submitting request',
             progress=False
         )
-        #cfg.progress.update(start=True)
+        # cfg.progress.update(start=True)
         if check:
             try:
                 with open(json_file) as json_search:
@@ -264,6 +265,7 @@ def query_sentinel_2_database(
                 cfg.logger.log.error(str(err))
                 messages.error(str(err))
                 return OutputManager(check=False)
+            xml_file = min_lat = min_lon = max_lat = max_lon = url_2 = None
             entries = doc['value']
             for entry in entries:
                 e += 1
@@ -293,31 +295,34 @@ def query_sentinel_2_database(
                         break
                 x_list = []
                 y_list = []
-                for c in footprint_coord.split(' '):
-                    x_list.append(float(c[0]))
-                    y_list.append(float(c[1]))
-                min_lon = min(x_list)
-                max_lon = max(x_list)
-                min_lat = min(y_list)
-                max_lat = max(y_list)
-                # download Sentinel metadata
-                if product_type == 'L1C':
-                    url_2 = ''.join(
-                        [base_url, '/tiles/', product_name[39:41], '/',
-                         product_name[41], '/', product_name[42:44], '/',
-                         product_name, '.SAFE/MTD_MSIL1C.xml']
-                    )
+                if footprint_coord is None:
+                    check_2 = False
                 else:
-                    url_2 = ''.join(
-                        [base_url, '/L2/tiles/', product_name[39:41], '/',
-                         product_name[41], '/', product_name[42:44], '/',
-                         product_name, '.SAFE/MTD_MSIL2A.xml']
+                    for c in footprint_coord.split(' '):
+                        x_list.append(float(c[0]))
+                        y_list.append(float(c[1]))
+                    min_lon = min(x_list)
+                    max_lon = max(x_list)
+                    min_lat = min(y_list)
+                    max_lat = max(y_list)
+                    # download Sentinel metadata
+                    if product_type == 'L1C':
+                        url_2 = ''.join(
+                            [base_url, '/tiles/', product_name[39:41], '/',
+                             product_name[41], '/', product_name[42:44], '/',
+                             product_name, '.SAFE/MTD_MSIL1C.xml']
+                        )
+                    else:
+                        url_2 = ''.join(
+                            [base_url, '/L2/tiles/', product_name[39:41], '/',
+                             product_name[41], '/', product_name[42:44], '/',
+                             product_name, '.SAFE/MTD_MSIL2A.xml']
+                        )
+                    # download metadata xml
+                    xml_file = cfg.temp.temporary_file_path(name_suffix='.xml')
+                    check_2 = download_tools.download_file(
+                        url=url_2, output_path=xml_file, progress=False
                     )
-                # download metadata xml
-                xml_file = cfg.temp.temporary_file_path(name_suffix='.xml')
-                check_2 = download_tools.download_file(
-                    url=url_2, output_path=xml_file, progress=False
-                )
                 if check_2:
                     try:
                         xml_parse = minidom.parse(xml_file)
@@ -587,7 +592,7 @@ def download(
                     proxy_host=proxy_host, proxy_port=proxy_port,
                     proxy_user=proxy_user, proxy_password=proxy_password,
                     min_progress=min_progress, max_progress=max_progress
-                    )
+                )
                 min_progress += progress_step
                 max_progress += progress_step
         elif (product_table['product'][i] == cfg.sentinel2_hls
