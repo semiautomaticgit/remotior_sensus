@@ -31,6 +31,7 @@ class Progress(object):
     previous_step_time = None
     previous_step = 0
     remaining = ''
+    ping = 0
 
     def __init__(
             self, process=None, step=None, message=None, percentage=None,
@@ -72,7 +73,8 @@ class Progress(object):
     # update progress
     def update(
             self, process=None, step=None, message=None, percentage=None,
-            start=None, end=None, steps=None, minimum=None, maximum=None
+            start=None, end=None, ping=None, steps=None,
+            minimum=None, maximum=None
     ):
         if process is not None:
             self.process = str(process)
@@ -110,12 +112,14 @@ class Progress(object):
             str(err)
             self.elapsed_time = None
             progress_time = None
+        if ping:
+            self.ping = not self.ping
         if self.callback is not None and (
                 progress_time is None or progress_time > cfg.refresh_time):
             self.callback(
                 process=self.process, step=self.step, message=self.message,
                 percentage=self.percentage, elapsed_time=self.elapsed_time,
-                previous_step=self.previous_step, start=start
+                previous_step=self.previous_step, start=start, ping=self.ping
             )
         if self.previous_step < self.step:
             self.previous_step = self.step
@@ -126,11 +130,13 @@ class Progress(object):
     @staticmethod
     def print_progress_replace(
             process=None, step=None, message=None, percentage=None,
-            elapsed_time=None, previous_step=None, start=None, end=None
+            elapsed_time=None, previous_step=None, start=None, end=None,
+            ping=0
     ):
         progress_symbols = ['○', '◔', '◑', '◕', '⬤', '⚙']
+        colon = [' ', ':']
         if start:
-            print('{} [{}%]{}{}:{} {}'.format(
+            print('\r', '{} [{}%]{}{}:{} {}'.format(
                     process, str(step).rjust(3, ' '), '', '',
                     message, progress_symbols[-1]
                 )
@@ -181,9 +187,10 @@ class Progress(object):
                 remaining = ''
             try:
                 print(
-                    '\r', '{} [{}%]{}{}:{} {}'.format(
+                    '\r', '{} [{}%]{}{}{}{} {}'.format(
                         process, str(step).rjust(3, ' '), e_time, remaining,
-                        message, progress_symbols[int(percentage / 25)]
+                        colon[ping], message,
+                        progress_symbols[int(percentage / 25)]
                     ), end='\x1b[K'
                 )
             except Exception as err:
@@ -194,9 +201,11 @@ class Progress(object):
     @staticmethod
     def print_progress(
             process=None, step=None, message=None, percentage=None,
-            elapsed_time=None, previous_step=None, start=None, end=None
+            elapsed_time=None, previous_step=None, start=None, end=None,
+            ping=0
     ):
         progress_symbols = ['○', '◔', '◑', '◕', '⬤', '⚙']
+        colon = [' ', ':']
         if start:
             print(
                 '{} [{}%]{}{}:{} {}'.format(
@@ -245,8 +254,9 @@ class Progress(object):
                 remaining = ''
             try:
                 print(
-                    '{} [{}%]{}{}:{} {}'.format(
+                    '{} [{}%]{}{}{}{} {}'.format(
                         process, str(step).rjust(3, ' '), e_time, remaining,
+                        colon[ping],
                         message, progress_symbols[int(percentage / 25)]
                     )
                 )

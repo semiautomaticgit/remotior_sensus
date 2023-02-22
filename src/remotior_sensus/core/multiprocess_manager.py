@@ -223,6 +223,7 @@ class Multiprocess(object):
                 )
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         for r in results:
             res = r[0].get()
             if classification:
