@@ -308,7 +308,7 @@ def _run_expression(
     )
     cfg.logger.log.debug('vrt_check: %s' % vrt_check)
     # dummy bands for memory calculation as twice the number of input raster
-    dummy_bands = len(input_raster_list) * 2 + 1
+    dummy_bands = len(input_raster_list) + 1
     # run calculation
     cfg.multiprocess.run(
         raster_path=vrt_check, function=band_calculation,
