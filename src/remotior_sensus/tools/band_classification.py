@@ -65,7 +65,8 @@ try:
 except Exception as error:
     try:
         cfg.logger.log.error(str(error))
-    except Exception as error:
+    except Exception as error2:
+        str(error2)
         print(str(error))
 
 try:
@@ -78,7 +79,8 @@ try:
 except Exception as error:
     try:
         cfg.logger.log.error(str(error))
-    except Exception as error:
+    except Exception as error2:
+        str(error2)
         print(str(error))
 
 
@@ -155,6 +157,7 @@ class Classifier(object):
         self.input_normalization = input_normalization
         self.normalization_values = normalization_values
         self.framework_name = None
+        self.classification_function = None
         # spectral signatures catalog
         if (algorithm_name == cfg.minimum_distance
                 or algorithm_name == cfg.spectral_angle_mapping
@@ -531,13 +534,25 @@ class Classifier(object):
                         str(class_weight), str(rf_min_samples_split))
                 )
                 # build classifier
-                model_classifier = RandomForestClassifier(
-                    criterion='gini', n_estimators=rf_number_trees,
-                    oob_score=False, max_features=rf_max_features,
-                    class_weight=class_weight, n_jobs=1,
-                    min_samples_split=rf_min_samples_split, verbose=2,
-                    random_state=0
-                )
+                try:
+                    model_classifier = RandomForestClassifier(
+                        criterion='gini', n_estimators=rf_number_trees,
+                        oob_score=False, max_features=rf_max_features,
+                        class_weight=class_weight, n_jobs=1,
+                        min_samples_split=rf_min_samples_split, verbose=2,
+                        random_state=0
+                    )
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    messages.error(str(err))
+                    return cls(
+                        algorithm_name=None,
+                        spectral_signatures=None,
+                        covariance_matrices=None,
+                        model_classifier=None,
+                        input_normalization=None,
+                        normalization_values=None
+                    )
                 # perform cross validation if cross_validation is True
                 _perform_cross_validation_scikit(
                     cross_validation=cross_validation,
@@ -994,19 +1009,25 @@ class Classifier(object):
         )
         if n_processes is None:
             n_processes = cfg.n_processes
-        cfg.multiprocess.run(
-            raster_path=vrt_check, function=self.classification_function,
-            function_argument=self.function_argument, n_processes=n_processes,
-            available_ram=available_ram,
-            function_variable=[macroclass, threshold],
-            output_raster_path=output_raster_path, classification=True,
-            classification_confidence=classification_confidence,
-            signature_raster=signature_raster, virtual_raster=virtual_raster,
-            progress_message='classification', min_progress=min_progress,
-            max_progress=max_progress
-        )
-        cfg.logger.log.debug('output_path: %s' % str(output_raster_path))
-        return OutputManager(path=output_raster_path)
+        # dummy bands for memory calculation
+        dummy_bands = 5
+        if self.classification_function is not None:
+            cfg.multiprocess.run(
+                raster_path=vrt_check, function=self.classification_function,
+                function_argument=self.function_argument, n_processes=n_processes,
+                available_ram=available_ram, dummy_bands=dummy_bands,
+                function_variable=[macroclass, threshold],
+                output_raster_path=output_raster_path, classification=True,
+                classification_confidence=classification_confidence,
+                signature_raster=signature_raster, virtual_raster=virtual_raster,
+                progress_message='classification', min_progress=min_progress,
+                max_progress=max_progress
+            )
+            cfg.logger.log.debug('output_path: %s' % str(output_raster_path))
+            return OutputManager(path=output_raster_path)
+        else:
+            cfg.logger.log.error('classification function not available')
+            return OutputManager(check=False)
 
 
 def band_classification(
@@ -1229,10 +1250,11 @@ def band_classification(
             classification_confidence=classification_confidence,
             virtual_raster=vrt_r, min_progress=40, max_progress=90
         )
-        cfg.logger.log.info('end; prediction: %s' % str(prediction.path))
-        return OutputManager(
-            path=prediction.path, extra={'model_path': output_model}
-        )
+        if prediction.check:
+            cfg.logger.log.info('end; prediction: %s' % str(prediction.path))
+            return OutputManager(
+                path=prediction.path, extra={'model_path': output_model}
+            )
     else:
         cfg.logger.log.info(
             'end; only_fit: %s; output_model: %s' % (

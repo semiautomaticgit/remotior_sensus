@@ -105,13 +105,15 @@ def band_erosion(
         out = output_list[n]
         nd = nodata_list[n]
         data_type = raster_info[n][8]
+        # dummy bands for memory calculation
+        dummy_bands = 7
         cfg.multiprocess.run(
             raster_path=i, function=raster_erosion,
             function_argument=structure, function_variable=[size, value_list],
             output_raster_path=out, output_data_type=data_type,
             n_processes=n_processes, available_ram=available_ram,
             output_nodata_value=nd, compress=cfg.raster_compression,
-            dummy_bands=3, boundary_size=structure.shape[0] + 1,
+            dummy_bands=dummy_bands, boundary_size=structure.shape[0] + 1,
             virtual_raster=vrt_list[n],
             progress_message='processing raster %s' % (n + 1),
             min_progress=min_p + max_p * n,

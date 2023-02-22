@@ -69,6 +69,7 @@ def function_initiator(
     single_band_number = input_parameters[7]
     input_nodata_as_value = input_parameters[8]
     multi_add_factors = input_parameters[9]
+    dummy_bands = input_parameters[10]
     # get output parameters
     (output_raster_list, output_data_type, compress, compress_format,
      any_nodata_mask, output_no_data, output_band_number, keep_output_array,
@@ -121,8 +122,7 @@ def function_initiator(
     # iterate over input raster list
     for raster in raster_list:
         # reset section counter
-        if not run_separate_process:
-            count_section_progress = 1
+        count_section_progress = 1
         calculation_datatype = calc_data_type[raster_count]
         cfg.logger.log.debug(
             'process raster: %s; calculation_datatype: %s'
@@ -159,10 +159,14 @@ def function_initiator(
         if run_separate_process:
             # raster size
             r_x, r_y = r_xy_count
-            # force read whole raster
-            block_size_x = r_x
-            block_size_y = r_y
-            list_range_y = list(range(0, r_y, block_size_y))
+            # raster blocks
+            memory_unit = cfg.memory_unit_array_12
+            (block_size_x, block_size_y,
+             list_range_x, list_range_y, tot_blocks) = _calculate_block_size(
+                x_block=r_x, y_block=r_y, available_ram=memory,
+                memory_unit=memory_unit, dummy_bands=dummy_bands
+            )
+            cfg.logger.log.debug('list_range_y: %s' % str(list_range_y))
             sections = []
             for y_min in range(len(list_range_y)):
                 # section y_min size
@@ -569,14 +573,7 @@ def function_initiator(
                     )
                     if write_out == out_generic:
                         if run_separate_process:
-                            # move temporary files of separate process
-                            files_directories.move_file(
-                                out_generic, output_raster_list[raster_count]
-                            )
-                            out_files.append(
-                                [output_raster_list[raster_count],
-                                 output_argument]
-                            )
+                            pass
                         else:
                             out_files.append([out_generic, output_argument])
                 except Exception as err:
@@ -591,23 +588,60 @@ def function_initiator(
                 progress_queue.put(
                     [count_section_progress, len(sections)], False
                 )
+            elif (process_id == '1' and elapsed_time > refresh_time
+                    and run_separate_process):
+                start_time = now_time
+                progress_queue.put(
+                    [count_section_progress
+                     + len(sections) * raster_count,
+                     len(sections) * len(raster_list)], False
+                )
             # close GDAL rasters
             for b in range(len(gdal_band_list)):
                 gdal_band_list[b].FlushCache()
                 gdal_band_list[b] = None
             _r_d = None
             gc.collect()
-            if not run_separate_process:
-                count_section_progress += 1
+            count_section_progress += 1
+        if classification is not True and output_raster_list[0] is not None:
+            if run_separate_process:
+                # move temporary files of separate process
+                files_directories.move_file(
+                    out_generic, output_raster_list[raster_count]
+                )
+                out_files.append(
+                    [output_raster_list[raster_count],
+                     output_argument]
+                )
         raster_count += 1
+        """
         now_time = datetime.datetime.now()
         elapsed_time = (now_time - start_time).total_seconds()
-        if (process_id == '0' and elapsed_time > refresh_time
+        if (process_id == '1' and elapsed_time > refresh_time
                 and run_separate_process):
             progress_queue.put([raster_count, len(raster_list)], False)
+        """
     cfg.logger.log.debug('end')
     logger = cfg.logger.stream.getvalue()
     return output_array_list, out_files, proc_error, logger
+
+
+# calculate block size and pixel ranges
+def _calculate_block_size(
+        x_block, y_block, available_ram, memory_unit, dummy_bands
+):
+    single_block_size = x_block * y_block * memory_unit * (1 + dummy_bands)
+    ram_blocks = int(single_block_size / available_ram)
+    if ram_blocks == 0:
+        ram_blocks = 1
+    cfg.logger.log.debug('ram_blocks: %s' % str(ram_blocks))
+    block_size_x = x_block
+    list_range_x = list(range(0, x_block, block_size_x))
+    block_size_y = int(y_block / ram_blocks)
+    list_range_y = list(range(0, y_block, block_size_y))
+    tot_blocks = len(list_range_x) * len(list_range_y)
+    return (block_size_x, block_size_y, list_range_x, list_range_y,
+            tot_blocks)
 
 
 # table join

@@ -57,6 +57,7 @@ class Progress(object):
 
     def finish(self):
         """Ends progress and resets."""
+        self.remaining = ''
         if self.callback is not None:
             self.callback(
                 process=self.process, message='finished', percentage=100,
@@ -70,7 +71,6 @@ class Progress(object):
         self.elapsed_time = None
         self.previous_step_time = None
         self.previous_step = 0
-        self.remaining = ''
 
     # get progress
     def get(self):

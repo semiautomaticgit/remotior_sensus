@@ -307,6 +307,8 @@ def _run_expression(
         grid_reference=align_raster
     )
     cfg.logger.log.debug('vrt_check: %s' % vrt_check)
+    # dummy bands for memory calculation as twice the number of input raster
+    dummy_bands = len(input_raster_list) * 2 + 1
     # run calculation
     cfg.multiprocess.run(
         raster_path=vrt_check, function=band_calculation,
@@ -315,7 +317,7 @@ def _run_expression(
         available_ram=available_ram, any_nodata_mask=nodata_mask,
         output_raster_path=output, output_data_type=output_datatype,
         output_nodata_value=output_nodata, compress=cfg.raster_compression,
-        scale=use_scale, offset=use_offset,
+        scale=use_scale, offset=use_offset, dummy_bands=dummy_bands,
         input_nodata_as_value=input_nodata_as_value, virtual_raster=virtual,
         progress_message=progress_message, min_progress=min_progress,
         max_progress=max_progress

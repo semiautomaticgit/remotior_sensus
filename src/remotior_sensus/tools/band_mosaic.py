@@ -153,8 +153,8 @@ def band_mosaic(
             percentage=n / len(band_list_list)
         )
         # list of inputs
-        input_raster_list, raster_info, nodata_list, name_list, warped = \
-            shared_tools.prepare_input_list(
+        (input_raster_list, raster_info, nodata_list, name_list,
+         warped) = shared_tools.prepare_input_list(
                 mosaic_list, reference_raster_crs, n_processes=n_processes
             )
         try:

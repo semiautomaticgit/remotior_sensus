@@ -101,6 +101,8 @@ def band_dilation(
     n = 0
     min_p = 1
     max_p = int((99 - 1) / len(input_raster_list))
+    # dummy bands for memory calculation as the number of values
+    dummy_bands = len(value_list) + 4
     for i in input_raster_list:
         out = output_list[n]
         nd = nodata_list[n]
@@ -111,7 +113,7 @@ def band_dilation(
             available_ram=available_ram,
             function_variable=value_list, output_raster_path=out,
             output_data_type=data_type, output_nodata_value=nd,
-            compress=cfg.raster_compression, dummy_bands=3,
+            compress=cfg.raster_compression, dummy_bands=dummy_bands,
             boundary_size=structure.shape[0] + 1, virtual_raster=vrt_list[n],
             progress_message='processing raster %s' % (n + 1),
             min_progress=min_p + max_p * n,

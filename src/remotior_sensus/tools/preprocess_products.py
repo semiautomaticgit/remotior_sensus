@@ -105,7 +105,6 @@ def perform_preprocess(
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager`
     """  # noqa: E501
-
     if progress_message:
         cfg.logger.log.info('start')
         cfg.progress.update(
@@ -388,12 +387,14 @@ def perform_preprocess(
                 [cfg.nodata_val_UInt16] * len(landsat_product)
             )
     files_directories.create_directory(output_path)
+    # dummy bands for memory calculation
+    dummy_bands = 2
     # conversion
     if dos1_correction:
         # get min dn values
         cfg.multiprocess.run_separated(
             raster_path_list=input_dos1_list,
-            function=raster_unique_values_with_sum,
+            function=raster_unique_values_with_sum, dummy_bands=dummy_bands,
             use_value_as_nodata=dos1_nodata_list, n_processes=n_processes,
             available_ram=available_ram, keep_output_argument=True,
             progress_message='unique values', min_progress=1, max_progress=30
@@ -405,12 +406,14 @@ def perform_preprocess(
                 dos1_expressions[i].replace('dnm', str(min_dn[i]))
             )
             input_list.append(input_dos1_list[i])
+    # dummy bands for memory calculation
+    dummy_bands = 2
     # run calculation
     cfg.multiprocess.run_separated(
         raster_path_list=input_list, function=band_calculation,
         function_argument=expressions,
         calculation_datatype=calculation_datatype,
-        use_value_as_nodata=nodata_list,
+        use_value_as_nodata=nodata_list, dummy_bands=dummy_bands,
         output_raster_list=output_raster_path_list,
         output_data_type=output_datatype, output_nodata_value=output_nodata,
         compress=cfg.raster_compression, n_processes=n_processes,

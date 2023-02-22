@@ -37,7 +37,8 @@ except Exception as error:
     nn_module = Module
     try:
         cfg.logger.log.error(str(error))
-    except Exception as error:
+    except Exception as err:
+        str(err)
         print(str(error))
 
 

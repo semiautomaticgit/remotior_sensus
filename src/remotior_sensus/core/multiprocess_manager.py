@@ -67,7 +67,7 @@ class Multiprocess(object):
             output_raster_path=None, output_data_type=None,
             output_nodata_value=None, compress=False, compress_format='LZW',
             n_processes: int = None, available_ram: int = None,
-            dummy_bands=0, output_band_number=1, boundary_size=None,
+            dummy_bands=1, output_band_number=1, boundary_size=None,
             unique_section=False, keep_output_array=False,
             keep_output_argument=False, delete_array=True, scale=None,
             offset=None, input_nodata_as_value=None,
@@ -129,11 +129,11 @@ class Multiprocess(object):
             calc_datatype = [np.float32]
         else:
             calc_datatype = [calculation_datatype]
-        if calculation_datatype == np.uint32 or calculation_datatype == \
-                np.int32:
+        if (calculation_datatype == np.uint32
+                or calculation_datatype == np.int32):
             memory_unit = cfg.memory_unit_array_8
-        elif calculation_datatype == np.uint16 or calculation_datatype == \
-                np.int16:
+        elif (calculation_datatype == np.uint16
+              or calculation_datatype == np.int16):
             memory_unit = cfg.memory_unit_array_4
         if output_nodata_value is None:
             output_nodata_value = cfg.nodata_val
@@ -188,7 +188,8 @@ class Multiprocess(object):
             input_parameters = [[raster_path], calc_datatype, boundary_size,
                                 pieces[p], [scale], [offset],
                                 [use_value_as_nodata], None,
-                                input_nodata_as_value, multi_add_factors]
+                                input_nodata_as_value, multi_add_factors,
+                                dummy_bands]
             output_parameters = [[output_raster_path], [output_data_type],
                                  compress, compress_format, any_nodata_mask,
                                  [output_nodata_value], [output_band_number],
@@ -274,6 +275,7 @@ class Multiprocess(object):
             output_nodata_value=None, compress=False, compress_format='LZW',
             n_processes: int = None, available_ram: int = None,
             output_band_number_list=None, boundary_size=None,
+            dummy_bands=0,
             keep_output_array=False, keep_output_argument=False,
             scale=None, offset=None, input_nodata_as_value=None,
             multi_add_factors=None, progress_message=None, min_progress=None,
@@ -392,7 +394,8 @@ class Multiprocess(object):
                                 calculation_datatype[ranges[p - 1]: ranges[p]],
                                 boundary_size, None, scl, offs,
                                 use_value_as_nodata[ranges[p - 1]: ranges[p]],
-                                None, input_nodata_as_value, multi_add_factors]
+                                None, input_nodata_as_value, multi_add_factors,
+                                dummy_bands]
             output_parameters = [output_list,
                                  output_data_type[ranges[p - 1]: ranges[p]],
                                  compress, compress_format, any_nodata_mask,

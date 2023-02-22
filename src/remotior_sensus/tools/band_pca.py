@@ -136,11 +136,13 @@ def band_pca(
         messages.error(str(err))
         return OutputManager(check=False)
     # calculate covariance
+    # dummy bands for memory calculation
+    dummy_bands = 2
     cfg.multiprocess.run(
         raster_path=vrt_path, function=bands_covariance,
         function_argument=band_order,
         function_variable=band_dict, use_value_as_nodata=nodata_value,
-        any_nodata_mask=True,
+        any_nodata_mask=True, dummy_bands=dummy_bands,
         keep_output_argument=True, virtual_raster=vrt_r,
         progress_message='calculate covariance',
         min_progress=21, max_progress=40

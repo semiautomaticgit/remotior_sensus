@@ -96,17 +96,20 @@ def band_calculation(*argv):
     nodata_mask = argv[2]
     function_argument = argv[7]
     cfg.logger.log.debug('function_argument: %s' % str(function_argument))
-    if _array_function_placeholder.dtype == np.float32 or \
-            _array_function_placeholder.dtype == np.float64:
+    if (_array_function_placeholder.dtype == np.float32
+            or _array_function_placeholder.dtype == np.float64):
         cfg.logger.log.debug(
             '_array_function_placeholder.shape: %s; '
-            '_array_function_placeholder.dtype: %s'
-            % (str(_array_function_placeholder.shape),
-               str(_array_function_placeholder.dtype))
+            '_array_function_placeholder.dtype: %s; '
+            '_array_function_placeholder.nbytes:%s'
+            % (
+                str(_array_function_placeholder.shape),
+                str(_array_function_placeholder.dtype),
+                str(_array_function_placeholder.nbytes)
+               )
         )
         _array_function_placeholder = ArrayLike(_array_function_placeholder)
     # perform operation
-    _o = eval(function_argument)
     try:
         _o = eval(function_argument)
     except Exception as err:
@@ -118,8 +121,12 @@ def band_calculation(*argv):
         return False
     # check nodata
     cfg.logger.log.debug(
-        '_o.shape: %s; nodata_mask.shape: %s' % (
-            str(_o.shape), str(nodata_mask.shape))
+        '_o.shape: %s; nodata_mask.shape: %s'
+        '_o.nbytes: %s; _o.dtype: %s'
+        % (
+            str(_o.shape), str(nodata_mask.shape),
+            str(_o.nbytes), str(_o.dtype)
+        )
     )
     if nodata_mask is not None:
         np.copyto(
@@ -129,7 +136,7 @@ def band_calculation(*argv):
     return [_o, None]
 
 
-# classification minimum distance
+# classification maximum likelihood
 def classification_maximum_likelihood(*argv):
     scale = argv[0][0]
     offset = argv[0][1]
@@ -204,30 +211,33 @@ def classification_maximum_likelihood(*argv):
                 cfg.logger.log.debug('write_sig: %s' % str(write_sig))
         except Exception as err:
             cfg.logger.log.error(str(err))
-    # write classification
-    classification_array[::, ::][
-        classification_array == cfg.nodata_val] = output_no_data
-    classification_array[::, ::][
-        nodata_mask == output_no_data] = output_no_data
-    write_class = raster_vector.write_raster(
-        out_class, x - ro_x, y - ro_y, classification_array, output_no_data,
-        scale, offset
-    )
-    cfg.logger.log.debug('write_class: %s' % str(write_class))
-    # write the algorithm raster
-    if out_alg is not None:
-        previous_array[::, ::][
+    if classification_array is not None:
+        # write classification
+        classification_array[::, ::][
             classification_array == cfg.nodata_val] = output_no_data
-        previous_array[::, ::][nodata_mask == output_no_data] = output_no_data
-        write_alg = raster_vector.write_raster(
-            out_alg, x - ro_x, y - ro_y, previous_array, output_no_data, scale,
-            offset
+        classification_array[::, ::][
+            nodata_mask == output_no_data] = output_no_data
+        write_class = raster_vector.write_raster(
+            out_class, x - ro_x, y - ro_y, classification_array, output_no_data,
+            scale, offset
         )
-        cfg.logger.log.debug('write_alg: %s' % str(write_alg))
-    cfg.logger.log.debug(
-        'classification_array.shape: %s' % str(classification_array.shape)
-    )
-    return [True, out_class]
+        cfg.logger.log.debug('write_class: %s' % str(write_class))
+        # write the algorithm raster
+        if out_alg is not None:
+            previous_array[::, ::][
+                classification_array == cfg.nodata_val] = output_no_data
+            previous_array[::, ::][nodata_mask == output_no_data] = output_no_data
+            write_alg = raster_vector.write_raster(
+                out_alg, x - ro_x, y - ro_y, previous_array, output_no_data, scale,
+                offset
+            )
+            cfg.logger.log.debug('write_alg: %s' % str(write_alg))
+        cfg.logger.log.debug(
+            'classification_array.shape: %s' % str(classification_array.shape)
+        )
+        return [True, out_class]
+    else:
+        return [False, out_class]
 
 
 # classification minimum distance
@@ -327,9 +337,10 @@ def classification_spectral_angle_mapping(*argv):
     nodata_mask = argv[2]
     x = argv[4]
     y = argv[5]
-    signatures_table = argv[7][0]
-    signatures = argv[7][1]
-    normalization = argv[7][3]
+    signatures = argv[7][cfg.spectral_signatures_framework]
+    # get selected signatures
+    signatures_table = signatures.table[signatures.table.selected == 1]
+    normalization = argv[7][cfg.normalization_values_framework]
     function_variable_list = argv[8]
     macroclass = function_variable_list[0]
     threshold = function_variable_list[1]
@@ -440,11 +451,12 @@ def classification_scikit(*argv):
     x_array[np.isnan(x_array)] = cfg.nodata_val
     # prediction
     if not threshold and out_alg is None:
-        prediction = classifier.predict(x_array.T)
-        classification_array = prediction.reshape(
+        _prediction = classifier.predict(x_array.T)
+        classification_array = _prediction.reshape(
             _array_function_placeholder.shape[0],
             _array_function_placeholder.shape[1]
         )
+        _prediction = None
         # write classification
         classification_array[::, ::][
             nodata_mask == output_no_data] = output_no_data
@@ -466,17 +478,18 @@ def classification_scikit(*argv):
     # write the probability raster
     elif out_alg is not None:
         try:
-            prediction_proba = classifier.predict_proba(x_array.T)
-            prediction_proba_array = np.max(prediction_proba, axis=1).reshape(
+            _prediction_proba = classifier.predict_proba(x_array.T)
+            prediction_proba_array = np.max(_prediction_proba, axis=1).reshape(
                 _array_function_placeholder.shape[0],
                 _array_function_placeholder.shape[1]
             )
             classification_argmax = np.argmax(
-                prediction_proba, axis=1
+                _prediction_proba, axis=1
             ).reshape(
                 _array_function_placeholder.shape[0],
                 _array_function_placeholder.shape[1]
             )
+            _prediction_proba = None
             classes = classifier.classes_
             classification_array = np.zeros_like(classification_argmax)
             for c in range(0, len(classes)):
@@ -496,11 +509,12 @@ def classification_scikit(*argv):
             cfg.logger.log.debug('write_alg: %s' % str(write_alg))
         except Exception as err:
             cfg.logger.log.error(str(err))
-            prediction = classifier.predict(x_array.T)
-            classification_array = prediction.reshape(
+            _prediction = classifier.predict(x_array.T)
+            classification_array = _prediction.reshape(
                 _array_function_placeholder.shape[0],
                 _array_function_placeholder.shape[1]
             )
+            _prediction = None
             # write classification
             classification_array[::, ::][
                 nodata_mask == output_no_data] = output_no_data
@@ -553,11 +567,12 @@ def classification_pytorch(*argv):
     data_type = eval('torch.%s' % str(x_array.dtype))
     x_array = torch.tensor(x_array.T, dtype=data_type)
     if not threshold and out_alg is None:
-        prediction = classifier(x_array).argmax(1).numpy()
-        classification_array = prediction.reshape(
+        _prediction = classifier(x_array).argmax(1).numpy()
+        classification_array = _prediction.reshape(
             _array_function_placeholder.shape[0],
             _array_function_placeholder.shape[1]
         )
+        _prediction = None
         # write classification
         classification_array[::, ::][
             nodata_mask == output_no_data] = output_no_data
@@ -581,10 +596,11 @@ def classification_pytorch(*argv):
     # write the probability raster
     elif out_alg is not None:
         try:
-            softmax = torch.softmax(classifier(x_array), dim=1)
-            prediction_proba_array, classification_array = softmax.topk(
+            _softmax = torch.softmax(classifier(x_array), dim=1)
+            prediction_proba_array, classification_array = _softmax.topk(
                 1, dim=1
             )
+            _softmax = None
             prediction_proba_array = prediction_proba_array.detach().numpy(
 
             ).reshape(
@@ -592,7 +608,6 @@ def classification_pytorch(*argv):
                 _array_function_placeholder.shape[1]
             )
             classification_array = classification_array.detach().numpy(
-
             ).reshape(
                 _array_function_placeholder.shape[0],
                 _array_function_placeholder.shape[1]
@@ -646,9 +661,8 @@ def calculate_pca(*argv):
     )
     # perform calculation
     _o = (function_argument * (
-            _array_function_placeholder - function_variable)).sum(
-        axis=2, dtype=np.float32
-    )
+            _array_function_placeholder - function_variable
+    )).sum(axis=2, dtype=np.float32)
     # check nodata
     cfg.logger.log.debug(
         '_o: %s; nodata_mask: %s' % (str(_o.shape), str(nodata_mask.shape))
@@ -676,9 +690,9 @@ def reclassify_raster(*argv):
     try:
         old = function_argument.old_value
         new = function_argument.old_value
-        raster = np.nan_to_num(raster_array_band[:, :, 0])
+        _raster = np.nan_to_num(raster_array_band[:, :, 0])
         # if all integer values
-        if np.all(raster.astype(int) == raster) and np.all(
+        if np.all(_raster.astype(int) == _raster) and np.all(
                 old.astype(int) == old
         ):
             # create empty reclass array of length equal to maximum value
@@ -690,12 +704,13 @@ def reclassify_raster(*argv):
             # fill array with new values at index corresponding to old value
             reclass[old.astype(int)] = new
             # perform reclassification
-            _o = reclass[raster.astype(int)]
+            _o = reclass[_raster.astype(int)]
         else:
             # raise exception to try expressions
             raise Exception
     except Exception as err:
         str(err)
+        _raster = None
         # raster array
         _o = np.copy(raster_array_band[:, :, 0])
         _x = raster_array_band[:, :, 0]
@@ -851,8 +866,7 @@ def raster_unique_values(*argv):
     arr = arr.T
     arr = arr[~np.isnan(arr).any(axis=1)]
     # adapted from Jaime answer at
-    # https://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy
-    # -array
+    # https://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy-array
     b = arr.view(np.dtype((np.void, arr.dtype.itemsize * arr.shape[1])))
     ff, index_a = np.unique(b, return_index=True, return_counts=False)
     cfg.logger.log.debug('end')
@@ -916,7 +930,7 @@ def raster_erosion(*argv):
     except Exception as err:
         str(err)
     # iteration of erosion size
-    for s in range(function_variable_list[0]):
+    for _s in range(function_variable_list[0]):
         # empty array
         erosion = np.zeros(a.shape)
         # structure core pixels

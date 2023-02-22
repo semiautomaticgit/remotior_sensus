@@ -139,8 +139,8 @@ def raster_reclassification(
             return OutputManager(check=False)
     # check output data type
     cfg.logger.log.debug('output_data_type: %s' % str(output_data_type))
-    if output_data_type.lower() == cfg.uint32_dt.lower() or \
-            output_data_type.lower() == cfg.uint16_dt.lower():
+    if (output_data_type.lower() == cfg.uint32_dt.lower()
+            or output_data_type.lower() == cfg.uint16_dt.lower()):
         new_values = reclassification_table.new_value
         for i in new_values:
             try:
@@ -152,6 +152,8 @@ def raster_reclassification(
                     break
             except Exception as err:
                 str(err)
+    # dummy bands for memory calculation
+    dummy_bands = 4
     # process calculation
     cfg.multiprocess.run(
         raster_path=raster_path, function=reclassify_raster,
@@ -161,7 +163,7 @@ def raster_reclassification(
         available_ram=available_ram, output_data_type=output_data_type,
         output_nodata_value=nd, compress=cfg.raster_compression,
         virtual_raster=vrt_r, progress_message='processing raster',
-        min_progress=1, max_progress=99
+        dummy_bands=dummy_bands, min_progress=1, max_progress=99
     )
     cfg.progress.update(end=True)
     cfg.logger.log.info('end; band reclassification: %s' % str(out_path))
@@ -184,10 +186,12 @@ def unique_values_table(
     cfg.logger.log.debug('raster_path: %s' % str(raster_path))
     if n_processes is None:
         n_processes = cfg.n_processes
+    # dummy bands for memory calculation
+    dummy_bands = 2
     cfg.multiprocess.run(
         raster_path=raster_path, function=raster_unique_values_with_sum,
         keep_output_argument=True, n_processes=n_processes,
-        available_ram=available_ram,
+        available_ram=available_ram, dummy_bands=dummy_bands,
         progress_message='unique values', min_progress=1, max_progress=99
     )
     # calculate sum of values

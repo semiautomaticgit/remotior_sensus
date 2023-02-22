@@ -27,7 +27,7 @@ class TestProgress(TestCase):
         cfg.progress.update(end=True)
 
         cfg.logger.log.debug('>>> test progress callback')
-        rs.set(progress_callback=cfg.progress.print_progress_new_line)
+        rs.set(progress_callback=cfg.progress.print_progress)
         cfg.progress.update(
             process=__name__.split('.')[-1].replace('_', ' '),
             message='starting', start=True

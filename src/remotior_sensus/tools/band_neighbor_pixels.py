@@ -141,6 +141,8 @@ def band_neighbor_pixels(
     n = 0
     min_p = 1
     max_p = int((99 - 1) / len(input_raster_list))
+    # dummy bands for memory calculation
+    dummy_bands = 3
     for i in input_raster_list:
         out = output_list[n]
         nd = nodata_list[n]
@@ -151,7 +153,7 @@ def band_neighbor_pixels(
             function_argument=structure,
             function_variable=[function_numpy], output_raster_path=out,
             output_data_type=output_data_type, output_nodata_value=nd,
-            compress=cfg.raster_compression, dummy_bands=3,
+            compress=cfg.raster_compression, dummy_bands=dummy_bands,
             n_processes=n_processes, available_ram=available_ram,
             boundary_size=structure.shape[0] + 1, virtual_raster=vrt_list[n],
             progress_message='processing raster %s' % str(n + 1),

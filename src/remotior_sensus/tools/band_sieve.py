@@ -87,9 +87,8 @@ def band_sieve(
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path,
-        n_processes=n_processes,
-        bandset_catalog=bandset_catalog, prefix=prefix,
-        multiple_output=True, virtual_output=virtual_output
+        n_processes=n_processes, bandset_catalog=bandset_catalog,
+        prefix=prefix, multiple_output=True, virtual_output=virtual_output
     )
     # 4 connected pixels
     if connected:

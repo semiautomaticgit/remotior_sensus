@@ -133,10 +133,12 @@ def band_combination(
         input_bands=input_bands, output_path=output_path,
         n_processes=n_processes, bandset_catalog=bandset_catalog
     )
+    # dummy bands for memory calculation as the number of input raster
+    dummy_bands = len(input_raster_list) + 1
     cfg.multiprocess.run(
         raster_path=vrt_path, function=raster_unique_values,
         keep_output_argument=True, n_processes=n_processes,
-        available_ram=available_ram,
+        available_ram=available_ram, dummy_bands=dummy_bands,
         progress_message='unique values', min_progress=2, max_progress=50
     )
     cfg.multiprocess.multiprocess_unique_values()
@@ -235,11 +237,13 @@ def band_combination(
     expression.pop(-1)
     joined_expression = ''.join(expression)
     cfg.logger.log.debug('joined_expression: %s' % joined_expression)
+    # dummy bands for memory calculation
+    dummy_bands = 3
     # combination calculation
     cfg.multiprocess.run(
         raster_path=vrt_path, function=cross_rasters,
         function_argument=reclassification_list,
-        function_variable=joined_expression,
+        function_variable=joined_expression, dummy_bands=dummy_bands,
         calculation_datatype=calc_data_type, use_value_as_nodata=nodata_value,
         any_nodata_mask=True, output_raster_path=out_path,
         output_data_type=output_data_type, output_nodata_value=calc_nodata,

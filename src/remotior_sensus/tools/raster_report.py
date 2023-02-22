@@ -84,11 +84,14 @@ def raster_report(
     pixel_size_y = abs(gt[5])
     if n_processes is None:
         n_processes = cfg.n_processes
+    # dummy bands for memory calculation
+    dummy_bands = 2
     # multiprocess calculate unique values and sum
     cfg.multiprocess.run(
         raster_path=raster_path, function=raster_unique_values_with_sum,
         use_value_as_nodata=nodata_value, n_processes=n_processes,
         available_ram=available_ram, keep_output_argument=True,
+        dummy_bands=dummy_bands,
         progress_message='unique values', min_progress=2, max_progress=99
     )
     cfg.progress.update(message='output table', step=99)
