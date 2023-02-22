@@ -47,21 +47,14 @@ class Progress(object):
         if callback is not None:
             self.callback = callback
 
-    # create progress
-    @classmethod
-    def start(
-            cls, process=None, step=None, message=None, percentage=None,
-            callback=None
-    ):
-        return cls(process, step, message, percentage, callback)
-
     def finish(self):
         """Ends progress and resets."""
         self.remaining = ''
         if self.callback is not None:
             self.callback(
                 process=self.process, message='finished', percentage=100,
-                elapsed_time=self.elapsed_time, step=100, previous_step=100
+                elapsed_time=self.elapsed_time, step=100, previous_step=100,
+                end=True
             )
         self.process = cfg.process
         self.step = 0
@@ -99,6 +92,12 @@ class Progress(object):
             self.start_time = datetime.datetime.now()
             self.previous_step = 0
             self.step = 0
+            self.callback(
+                process=self.process, step=self.step, message=self.message,
+                percentage=self.percentage, elapsed_time=self.elapsed_time,
+                previous_step=self.previous_step, start=start
+            )
+            return
         if end:
             self.finish()
             return
@@ -116,7 +115,7 @@ class Progress(object):
             self.callback(
                 process=self.process, step=self.step, message=self.message,
                 percentage=self.percentage, elapsed_time=self.elapsed_time,
-                previous_step=self.previous_step
+                previous_step=self.previous_step, start=start
             )
         if self.previous_step < self.step:
             self.previous_step = self.step
@@ -127,106 +126,130 @@ class Progress(object):
     @staticmethod
     def print_progress_replace(
             process=None, step=None, message=None, percentage=None,
-            elapsed_time=None, previous_step=None
+            elapsed_time=None, previous_step=None, start=None, end=None
     ):
         progress_symbols = ['○', '◔', '◑', '◕', '⬤', '⚙']
-        if not percentage and percentage is not None:
-            percentage = -25
-        if elapsed_time is not None:
-            e_time = (' [elapsed {}min{}sec]'.format(
-                int(elapsed_time / 60), str(
-                    int(
-                        60 * (
-                                (elapsed_time / 60) - int(elapsed_time / 60))
-                        )
-                    ).rjust(
-                    2, '0'
+        if start:
+            print('{} [{}%]{}{}:{} {}'.format(
+                    process, str(step).rjust(3, ' '), '', '',
+                    message, progress_symbols[-1]
                 )
-            ))
-            if previous_step < step:
-                try:
-                    remaining_time = (
-                            (100 - int(step)) * elapsed_time / int(step))
-                    minutes = int(remaining_time / 60)
-                    seconds = round(
-                        60 * ((remaining_time / 60) - int(remaining_time / 60))
-                    )
-                    if seconds == 60:
-                        seconds = 0
-                        minutes += 1
-                    remaining = ' [remaining {}min{}sec]'.format(
-                        minutes, str(seconds).rjust(2, '0')
-                    )
-                    Progress.remaining = remaining
-                except Exception as err:
-                    str(err)
-                    remaining = ''
-            else:
-                remaining = Progress.remaining
-        else:
-            e_time = ''
-            remaining = ''
-        try:
+            )
+        elif end:
             print(
                 '\r', '{} [{}%]{}{}:{} {}'.format(
-                    process, str(step).rjust(3, ' '), e_time, remaining,
-                    message, progress_symbols[int(percentage / 25)]
-                ), end='\x1b[K'
+                    process, str(100).rjust(3, ' '), '', '',
+                    '', progress_symbols[-2]
+                ), end='\n'
             )
-        except Exception as err:
-            str(err)
-            print(str(process))
+        else:
+            if not percentage and percentage is not None:
+                percentage = -25
+            if elapsed_time is not None:
+                e_time = (' [elapsed {}min{}sec]'.format(
+                    int(elapsed_time / 60), str(
+                        int(
+                            60 * (
+                                    (elapsed_time / 60)
+                                    - int(elapsed_time / 60))
+                        )
+                    ).rjust(2, '0')
+                ))
+                if previous_step < step:
+                    try:
+                        remaining_time = (
+                                (100 - int(step)) * elapsed_time / int(step))
+                        minutes = int(remaining_time / 60)
+                        seconds = round(
+                            60 * ((remaining_time / 60)
+                                  - int(remaining_time / 60))
+                        )
+                        if seconds == 60:
+                            seconds = 0
+                            minutes += 1
+                        remaining = ' [remaining {}min{}sec]'.format(
+                            minutes, str(seconds).rjust(2, '0')
+                        )
+                        Progress.remaining = remaining
+                    except Exception as err:
+                        str(err)
+                        remaining = ''
+                else:
+                    remaining = Progress.remaining
+            else:
+                e_time = ''
+                remaining = ''
+            try:
+                print(
+                    '\r', '{} [{}%]{}{}:{} {}'.format(
+                        process, str(step).rjust(3, ' '), e_time, remaining,
+                        message, progress_symbols[int(percentage / 25)]
+                    ), end='\x1b[K'
+                )
+            except Exception as err:
+                str(err)
+                print(str(process))
 
     # print progress always in a new line
     @staticmethod
     def print_progress(
             process=None, step=None, message=None, percentage=None,
-            elapsed_time=None, previous_step=None
+            elapsed_time=None, previous_step=None, start=None, end=None
     ):
         progress_symbols = ['○', '◔', '◑', '◕', '⬤', '⚙']
-        if not percentage and percentage is not None:
-            percentage = -25
-        if elapsed_time is not None:
-            e_time = (' [elapsed {}min{}sec]'.format(
-                int(elapsed_time / 60), str(
-                    int(
-                        60 * (
-                                (elapsed_time / 60) - int(elapsed_time / 60))
-                        )
-                    ).rjust(
-                    2, '0'
-                )
-            ))
-            if previous_step < step:
-                try:
-                    remaining_time = (
-                            (100 - int(step)) * elapsed_time / int(step))
-                    minutes = int(remaining_time / 60)
-                    seconds = round(
-                        60 * ((remaining_time / 60) - int(remaining_time / 60))
-                    )
-                    if seconds == 60:
-                        seconds = 0
-                        minutes += 1
-                    remaining = ' [remaining {}min{}sec]'.format(
-                        minutes, str(seconds).rjust(2, '0')
-                    )
-                    Progress.remaining = remaining
-                except Exception as err:
-                    str(err)
-                    remaining = ''
-            else:
-                remaining = Progress.remaining
-        else:
-            e_time = ''
-            remaining = ''
-        try:
+        if start:
             print(
                 '{} [{}%]{}{}:{} {}'.format(
-                    process, str(step).rjust(3, ' '), e_time, remaining,
-                    message, progress_symbols[int(percentage / 25)]
+                    process, str(100).rjust(3, ' '), '', '',
+                    message, progress_symbols[-2]
                 )
             )
-        except Exception as err:
-            str(err)
-            print(str(process))
+        elif end:
+            pass
+        else:
+            if not percentage and percentage is not None:
+                percentage = -25
+            if elapsed_time is not None:
+                e_time = (' [elapsed {}min{}sec]'.format(
+                    int(elapsed_time / 60), str(
+                        int(
+                            60 * (
+                                    (elapsed_time / 60)
+                                    - int(elapsed_time / 60))
+                        )
+                    ).rjust(2, '0')
+                ))
+                if previous_step < step:
+                    try:
+                        remaining_time = (
+                                (100 - int(step)) * elapsed_time / int(step))
+                        minutes = int(remaining_time / 60)
+                        seconds = round(
+                            60 * ((remaining_time / 60)
+                                  - int(remaining_time / 60))
+                        )
+                        if seconds == 60:
+                            seconds = 0
+                            minutes += 1
+                        remaining = ' [remaining {}min{}sec]'.format(
+                            minutes, str(seconds).rjust(2, '0')
+                        )
+                        Progress.remaining = remaining
+                    except Exception as err:
+                        str(err)
+                        remaining = ''
+                else:
+                    remaining = Progress.remaining
+            else:
+                e_time = ''
+                remaining = ''
+            try:
+                print(
+                    '{} [{}%]{}{}:{} {}'.format(
+                        process, str(step).rjust(3, ' '), e_time, remaining,
+                        message, progress_symbols[int(percentage / 25)]
+                    )
+                )
+            except Exception as err:
+                str(err)
+                print(str(process))

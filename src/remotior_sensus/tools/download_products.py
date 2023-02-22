@@ -96,10 +96,7 @@ def query_sentinel_2_database(
     """
     cfg.logger.log.info('start')
     if progress_message:
-        cfg.progress.update(
-            process=__name__.split('.')[-1].replace('_', ' '),
-            message='starting', start=True
-        )
+        cfg.progress.update(process='search', message='starting', start=True)
     cfg.logger.log.debug(
         'date_from: %s, date_to: %s; max_cloud_cover: %s; result_number: %s; '
         'name_filter: %s; coordinate_list: %s'
@@ -822,10 +819,7 @@ def query_nasa_cmr(
     """
     cfg.logger.log.info('start')
     if progress_message:
-        cfg.progress.update(
-            process=__name__.split('.')[-1].replace('_', ' '),
-            message='starting', start=True
-        )
+        cfg.progress.update(process='search', message='starting', start=True)
     if product == cfg.landsat_hls:
         collection = cfg.landsat_hls_collection
     elif product == cfg.sentinel2_hls:

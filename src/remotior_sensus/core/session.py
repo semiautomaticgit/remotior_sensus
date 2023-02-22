@@ -163,10 +163,9 @@ class Session(object):
             time=log_time
         )
         # start progress
-        progress = Progress()
         if progress_callback is None:
             progress_callback = Progress.print_progress_replace
-        configurations.progress = progress.start(callback=progress_callback)
+        configurations.progress = Progress(callback=progress_callback)
         system_tools.get_system_info()
         check = _check_dependencies(configurations)
         if check:
@@ -301,10 +300,7 @@ class Session(object):
             )
         if progress_callback:
             # start progress
-            progress = Progress()
-            self.configurations.progress = progress.start(
-                callback=progress_callback
-            )
+            self.configurations.progress = Progress(callback=progress_callback)
         self.configurations.logger.log.info(
             'n_processes: %s; ram: %s; temp.dir: %s'
             % (self.configurations.n_processes,
