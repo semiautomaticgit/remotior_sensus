@@ -438,6 +438,7 @@ class Multiprocess(object):
                 )
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         for r in results:
             res = r[0].get()
             process_result[r[1]] = res[0]
@@ -962,6 +963,7 @@ class Multiprocess(object):
                 cfg.logger.log.debug('progress: %s' % str(progress))
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         for r in results:
             res = r[0].get()
             cfg.logger.log.debug('res[3]: %s' % str(res[3]))
@@ -1253,6 +1255,7 @@ class Multiprocess(object):
                 )
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         for r in results:
             res = r[0].get()
             process_result[r[1]] = res[0]
@@ -1350,6 +1353,7 @@ class Multiprocess(object):
                 )
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         # get results
         for r in results:
             res = r[0].get()
@@ -1450,6 +1454,7 @@ class Multiprocess(object):
                 )
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         for r in results:
             res = r[0].get()
             process_result[r[1]] = res[0]
@@ -1744,6 +1749,7 @@ class Multiprocess(object):
                 old_progress = int(progress)
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         # get results
         process_result = []
         for r in results:
@@ -1835,6 +1841,7 @@ class Multiprocess(object):
                 )
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         # get results
         process_result = []
         for r in results:
@@ -1900,6 +1907,7 @@ class Multiprocess(object):
                 )
             except Exception as err:
                 str(err)
+                cfg.progress.update(ping=True)
         for r in results:
             res = r[0].get()
             # log

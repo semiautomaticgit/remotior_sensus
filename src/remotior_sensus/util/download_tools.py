@@ -169,7 +169,8 @@ def download_file(
                             100 * downloaded_part_size / total_size
                         )
                         cfg.progress.update(
-                            message=message, step=step, percentage=percentage
+                            message=message, step=step, percentage=percentage,
+                            ping = True
                         )
                     # write file
                     file.write(block_read)

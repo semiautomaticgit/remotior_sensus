@@ -268,7 +268,7 @@ def query_sentinel_2_database(
                 e += 1
                 cfg.progress.update(
                     message='search in progress', step=e, percentage=0,
-                    steps=result_number, minimum=10, maximum=90
+                    steps=result_number, minimum=10, maximum=90, ping=True
                 )
                 product_name = entry['Name'].replace('.SAFE', '')
                 # online
@@ -884,7 +884,7 @@ def query_nasa_cmr(
                 percentage = int(100 * e / len(entries))
                 cfg.progress.update(
                     message='search in progress', step=step,
-                    percentage=percentage
+                    percentage=percentage, ping=True
                 )
                 granule = entry.getElementsByTagName('GranuleUR')[0]
                 product_name = granule.firstChild.data

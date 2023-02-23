@@ -455,8 +455,8 @@ def _band_names_alias(
             for b in range(bandset_catalog.get_band_count(i)):
                 band_names['%s%s%s%s%s' % (
                     cfg.variable_band_quotes, cfg.variable_bandset_name, i,
-                    bands[b],
-                    cfg.variable_band_quotes)] = apaths[b]
+                    bands[b], cfg.variable_band_quotes
+                )] = apaths[b]
             # current BandSet
             if i == bandset_number:
                 for b in range(len(bands)):
@@ -914,10 +914,13 @@ def _check_expression(
                         [expr, expr_function, output_name, bs_number, out_path,
                          virtual, input_rasters]
                     )
-        cfg.logger.log.debug(
-            'end; len(exp_list): %s; all_out_name_list: %s; output_message: %s'
-            % (str(len(exp_list)), str(all_out_name_list), str(output_message))
-        )
+        if exp_list is not False:
+            cfg.logger.log.debug(
+                'end; len(exp_list): %s; all_out_name_list: %s; '
+                'output_message: %s'
+                % (str(len(exp_list)), str(all_out_name_list),
+                   str(output_message))
+            )
         return exp_list, all_out_name_list, output_message
 
 

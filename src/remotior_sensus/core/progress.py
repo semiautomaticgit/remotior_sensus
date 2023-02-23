@@ -139,14 +139,26 @@ class Progress(object):
             print('\r', '{} [{}%]{}{}:{} {}'.format(
                     process, str(step).rjust(3, ' '), '', '',
                     message, progress_symbols[-1]
-                )
+                ), end='\x1b[K'
             )
         elif end:
+            if elapsed_time is not None:
+                e_time = (' [elapsed {}min{}sec]'.format(
+                    int(elapsed_time / 60), str(
+                        int(
+                            60 * (
+                                    (elapsed_time / 60)
+                                    - int(elapsed_time / 60))
+                        )
+                    ).rjust(2, '0')
+                ))
+            else:
+                e_time = ''
             print(
                 '\r', '{} [{}%]{}{}:{} {}'.format(
-                    process, str(100).rjust(3, ' '), '', '',
+                    process, str(100).rjust(3, ' '), e_time, '',
                     '', progress_symbols[-2]
-                ), end='\n'
+                ), end='\x1b[K'
             )
         else:
             if not percentage and percentage is not None:

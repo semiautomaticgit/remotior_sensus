@@ -199,7 +199,9 @@ class BandSet(object):
 
     def get_absolute_paths(self) -> list:
         """Gets the list of absolute paths."""
-        paths = self.bands['absolute_path'].tolist()
+        paths = []
+        if self.bands is not None:
+            paths = self.bands['absolute_path'].tolist()
         cfg.logger.log.debug('absolute_paths: %s' % str(paths))
         return paths
 
@@ -736,7 +738,11 @@ class BandSet(object):
             root_directory=root_directory, wavelength=wavelength,
             wavelength_unit=unit
         )
-        self.bands = tm.create_bandset_table([self.bands, band])
+        if band is not None:
+            if self.bands is None:
+                self.bands = tm.create_bandset_table([band])
+            else:
+                self.bands = tm.create_bandset_table([self.bands, band])
 
     def sort_bands_by_wavelength(self):
         """Sorts band order by wavelength"""
@@ -835,8 +841,14 @@ def _create_table_of_bands(
             cfg.logger.log.error('path: %s' % path)
             messages.error('path: %s' % path)
             return None
-    (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
-     scale_offset, data_type) = raster_vector.raster_info(absolute_path)
+    info = raster_vector.raster_info(absolute_path)
+    if info is False:
+        cfg.logger.log.error('path: %s' % path)
+        messages.error('path: %s' % path)
+        return None
+    else:
+        (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
+         scale_offset, data_type) = info
     x_size = abs(gt[1])
     y_size = abs(gt[5])
     top = gt[3]
