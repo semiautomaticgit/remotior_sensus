@@ -285,41 +285,37 @@ def query_sentinel_2_database(
                     if att['Name'] == 'cloudCover':
                         cloud_cover_percentage = att['Value']
                         break
-                footprint_coord = None
-                for att in entry['Attributes']:
-                    if att['Name'] == 'coordinates':
-                        footprint_coord = att['Value']
-                        break
+                # generally available depending on version
+                footprint_coord = entry['Footprint'].split('((')[1].replace(
+                    ')', '').replace("'", '')
                 x_list = []
                 y_list = []
-                if footprint_coord is None:
-                    check_2 = False
-                else:
-                    for c in footprint_coord.split(' '):
-                        x_list.append(float(c[0]))
-                        y_list.append(float(c[1]))
-                    min_lon = min(x_list)
-                    max_lon = max(x_list)
-                    min_lat = min(y_list)
-                    max_lat = max(y_list)
-                    # download Sentinel metadata
-                    if product_type == 'L1C':
-                        url_2 = ''.join(
-                            [base_url, '/tiles/', product_name[39:41], '/',
-                             product_name[41], '/', product_name[42:44], '/',
-                             product_name, '.SAFE/MTD_MSIL1C.xml']
-                        )
-                    else:
-                        url_2 = ''.join(
-                            [base_url, '/L2/tiles/', product_name[39:41], '/',
-                             product_name[41], '/', product_name[42:44], '/',
-                             product_name, '.SAFE/MTD_MSIL2A.xml']
-                        )
-                    # download metadata xml
-                    xml_file = cfg.temp.temporary_file_path(name_suffix='.xml')
-                    check_2 = download_tools.download_file(
-                        url=url_2, output_path=xml_file, progress=False
+                for pair in footprint_coord.split(','):
+                    c = pair.lstrip().split(' ')
+                    x_list.append(float(c[0]))
+                    y_list.append(float(c[1]))
+                min_lon = min(x_list)
+                max_lon = max(x_list)
+                min_lat = min(y_list)
+                max_lat = max(y_list)
+                # download Sentinel metadata
+                if product_type == 'L1C':
+                    url_2 = ''.join(
+                        [base_url, '/tiles/', product_name[39:41], '/',
+                         product_name[41], '/', product_name[42:44], '/',
+                         product_name, '.SAFE/MTD_MSIL1C.xml']
                     )
+                else:
+                    url_2 = ''.join(
+                        [base_url, '/L2/tiles/', product_name[39:41], '/',
+                         product_name[41], '/', product_name[42:44], '/',
+                         product_name, '.SAFE/MTD_MSIL2A.xml']
+                    )
+                # download metadata xml
+                xml_file = cfg.temp.temporary_file_path(name_suffix='.xml')
+                check_2 = download_tools.download_file(
+                    url=url_2, output_path=xml_file, progress=False
+                )
                 if check_2:
                     try:
                         xml_parse = minidom.parse(xml_file)

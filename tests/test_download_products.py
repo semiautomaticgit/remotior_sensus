@@ -51,6 +51,7 @@ class TestDownloadProducts(TestCase):
             )
         self.assertTrue(files_directories.is_file(output_manager.paths[0]))
         # download Sentinel-2 virtual bands
+        print('product_table', product_table)
         cfg.logger.log.debug('>>> test download sentinel-2 virtual bands')
         output_manager = rs.download_products.download(
             product_table=product_table[product_table['cloud_cover'] < 10],
