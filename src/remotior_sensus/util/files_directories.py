@@ -191,6 +191,8 @@ def output_path(path, extension):
 
 # check raster output path
 def raster_output_path(path, virtual_output=False):
+    if path is None:
+        path = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
     try:
         # vrt
         if virtual_output or file_extension(path) == cfg.vrt_suffix:

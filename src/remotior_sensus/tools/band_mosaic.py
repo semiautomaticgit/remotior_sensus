@@ -43,7 +43,8 @@ from remotior_sensus.util import files_directories, raster_vector, shared_tools
 
 
 def band_mosaic(
-        input_bands: Union[list, int, BandSet], output_path: str,
+        input_bands: Union[list, int, BandSet],
+        output_path: Optional[str] = None,
         prefix: Optional[str] = '', nodata_value: Optional[int] = None,
         n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,

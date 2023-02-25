@@ -1,7 +1,6 @@
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.core import progress
 from remotior_sensus.tools import band_calc
 from remotior_sensus.util import files_directories
 
@@ -158,6 +157,15 @@ class TestBandCalc(TestCase):
             out_exp[0][0],
             cfg.variable_band_quotes + cfg.variable_bandset_name + '1'
             + cfg.variable_band_name + '1' + cfg.variable_band_quotes
+        )
+        self.assertFalse(error_message)
+        # expression alias
+        expression = (
+                cfg.variable_band_quotes + cfg.variable_ndvi_name
+                + cfg.variable_band_quotes)
+        out_exp, out_name_list, error_message = band_calc._check_expression(
+            expression_string=expression, raster_variables=band_names,
+            bandset_catalog=catalog
         )
         self.assertFalse(error_message)
         # iterate band sets
@@ -431,6 +439,43 @@ class TestBandCalc(TestCase):
         )
         self.assertTrue(output.check)
         self.assertTrue(files_directories.is_file(output.paths[0]))
+        # NDVI calculation with expression alias
+        cfg.logger.log.debug('>>> test calculation with expression alias')
+        expression = (cfg.variable_band_quotes + cfg.variable_ndvi_name
+                      + cfg.variable_band_quotes)
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        output = rs.band_calc(
+            output_path=temp, expression_string=expression,
+            bandset_catalog=catalog
+        )
+        self.assertTrue(output.check)
+        self.assertTrue(files_directories.is_file(output.paths[0]))
+        # direct expression
+        bandset = catalog.get_bandset(1)
+        expression = (
+                '(' + cfg.variable_band_quotes + cfg.variable_band_name + '1'
+                + cfg.variable_band_quotes + ' + ' + cfg.variable_band_quotes
+                + cfg.variable_band_name + '2' + cfg.variable_band_quotes + ')'
+        )
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
+        calc = bandset.execute(rs.band_calc, output_path=temp,
+                               expression_string=expression)
+        self.assertTrue(calc.check)
+        self.assertTrue(files_directories.is_file(calc.paths[0]))
+        # direct expression NDVI calculation
+        expression = (
+                '(' + cfg.variable_band_quotes + cfg.variable_nir_name
+                + cfg.variable_band_quotes + ' - ' + cfg.variable_band_quotes
+                + cfg.variable_red_name + cfg.variable_band_quotes + ') / ('
+                + cfg.variable_band_quotes + cfg.variable_nir_name
+                + cfg.variable_band_quotes + ' + ' + cfg.variable_band_quotes
+                + cfg.variable_red_name + cfg.variable_band_quotes + ')'
+        )
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
+        calc = bandset.execute(rs.band_calc, output_path=temp,
+                               expression_string=expression)
+        self.assertTrue(calc.check)
+        self.assertTrue(files_directories.is_file(calc.paths[0]))
 
         # clear temporary directory
         rs.close()

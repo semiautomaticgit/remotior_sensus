@@ -53,7 +53,8 @@ from remotior_sensus.util import (
 
 
 def cross_classification(
-        classification_path: str, reference_path: str, output_path: str,
+        classification_path: str, reference_path: str,
+        output_path: Optional[str] = None,
         vector_field: Optional[str] = None, nodata_value: Optional[int] = None,
         cross_matrix: Optional[bool] = False,
         regression_raster: Optional[bool] = False,

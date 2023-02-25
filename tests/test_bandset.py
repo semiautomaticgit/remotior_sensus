@@ -160,6 +160,6 @@ class TestBandSet(TestCase):
             root_directory='./data', box_coordinate_list=coordinate_list
             )
         self.assertEqual(bandset.box_coordinate_list, coordinate_list)
-
+        
         # clear temporary directory
         rs.close()

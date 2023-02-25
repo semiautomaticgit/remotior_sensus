@@ -45,7 +45,8 @@ from remotior_sensus.util import (
 
 
 def raster_report(
-        raster_path: str, output_path: str, nodata_value: Optional[int] = None,
+        raster_path: str, output_path: Optional[str] = None,
+        nodata_value: Optional[int] = None,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None
 ):
     """Calculation of a report providing information extracted from a raster.
@@ -76,6 +77,8 @@ def raster_report(
         start=True
     )
     raster_path = files_directories.input_path(raster_path)
+    if output_path is None:
+        output_path = cfg.temp.temporary_file_path(name_suffix=cfg.csv_suffix)
     output_path = files_directories.output_path(output_path, cfg.csv_suffix)
     files_directories.create_parent_directory(output_path)
     (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,

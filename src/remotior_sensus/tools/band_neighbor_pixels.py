@@ -31,18 +31,26 @@ Typical usage example:
     ... )
 """
 
+from typing import Union, Optional
+
 from remotior_sensus.core import configurations as cfg, messages
+from remotior_sensus.core.bandset import BandSet
+from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import raster_neighbor
 from remotior_sensus.util import shared_tools
 
 
 def band_neighbor_pixels(
-        input_bands, output_path=None, size=None, structure=None,
-        circular_structure=True, stat_name=None, stat_percentile=None,
-        output_data_type=None, virtual_output=None, prefix='',
-        n_processes: int = None, available_ram: int = None,
-        bandset_catalog=None
+        input_bands: Union[list, int, BandSet], size: int,
+        output_path: Optional[str] = None,
+        stat_name: str = None, structure: Optional[any] = None,
+        circular_structure: Optional[bool] = True,
+        stat_percentile: Optional[Union[int, str]] = None,
+        output_data_type: Optional[str] = None,
+        virtual_output: Optional[bool] = None, prefix: Optional[str] = '',
+        n_processes: Optional[int] = None, available_ram: Optional[int] = None,
+        bandset_catalog: Optional[BandSetCatalog] = None
 ) -> OutputManager:
     """Performs band neighbor pixels.
 

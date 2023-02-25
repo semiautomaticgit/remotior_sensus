@@ -101,7 +101,7 @@ def band_calculation(*argv):
         cfg.logger.log.debug(
             '_array_function_placeholder.shape: %s; '
             '_array_function_placeholder.dtype: %s; '
-            '_array_function_placeholder.nbytes:%s'
+            '_array_function_placeholder.nbytes: %s'
             % (
                 str(_array_function_placeholder.shape),
                 str(_array_function_placeholder.dtype),
@@ -121,11 +121,10 @@ def band_calculation(*argv):
         return False
     # check nodata
     cfg.logger.log.debug(
-        '_o.shape: %s; nodata_mask.shape: %s'
-        '_o.nbytes: %s; _o.dtype: %s'
+        '_o.shape: %s; nodata_mask.shape: %s; _o.nbytes: %s; _o.dtype: %s'
         % (
-            str(_o.shape), str(nodata_mask.shape),
-            str(_o.nbytes), str(_o.dtype)
+            str(_o.shape), str(nodata_mask.shape), str(_o.nbytes),
+            str(_o.dtype)
         )
     )
     if nodata_mask is not None:

@@ -52,8 +52,8 @@ from remotior_sensus.util import (
 
 
 def band_combination(
-        input_bands: Union[list, int, BandSet], output_path: str,
-        nodata_value: Optional[int] = None,
+        input_bands: Union[list, int, BandSet],
+        output_path: Optional[str] = None, nodata_value: Optional[int] = None,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
         column_name_list: Optional[list] = None,

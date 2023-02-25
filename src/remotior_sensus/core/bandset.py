@@ -186,6 +186,45 @@ class BandSet(object):
     def box_coordinate_list(self, box_coordinate_list):
         self._box_coordinate_list = box_coordinate_list
 
+    def execute(self, function, *args, **kwargs):
+        """Executes a function.
+
+        Executes a functions directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+
+        Args:
+            function: the function to be executed
+
+        Returns:
+            the output of the function
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(
+                ...     ['file1.tif', 'file2.tif'], wavelengths=['Sentinel-2'],
+                ... )
+                
+            Calculation of sum of the first two bands 
+                >>> output_object = bandset.execute(
+                ...     rs.band_calc, output_path='output.tif', expression_string='"b1" + "b2"'
+                ... )
+                
+            Calculation of NDVI
+                >>> output_object = bandset.execute(
+                ...     rs.band_calc, output_path='output.tif', 
+                ...     expression_string='("#NIR#" - "#RED#") / ("#NIR#" + "#RED#")'
+                ... )
+                
+            Calculation of band combination
+                >>> output_object = bandset.execute(rs.band_combination, output_path='output.tif')
+
+        """  # noqa: E501
+
+        kwargs['input_bands'] = self
+        return function(*args, **kwargs)
+
     def get_band_count(self) -> int:
         """Gets the count of bands."""
         if self.bands is None:
@@ -641,7 +680,7 @@ class BandSet(object):
                 >>> # spectral range bands
                 >>> (blue_band, green_band, red_band, nir_band, swir_1_band,
                 ... swir_2_band) = bandset.spectral_range_bands(
-                ... output_band_order=False)
+                ... output_as_number=False)
         """  # noqa: E501
         cfg.logger.log.debug('start')
         try:

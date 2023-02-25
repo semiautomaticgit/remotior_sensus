@@ -47,7 +47,7 @@ from remotior_sensus.util import files_directories, raster_vector
 
 
 def raster_reclassification(
-        raster_path: str, output_path: str,
+        raster_path: str, output_path: Optional[str] = None,
         reclassification_table: Optional[Union[list, np.array]] = None,
         csv_path: Optional[str] = None, separator: Optional[str] = ',',
         output_data_type: Optional[str] = None,

@@ -53,7 +53,8 @@ from remotior_sensus.util import (
 
 
 def band_pca(
-        input_bands: Union[list, int, BandSet], output_path: str,
+        input_bands: Union[list, int, BandSet],
+        output_path: Union[list, str] = None,
         nodata_value: Optional[int] = None,
         n_processes: Optional[int] = None, available_ram: int = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
@@ -69,7 +70,7 @@ def band_pca(
     Args:
         input_bands: input of type BandSet or list of paths or
             integer number of BandSet.
-        output_path: path of the output raster.
+        output_path: string of output path directory or list of paths.
         nodata_value: value to be considered as nodata.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.

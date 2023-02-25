@@ -49,6 +49,9 @@ where each BandSet is an object that includes information about single bands
 Bands in a BandSet can be referenced by the properties thereof,
 such as order number or center wavelength.
 
+.. image:: _static/bandset.jpg
+    :align: center
+
 Multimple BandSets can be defined and identified by their reference number.
 Therefore, BandSets can be used as input for operations on multiple bands
 such as Principal Components Analysis, classification, mosaic,
@@ -71,6 +74,10 @@ Optionally, the output file can be a virtual raster collecting the output
 rasters (corresponding to the sections) written independently by parallel
 processes; this avoids the time required to produce a unique raster output.
 Most tools allow for on the fly reprojection of input data.
+
+.. image:: _static/processing.jpg
+    :align: center
+
 
 Machine Learning
 ________________

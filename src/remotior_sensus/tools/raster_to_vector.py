@@ -37,8 +37,8 @@ from remotior_sensus.util import files_directories
 
 
 def raster_to_vector(
-        raster_path, output_path, dissolve: Optional[bool] = None,
-        field_name: Optional[str] = None,
+        raster_path, output_path: Optional[str] = None,
+        dissolve: Optional[bool] = None, field_name: Optional[str] = None,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None
 ) -> OutputManager:
     """Performs the conversion from raster to vector.
@@ -72,6 +72,8 @@ def raster_to_vector(
         start=True
     )
     raster_path = files_directories.input_path(raster_path)
+    if output_path is None:
+        output_path = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
     output_path = files_directories.output_path(output_path, cfg.gpkg_suffix)
     files_directories.create_parent_directory(output_path)
     if n_processes is None:

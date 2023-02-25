@@ -20,6 +20,7 @@ Shared tools
 """
 
 import os
+import re
 from typing import Union, Optional
 
 import numpy as np
@@ -105,6 +106,8 @@ def prepare_process_files(
     # multiple output virtual raster check list
     vrt_list = []
     if multiple_output:
+        if output_path is None:
+            output_path = cfg.temp.dir
         if type(output_path) is not list and files_directories.is_directory(
                 output_path
         ):
@@ -129,6 +132,10 @@ def prepare_process_files(
                 output_list.append(out_path)
                 vrt_list.append(vrt_r)
     else:
+        if output_path is None:
+            output_path = cfg.temp.temporary_raster_path(
+                extension=cfg.vrt_suffix
+            )
         # check output path
         out_path, virtual_output = files_directories.raster_output_path(
             output_path, virtual_output
@@ -193,3 +200,12 @@ def expand_list(input_list):
 def join_path(*argv):
     path = os.path.join(*argv)
     return path
+
+
+# replace ignoring case
+def replace(input_string: str, old_value: str, new_value: str):
+    old_value = old_value.replace('*', '\\*').replace(
+        '(', '\\('
+    ).replace(')', '\\)')
+    output = re.sub(old_value, new_value, input_string, flags=re.IGNORECASE)
+    return output

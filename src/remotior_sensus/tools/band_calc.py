@@ -39,6 +39,7 @@ from typing import Optional
 import numpy as np
 
 from remotior_sensus.core import configurations as cfg, messages
+from remotior_sensus.core.bandset import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import band_calculation
@@ -47,9 +48,8 @@ from remotior_sensus.util import (
 )
 
 
-# perform band calc
 def band_calc(
-        output_path: str, expression_string: str,
+        expression_string: str, output_path: Optional[str] = None,
         input_raster_list: Optional[list] = None,
         input_name_list: Optional[list] = None,
         n_processes: Optional[int] = None,
@@ -68,12 +68,16 @@ def band_calc(
         calc_datatype: Optional[str] = None,
         any_nodata_mask: Optional[bool] = False,
         bandset_catalog: Optional[BandSetCatalog] = None,
-        bandset_number: Optional[int] = None
+        bandset_number: Optional[int] = None,
+        input_bands: Optional[BandSet] = None
 ) -> OutputManager:
     """Performs band calculation.
 
     Calculation is defined by an expression string using variable names that 
     corresponds to input bands or rasters.
+    Expression can use band alias such as "bandset1b1", spectral band alias 
+    such as "#NIR#" for Near-Infrared and "#RED#" for Red,
+    or expression alias such as "#NDVI#".
     Multiple expression lines can be entered for serial calculation.
     Several iteration functions are available for band sets.
     NumPy functions can also be used if the output is a single band array 
@@ -91,6 +95,8 @@ def band_calc(
             expressions can be entered separated by new line.
         input_name_list: list of input raster names used in expressions 
             (if name not defined in input_raster_list).
+        input_bands: input BandSet for direct expression; in expressions, bands can be refferred as "b1", "b2", etc.;
+            also, spectral band alias such as "#RED#" or "#NIR#"; also "b*" for using all the bands.
         n_processes: number of threads for calculation.
         available_ram: number of megabytes of RAM available to processes.
         align_raster: string path of raster used for aligning output pixels and projections.
@@ -145,57 +151,76 @@ def band_calc(
             ... extent_intersection=False
             ... )
     """  # noqa: E501
-    cfg.logger.log.info('start')
-    cfg.progress.update(
-        process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
-    )
-    cfg.logger.log.debug(
-        'input_bandset_list: %s; input_name_list: %s' % (
-            str(input_raster_list), str(input_name_list))
-    )
-    # create list of band names from band sets
-    raster_variables = _band_names_alias(
-        input_raster_list, input_name_list, bandset_catalog, bandset_number
-    )
-    # check expression
-    exp_list, all_out_name_list, output_message = _check_expression(
-        expression_string, raster_variables, bandset_catalog, bandset_number
-    )
-    if output_message is not None:
-        cfg.logger.log.error('expression error: %s', output_message)
-        return OutputManager(check=False, extra={'message': output_message})
-    output_list = []
-    # process calculation
-    n = 0
-    min_p = 1
-    max_p = int((99 - 1) / len(exp_list))
-    previous_output_list = []
-    for e in exp_list:
-        output, out_name = _run_expression(
-            expression_list=e, output_path=output_path,
-            previous_output_list=previous_output_list, n_processes=n_processes,
-            available_ram=available_ram,
-            extent_raster=extent_raster, align_raster=align_raster,
-            extent_list=extent_list, extent_intersection=extent_intersection,
+    if input_bands is not None:
+        output = _calculate_bandset(
+            input_bands=input_bands, output_path=output_path,
+            expression_string=expression_string, n_processes=n_processes,
+            available_ram=available_ram, align_raster=align_raster,
+            extent_raster=extent_raster, extent_list=extent_list,
+            extent_intersection=extent_intersection,
             xy_resolution_list=xy_resolution_list,
             input_nodata_as_value=input_nodata_as_value,
             use_value_as_nodata=use_value_as_nodata,
-            output_nodata=output_nodata,
-            output_datatype=output_datatype, use_scale=use_scale,
-            use_offset=use_offset, calc_datatype=calc_datatype,
-            nodata_mask=any_nodata_mask, min_progress=min_p + max_p * n,
-            max_progress=min_p + max_p * (n + 1),
-            progress_message='running calculation %s' % (n + 1),
-            bandset_catalog=bandset_catalog
+            output_nodata=output_nodata, output_datatype=output_datatype,
+            use_scale=use_scale, use_offset=use_offset,
+            calc_datatype=calc_datatype, any_nodata_mask=any_nodata_mask)
+        return output
+    else:
+        cfg.logger.log.info('start')
+        cfg.progress.update(
+            process=__name__.split('.')[-1].replace('_', ' '),
+            message='starting', start=True
         )
-        output_list.append(output)
-        previous_output_list.append([output, out_name])
-        cfg.logger.log.debug('output: %s' % output)
-        n += 1
-    cfg.progress.update(end=True)
-    cfg.logger.log.info('end; band calc: %s', output_list)
-    return OutputManager(paths=output_list)
+        cfg.logger.log.debug(
+            'input_bandset_list: %s; input_name_list: %s' % (
+                str(input_raster_list), str(input_name_list))
+        )
+        # create list of band names from band sets
+        raster_variables = _band_names_alias(
+            input_raster_list, input_name_list, bandset_catalog, bandset_number
+        )
+        # check expression
+        exp_list, all_out_name_list, output_message = _check_expression(
+            expression_string, raster_variables, bandset_catalog,
+            bandset_number
+        )
+        if output_message is not None:
+            cfg.logger.log.error('expression error: %s', output_message)
+            return OutputManager(
+                check=False, extra={'message': output_message}
+            )
+        output_list = []
+        # process calculation
+        n = 0
+        min_p = 1
+        max_p = int((99 - 1) / len(exp_list))
+        previous_output_list = []
+        for e in exp_list:
+            output, out_name = _run_expression(
+                expression_list=e, output_path=output_path,
+                previous_output_list=previous_output_list,
+                n_processes=n_processes, available_ram=available_ram,
+                extent_raster=extent_raster, align_raster=align_raster,
+                extent_list=extent_list,
+                extent_intersection=extent_intersection,
+                xy_resolution_list=xy_resolution_list,
+                input_nodata_as_value=input_nodata_as_value,
+                use_value_as_nodata=use_value_as_nodata,
+                output_nodata=output_nodata,
+                output_datatype=output_datatype, use_scale=use_scale,
+                use_offset=use_offset, calc_datatype=calc_datatype,
+                nodata_mask=any_nodata_mask, min_progress=min_p + max_p * n,
+                max_progress=min_p + max_p * (n + 1),
+                progress_message='running calculation %s' % (n + 1),
+                bandset_catalog=bandset_catalog
+            )
+            output_list.append(output)
+            previous_output_list.append([output, out_name])
+            cfg.logger.log.debug('output: %s' % output)
+            n += 1
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end; band calc: %s', output_list)
+        return OutputManager(paths=output_list)
 
 
 def _run_expression(
@@ -337,7 +362,6 @@ def _run_expression(
     return output, out_name
 
 
-#
 def _get_output_path(
         expression_output_name=None, expression_out_path=None, virtual=None,
         output_path=None
@@ -406,7 +430,7 @@ def _get_output_path(
     # save in temporary directory
     else:
         path = cfg.temp.temporary_file_path(
-            name_suffix=out_extension, name=expression_output_name
+            name_suffix=cfg.vrt_suffix, name=expression_output_name
         )
     out_name = files_directories.file_name(path)
     return path, out_name, virtual
@@ -469,8 +493,7 @@ def _band_names_alias(
 
 def _check_expression(
         expression_string, raster_variables=None,
-        bandset_catalog: BandSetCatalog = None,
-        bandset_number=None
+        bandset_catalog: BandSetCatalog = None, bandset_number=None
 ):
     """Checks expression.
 
@@ -520,10 +543,8 @@ def _check_expression(
                     first_line = line
                     break
             # BandSet iteration with structure forbandsets[x1:x2]name_filter
-            # or forbandsets[x1,x2,x3]name_filter
-            # or date iteration with structure
-            # forbandsets[YYYY-MM-DD:YYYY-MM-DD]name_filter
-            # or
+            # or forbandsets[x1,x2,x3]name_filter or date iteration with
+            # structure forbandsets[YYYY-MM-DD:YYYY-MM-DD]name_filter or
             # forbandsets[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]name_filter
             # with name_filter optional filter of name of first band in the 
             # BandSet
@@ -567,6 +588,13 @@ def _check_expression(
                             date_string = dates_times.get_time_string()
                             line_split = expressions[line_number].split(at)
                             calculation = str(line_split[0])
+                            # replace expression alias
+                            for ex_alias in cfg.expression_alias:
+                                calculation = shared_tools.replace(
+                                    calculation, '%s%s%s' % (
+                                        cfg.variable_band_quotes, ex_alias[0],
+                                        cfg.variable_band_quotes), ex_alias[1]
+                                )
                             # output variables after 
                             # variable_output_separator at the end of the line
                             output_name = None
@@ -615,7 +643,8 @@ def _check_expression(
                                         output_name = None
                                 # output variable output_name BandSet
                                 try:
-                                    output_name = output_name.replace(
+                                    output_name = shared_tools.replace(
+                                        output_name,
                                         cfg.variable_output_name_bandset,
                                         bs_x.name
                                     )
@@ -623,7 +652,8 @@ def _check_expression(
                                     str(err)
                                 # output variable output_name date
                                 try:
-                                    output_name = output_name.replace(
+                                    output_name = shared_tools.replace(
+                                        output_name,
                                         cfg.variable_output_name_date,
                                         date_string
                                     )
@@ -645,7 +675,8 @@ def _check_expression(
                                 )
                                 # input variables
                                 try:
-                                    calculation = calculation.replace(
+                                    calculation = shared_tools.replace(
+                                        calculation,
                                         cfg.variable_output_name_bandset,
                                         bs_x.name
                                     )
@@ -675,12 +706,14 @@ def _check_expression(
                                         if spectral_band[0] in calculation:
                                             try:
                                                 calculation = \
-                                                    calculation.replace(
+                                                    shared_tools.replace(
+                                                        calculation,
                                                         spectral_band[0],
                                                         '%s%s%s%s' % (
-                                                            bsn,
-                                                            str(bandset_x),
-                                                            bn, str(
+                                                            bsn, str(
+                                                                bandset_x),
+                                                            bn,
+                                                            str(
                                                                 spectral_band[
                                                                     1]
                                                             )
@@ -692,9 +725,9 @@ def _check_expression(
                                                     str(counter),
                                                     str(spectral_band[0]))
                                 # current BandSet
-                                if ('%s%s%s' % (bsn, cb, bn)) in calculation:
-                                    calculation = calculation.replace(
-                                        '%s%s' % (bsn, cb),
+                                if '%s%s%s' % (bsn, cb, bn) in calculation:
+                                    calculation = shared_tools.replace(
+                                        calculation, '%s%s' % (bsn, cb),
                                         '%s%s' % (bsn, str(bandset_x))
                                     )
                                 # new line creation
@@ -735,10 +768,12 @@ def _check_expression(
                                         elif output_name is not None:
                                             calculation += ' %s%s%s' % (
                                                 at, str(band_x), output_name)
-                                        calculation = calculation.replace(
-                                            cfg.variable_band, '%s%s%s%s' % (
+                                        calculation = shared_tools.replace(
+                                            calculation, cfg.variable_band,
+                                            '%s%s%s%s' % (
                                                 bsn, str(bandset_x), bn,
-                                                str(band_x))
+                                                str(band_x)
+                                            )
                                         )
                                         lines.append(calculation)
                                 # compose new line expression
@@ -815,8 +850,9 @@ def _check_expression(
                         and cfg.variable_output_name_bandset in output_name):
                     try:
                         b_name = bandset_catalog.get(bandset_number, 'name')
-                        output_name = output_name.replace(
-                            cfg.variable_output_name_bandset, b_name
+                        output_name = shared_tools.replace(
+                            output_name, cfg.variable_output_name_bandset,
+                            b_name
                         )
                     except Exception as err:
                         cfg.logger.log.error(str(err))
@@ -828,8 +864,9 @@ def _check_expression(
                         and cfg.variable_output_name_date in output_name):
                     try:
                         date_string = dates_times.get_time_string()
-                        output_name = output_name.replace(
-                            cfg.variable_output_name_date, date_string
+                        output_name = shared_tools.replace(
+                            output_name, cfg.variable_output_name_date,
+                            date_string
                         )
                     except Exception as err:
                         cfg.logger.log.error(str(err))
@@ -930,9 +967,9 @@ def _bandsets_iterator(expression, bandset_catalog):
     :param expression: expression string
     """
     if cfg.forbandsets in expression or cfg.forbandsinbandset in expression:
-        expression = expression.replace(cfg.forbandsets, '').replace(
-            cfg.forbandsinbandset, ''
-        )
+        expression = shared_tools.replace(expression, cfg.forbandsets, '')
+        expression = shared_tools.replace(expression, cfg.forbandsinbandset,
+                                          '')
         date_list = []
         date_range_list = []
         bandset_list = []
@@ -1091,7 +1128,9 @@ def _expression_to_function(expression, raster_variables: dict):
             except Exception as err:
                 str(err)
                 nd = np.nan
-            expr_func = expr_func.replace('nodata(%s)' % name, str(nd))
+            expr_func = shared_tools.replace(
+                expr_func, 'nodata(%s)' % name, str(nd)
+            )
             cfg.logger.log.debug('nd: %s' % str(nd))
     # dictionary of actual input paths
     input_rasters = {}
@@ -1112,8 +1151,7 @@ def _expression_to_function(expression, raster_variables: dict):
 
 
 def _replace_operator_names(
-        expression, bandset_catalog: BandSetCatalog,
-        bandset_number=None
+        expression, bandset_catalog: BandSetCatalog, bandset_number=None
 ):
     """Replaces operators for expressions.
 
@@ -1123,7 +1161,7 @@ def _replace_operator_names(
     output_message = None
     if bandset_number is None:
         bandset_number = bandset_catalog.current_bandset
-    # variable all bands in current BandSet e.g. bandset#band*
+    # variable all bands in current BandSet e.g. bandset#b*
     var_current_bandset = '%s%s%s%s%s%s' % (
         cfg.variable_band_quotes, cfg.variable_bandset_name,
         cfg.variable_current_bandset, cfg.variable_band_name, cfg.variable_all,
@@ -1152,7 +1190,9 @@ def _replace_operator_names(
                 except Exception as err:
                     str(err)
         band_list = '%s], axis = 0' % band_list[:-2]
-        expression = expression.replace(var_current_bandset, band_list)
+        expression = shared_tools.replace(
+            expression, var_current_bandset, band_list
+        )
         cfg.logger.log.debug('expression: %s' % str(expression))
     # variable band number in all band sets e.g. bandset*b1
     elif '%s%s%s%s' % (
@@ -1195,8 +1235,8 @@ def _replace_operator_names(
                     except Exception as err:
                         str(err)
             band_list = '%s], axis = 0' % band_list[:-2]
-            expression = expression.replace(
-                '%s%s%s%s%s%s' % (
+            expression = shared_tools.replace(
+                expression, '%s%s%s%s%s%s' % (
                     cfg.variable_band_quotes, cfg.variable_bandset_name,
                     cfg.variable_all, cfg.variable_band_name,
                     str(num_b), cfg.variable_band_quotes), band_list
@@ -1360,8 +1400,8 @@ def _replace_operator_names(
                     except Exception as err:
                         str(err)
             band_list = '%s], axis = 0' % band_list[:-2]
-            expression = expression.replace(
-                '%s%s{%s%s' % (
+            expression = shared_tools.replace(
+                expression, '%s%s{%s%s' % (
                     cfg.variable_band_quotes, cfg.variable_bandset_name, parts,
                     cfg.variable_band_quotes),
                 band_list
@@ -1403,8 +1443,8 @@ def _replace_operator_names(
                         except Exception as err:
                             str(err)
                 band_list = '%s], axis = 0' % band_list[:-2]
-                expression = expression.replace(
-                    '%s%s%s%s%s%s' % (
+                expression = shared_tools.replace(
+                    expression, '%s%s%s%s%s%s' % (
                         cfg.variable_band_quotes, cfg.variable_bandset_name,
                         str(n), cfg.variable_band_name,
                         cfg.variable_all, cfg.variable_band_quotes), band_list
@@ -1465,3 +1505,417 @@ def _check_numpy_operators(expression, layer_number: int):
     size = layer_number * 5 * 5
     _array_function_placeholder = np.arange(size).reshape((5, 5, layer_number))
     eval(expression)
+
+
+def _calculate_bandset(
+        input_bands: BandSet, output_path: str, expression_string: str,
+        n_processes: Optional[int] = None,
+        available_ram: Optional[int] = None,
+        align_raster: Optional[str] = None,
+        extent_raster: Optional[str] = None,
+        extent_list: Optional[list] = None,
+        extent_intersection: Optional[bool] = True,
+        xy_resolution_list: Optional[list] = None,
+        input_nodata_as_value: Optional[bool] = None,
+        use_value_as_nodata: Optional[int] = None,
+        output_nodata: Optional[int] = None,
+        output_datatype: Optional[str] = None,
+        use_scale: Optional[float] = None,
+        use_offset: Optional[float] = None,
+        calc_datatype: Optional[str] = None,
+        any_nodata_mask: Optional[bool] = False
+) -> OutputManager:
+    """Performs band calculation using BandSet as input.
+
+    Calculation is defined by an expression string using variable names referred to BandSet.
+
+    Args:
+        input_bands: BandSet object.
+        output_path: path of output file for single expression or 
+            path to a directory for multiple expression outputs.
+        expression_string: expression string used for calculation; multiple 
+            expressions can be entered separated by new line.
+        n_processes: number of threads for calculation.
+        available_ram: number of megabytes of RAM available to processes.
+        align_raster: string path of raster used for aligning output pixels and projections.
+        extent_raster: string path of raster used for extent reference.
+        extent_list: list of coordinates for defining calculation extent 
+            [left, top, right, bottom] in the same coordinates as the reference raster.
+        extent_intersection: if True the output extent is geometric 
+            intersection of input raster extents, if False the output extent 
+            is the maximum extent from union of input raster extents.
+        xy_resolution_list: list of [x, y] pixel resolution.
+        input_nodata_as_value: if True then unmask the value of nodata pixels 
+            in calculations, if False then mask nodata pixels in calculations.
+        use_value_as_nodata: use integer value as nodata in calculation.
+        output_nodata: integer value used as nodata in output raster.
+        output_datatype: string of data type for output raster such as 
+            Float64, Float32, Int32, UInt32, Int16, UInt16, or Byte.
+        use_scale: float number used for scale for output.
+        use_offset: float number used for offset for output.
+        calc_datatype: data type used during calculation, which may differ 
+            from output_datatype, such as Float64, Float32, Int32, UInt32, Int16, UInt16, or Byte.
+        any_nodata_mask: if True then output nodata where any input is nodata, 
+            if False then output nodata where all the inputs are nodata, 
+            if None then do not apply nodata to output.
+
+    Returns:
+        :func:`~remotior_sensus.core.output_manager.OutputManager` object with
+            - paths = [output raster paths]
+    """  # noqa: E501
+    cfg.logger.log.info('start')
+    cfg.progress.update(
+        process=__name__.split('.')[-1].replace('_', ' '), message='starting',
+        start=True
+    )
+    cfg.logger.log.debug('input_bands: %s' % (str(input_bands)))
+    # create list of band names from band sets
+    raster_variables = _bandset_names_alias(bandset=input_bands)
+    # check expression
+    exp_list, all_out_name_list, output_message = _check_expression_bandset(
+        expression_string, raster_variables, input_bands
+    )
+    if output_message is not None:
+        cfg.logger.log.error('expression error: %s', output_message)
+        return OutputManager(check=False, extra={'message': output_message})
+    output_list = []
+    # process calculation
+    n = 0
+    min_p = 1
+    max_p = int((99 - 1) / len(exp_list))
+    previous_output_list = []
+    for e in exp_list:
+        output, out_name = _run_expression(
+            expression_list=e, output_path=output_path,
+            previous_output_list=previous_output_list, n_processes=n_processes,
+            available_ram=available_ram,
+            extent_raster=extent_raster, align_raster=align_raster,
+            extent_list=extent_list, extent_intersection=extent_intersection,
+            xy_resolution_list=xy_resolution_list,
+            input_nodata_as_value=input_nodata_as_value,
+            use_value_as_nodata=use_value_as_nodata,
+            output_nodata=output_nodata,
+            output_datatype=output_datatype, use_scale=use_scale,
+            use_offset=use_offset, calc_datatype=calc_datatype,
+            nodata_mask=any_nodata_mask, min_progress=min_p + max_p * n,
+            max_progress=min_p + max_p * (n + 1),
+            progress_message='running calculation %s' % (n + 1)
+        )
+        output_list.append(output)
+        previous_output_list.append([output, out_name])
+        cfg.logger.log.debug('output: %s' % output)
+        n += 1
+    cfg.progress.update(end=True)
+    cfg.logger.log.info('end; band calc: %s', output_list)
+    return OutputManager(paths=output_list)
+
+
+def _bandset_names_alias(bandset: BandSet) -> dict:
+    """Gets band names alias.
+
+    Gets band names alias for calculation.
+
+    Args:
+        bandset: BandSet object
+    """
+    band_names = {}
+    # BandSet bands
+    bands = bandset.get_band_alias()
+    apaths = bandset.get_absolute_paths()
+    # current BandSet
+    for b in range(len(bands)):
+        band_names['%s%s%s' % (
+            cfg.variable_band_quotes, bands[b], cfg.variable_band_quotes
+        )] = apaths[b]
+    (blue_band, green_band, red_band, nir_band, swir_1_band,
+     swir_2_band) = bandset.spectral_range_bands(output_as_number=False)
+    spectral_bands = [
+        [cfg.variable_blue_name, blue_band],
+        [cfg.variable_green_name, green_band],
+        [cfg.variable_red_name, red_band], [cfg.variable_nir_name, nir_band],
+        [cfg.variable_swir1_name, swir_1_band],
+        [cfg.variable_swir2_name, swir_2_band]]
+    for spectral_band in spectral_bands:
+        try:
+            band_names['%s%s%s' % (
+                cfg.variable_band_quotes, spectral_band[0],
+                cfg.variable_band_quotes
+            )] = spectral_band[1].absolute_path
+        except Exception as err:
+            str(err)
+    return band_names
+
+
+def _check_expression_bandset(
+        expression_string, raster_variables_dict, bandset: BandSet
+):
+    """Checks expression.
+
+    Checks expression for calculation.
+
+    Args:
+        expression_string: string of expressions
+        bandset: BandSet object
+    """
+    cfg.logger.log.debug('start')
+    output_message = None
+    # short variable names
+    at = cfg.variable_output_separator
+    per = cfg.variable_bandset_number_separator
+    # output output_name list
+    all_out_name_list = []
+    # expressions list
+    exp_list = False
+    if expression_string is None:
+        output_message = '0: expressions none'
+        cfg.logger.log.debug('end')
+        return exp_list, all_out_name_list, output_message
+    else:
+        cfg.logger.log.debug('expression_string: %s' % str(expression_string))
+        output_bandset_number = output_name = output_path = new_line = None
+        date_string = dates_times.get_time_string()
+        line_split = expression_string.split(at)
+        calculation = str(line_split[0])
+        # output variables after variable_output_separator
+        # at the end of the line
+        if len(line_split) > 0:
+            # output variables: output path after first
+            # variable_output_separator and output name after the second
+            if len(line_split) == 3:
+                output_name = expression_string.split(at)[2].strip()
+                output_path = expression_string.split(at)[1]
+                # output variable path in the same directory as the first
+                # band of the BandSet
+                if cfg.variable_output_name_bandset in output_path:
+                    try:
+                        output_path = (files_directories.parent_directory(
+                            bandset.get_absolute_paths()[0]
+                        ))
+                    except Exception as err:
+                        cfg.logger.log.error(str(err))
+                # output variable path in temporary directory
+                elif cfg.variable_output_temporary == output_path.lower():
+                    output_path = cfg.temp.dir
+            # output output_name after first variable_output_separator
+            elif len(line_split) == 2:
+                output_path = None
+                try:
+                    output_name = expression_string.split(at)[1].strip()
+                except Exception as err:
+                    str(err)
+                    output_name = None
+            # output variable output_name BandSet
+            try:
+                output_name = shared_tools.replace(
+                    output_name, cfg.variable_output_name_bandset, bandset.name
+                )
+            except Exception as err:
+                str(err)
+            # output variable output_name date
+            try:
+                output_name = shared_tools.replace(
+                    output_name, cfg.variable_output_name_date, date_string
+                )
+            except Exception as err:
+                str(err)
+            # add output to BandSet number defined after
+            # variable_bandset_number_separator
+            try:
+                output_name, output_bandset_number = (output_name.split(per))
+                output_name = output_name.strip()
+            except Exception as err:
+                str(err)
+            cfg.logger.log.debug(
+                'output_path: %s; output_name: %s; output_bandset_number: %s'
+                % (str(output_path), str(output_name),
+                   str(output_bandset_number))
+            )
+            # input variables
+            try:
+                calculation = shared_tools.replace(
+                    calculation, cfg.variable_output_name_bandset, bandset.name
+                )
+            except Exception as err:
+                str(err)
+            # compose new line expression
+            if output_path is not None and output_name is not None:
+                new_line = '%s %s%s%s%s' % (
+                    calculation, at, output_path, at, output_name)
+            elif output_name is not None:
+                new_line = '%s %s%s' % (calculation, at, output_name)
+            else:
+                new_line = calculation
+        cfg.logger.log.debug('new_line: %s' % str(new_line))
+        # build expression list
+        if new_line is not None:
+            # output number counter
+            output_number = 0
+            # expressions list
+            exp_list = []
+            # replace expression alias
+            for ex_alias in cfg.expression_alias:
+                calculation = shared_tools.replace(
+                    calculation, '%s%s%s' % (
+                        cfg.variable_band_quotes, ex_alias[0],
+                        cfg.variable_band_quotes), ex_alias[1]
+                )
+            cfg.logger.log.debug('new_line: %s' % str(new_line))
+            output_name = out_path = bs_number = None
+            # output path and output name after variable_output_separator
+            line_split = new_line.split(at)
+            if len(line_split) == 3:
+                try:
+                    output_name = line_split[2].strip()
+                    out_path = line_split[1].strip()
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    output_message = '%s' % (str(new_line))
+                    exp_list = False
+            elif len(line_split) == 2:
+                try:
+                    output_name = line_split[1].strip()
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    output_message = '%s' % (str(new_line))
+                    exp_list = False
+            # variable output output name current bandset
+            if (output_name is not None
+                    and cfg.variable_output_name_bandset in output_name):
+                try:
+                    output_name = shared_tools.replace(
+                        output_name, cfg.variable_output_name_bandset,
+                        bandset.name
+                    )
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    output_message = '%s' % (str(new_line))
+                    exp_list = False
+            # variable output output_name date
+            if (output_name is not None
+                    and cfg.variable_output_name_date in output_name):
+                try:
+                    date_string = dates_times.get_time_string()
+                    output_name = shared_tools.replace(
+                        output_name, cfg.variable_output_name_date, date_string
+                    )
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    output_message = '%s' % (str(new_line))
+                    exp_list = False
+            # check output names
+            virtual = False
+            output_number += 1
+            if output_name is not None:
+                try:
+                    output_name, bs_number = output_name.split(per)
+                    output_name = output_name.strip()
+                except Exception as err:
+                    str(err)
+                # virtual
+                output_ext = files_directories.file_extension(
+                    output_name.lower())
+                if output_ext == cfg.vrt_suffix:
+                    virtual = True
+                # tif
+                if (output_ext == cfg.tif_suffix
+                        or output_ext == cfg.vrt_suffix):
+                    output_name = files_directories.file_name(
+                        output_name, False
+                    )
+                all_out_name_list.append(output_name)
+            else:
+                # output default name
+                output_name = '%s%s' % (
+                    cfg.default_output_name, str(output_number))
+            # replace operators
+            expr, errors = _replace_bandset_operator_names(new_line, bandset)
+            cfg.logger.log.debug(
+                'output_name: %s; expr: %s' % (str(output_name), str(expr))
+            )
+            if errors is not None:
+                cfg.logger.log.error(str(errors))
+                output_message = '%s' % (str(new_line))
+                exp_list = False
+            # get expression function
+            expr_function, input_rasters = _expression_to_function(
+                expr, raster_variables_dict
+            )
+            # function variables
+            if cfg.calc_function_name in expr_function:
+                exp_list.append(
+                    [expr, expr_function, output_name, bs_number, out_path,
+                     virtual, input_rasters]
+                )
+            # no variables
+            elif expr == expr_function:
+                output_message = '%s' % (str(new_line))
+                cfg.logger.log.error(str(new_line))
+                exp_list = False
+            # check valid function
+            else:
+                try:
+                    _check_numpy_operators(
+                        expr_function.split(at)[
+                            0], len(input_rasters)
+                    )
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    output_message = '%s' % (str(new_line))
+                    exp_list = False
+            if output_message is None:
+                exp_list.append(
+                    [expr, expr_function, output_name, bs_number, out_path,
+                     virtual, input_rasters]
+                )
+        if exp_list is not False:
+            cfg.logger.log.debug(
+                'end; len(exp_list): %s; all_out_name_list: %s; '
+                'output_message: %s'
+                % (str(len(exp_list)), str(all_out_name_list),
+                   str(output_message))
+            )
+        return exp_list, all_out_name_list, output_message
+
+
+def _replace_bandset_operator_names(expression, bandset: BandSet):
+    """Replaces operators for expressions.
+
+    :param expression: expression string
+    :param bandset: BandSet object
+    """
+    output_message = None
+    # variable all bands in BandSet e.g. "b*"
+    if '%s%s%s%s' % (
+            cfg.variable_band_quotes, cfg.variable_band_name, cfg.variable_all,
+            cfg.variable_band_quotes) in expression:
+        band_list = '['
+        for band in range(1, bandset.get_band_count() + 1):
+            band_list += '%s%s%s%s, ' % (
+                cfg.variable_band_quotes, cfg.variable_band_name,
+                str(band), cfg.variable_band_quotes)
+        # percentile
+        percentiles = re.findall(
+            r'percentile\(#?(.*?)#?\)', expression
+        )
+        for percentile_x in percentiles:
+            if '%s%s%s%s' % (cfg.variable_band_quotes,
+                             cfg.variable_band_name, cfg.variable_all,
+                             cfg.variable_band_quotes) in percentile_x:
+                per_x_split = percentile_x.split(',')
+                try:
+                    expression = expression.replace(
+                        percentile_x,
+                        '%s],%s, axis = 0' % (
+                            band_list[:-2], per_x_split[1])
+                    )
+                except Exception as err:
+                    str(err)
+        band_list = '%s], axis = 0' % band_list[:-2]
+        expression = shared_tools.replace(
+            expression,
+            '%s%s%s%s' % (cfg.variable_band_quotes, cfg.variable_band_name,
+                          cfg.variable_all, cfg.variable_band_quotes),
+            band_list
+        )
+        cfg.logger.log.debug('expression: %s' % str(expression))
+    return expression, output_message

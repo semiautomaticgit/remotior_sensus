@@ -13,9 +13,8 @@ class TestRasterReport(TestCase):
         cfg = rs.configurations
         cfg.logger.log.debug('test')
         p = './data/S2_2020-01-01/S2_B02.tif'
-        temp = cfg.temp.temporary_file_path(name_suffix=cfg.csv_suffix)
         cfg.logger.log.debug('>>> test raster_report')
-        report = rs.raster_report(p, temp)
+        report = rs.raster_report(p)
         table = read_write_files.open_text_file(report.path)
         table_f = read_write_files.format_csv_new_delimiter(
             table, cfg.tab_delimiter

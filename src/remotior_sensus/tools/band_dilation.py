@@ -42,8 +42,9 @@ from remotior_sensus.util import shared_tools
 
 
 def band_dilation(
-        input_bands: Union[list, int, BandSet], output_path: Union[list, str],
-        value_list: list, size: int, circular_structure: Optional[bool] = None,
+        input_bands: Union[list, int, BandSet], value_list: list, size: int,
+        output_path: Union[list, str] = None,
+        circular_structure: Optional[bool] = None,
         prefix: Optional[str] = '', n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,

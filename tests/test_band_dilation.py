@@ -21,6 +21,12 @@ class TestBandDilation(TestCase):
             prefix='dilation_'
             )
         self.assertTrue(files_directories.is_file(dilation.paths[0]))
+        cfg.logger.log.debug('>>> test band_dilation without output')
+        dilation = rs.band_dilation(
+            input_bands=file_list, value_list=[1, 425], size=3,
+            circular_structure=True, prefix='dilation_'
+            )
+        self.assertTrue(files_directories.is_file(dilation.paths[0]))
 
         # clear temporary directory
         rs.close()

@@ -41,8 +41,8 @@ from remotior_sensus.util import shared_tools
 
 
 def band_sieve(
-        input_bands: Union[list, int, BandSet], output_path: Union[list, str],
-        size: int, connected: Optional[bool] = None,
+        input_bands: Union[list, int, BandSet], size: int,
+        output_path: Union[list, str] = None, connected: Optional[bool] = None,
         prefix: Optional[str] = '', n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
