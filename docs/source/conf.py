@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.abspath('../../src/'))
 project = 'Remotior Sensus'
 copyright = '2022-2023, Luca Congedo'
 author = 'Luca Congedo'
-release = '0.0.18'
-version = '0.0.18.1'
+release = '0.0.20'
+version = '0.0.20.1'
 
 
 # -- General configuration ---------------------------------------------------

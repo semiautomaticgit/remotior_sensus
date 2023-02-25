@@ -1737,6 +1737,7 @@ def _check_expression_bandset(
                 )
             except Exception as err:
                 str(err)
+            print('calculation', calculation)
             # compose new line expression
             if output_path is not None and output_name is not None:
                 new_line = '%s %s%s%s%s' % (
@@ -1748,18 +1749,18 @@ def _check_expression_bandset(
         cfg.logger.log.debug('new_line: %s' % str(new_line))
         # build expression list
         if new_line is not None:
+            cfg.logger.log.debug('new_line: %s' % str(new_line))
             # output number counter
             output_number = 0
             # expressions list
             exp_list = []
             # replace expression alias
             for ex_alias in cfg.expression_alias:
-                calculation = shared_tools.replace(
-                    calculation, '%s%s%s' % (
+                new_line = shared_tools.replace(
+                    new_line, '%s%s%s' % (
                         cfg.variable_band_quotes, ex_alias[0],
                         cfg.variable_band_quotes), ex_alias[1]
                 )
-            cfg.logger.log.debug('new_line: %s' % str(new_line))
             output_name = out_path = bs_number = None
             # output path and output name after variable_output_separator
             line_split = new_line.split(at)

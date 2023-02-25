@@ -121,8 +121,7 @@ class TestBandCalc(TestCase):
         # band in selected band sets
         expression = '%s%s1%s%s%s' % (
             cfg.variable_band_quotes, cfg.variable_bandset_name,
-            cfg.variable_band_name, cfg.variable_all,
-            cfg.variable_band_quotes)
+            cfg.variable_band_name, cfg.variable_all, cfg.variable_band_quotes)
         out_exp, error_message = band_calc._replace_operator_names(
             expression, catalog
         )
@@ -134,8 +133,7 @@ class TestBandCalc(TestCase):
                          cfg.variable_band_quotes, cfg.variable_bandset_name,
                          cfg.variable_band_name, cfg.variable_all,
                          cfg.variable_band_quotes, cfg.new_line,
-                         cfg.variable_band_quotes,
-                         cfg.variable_bandset_name,
+                         cfg.variable_band_quotes, cfg.variable_bandset_name,
                          cfg.variable_band_name, cfg.variable_all,
                          cfg.variable_band_quotes)
         out_exp, error_message = band_calc._replace_operator_names(
@@ -146,8 +144,8 @@ class TestBandCalc(TestCase):
         cfg.logger.log.debug('>>> test check expressions')
         # current BandSet
         expression = (
-                cfg.variable_band_quotes + cfg.variable_bandset_name +
-                cfg.variable_current_bandset
+                cfg.variable_band_quotes + cfg.variable_bandset_name
+                + cfg.variable_current_bandset
                 + cfg.variable_band_name + '1' + cfg.variable_band_quotes)
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
@@ -170,8 +168,8 @@ class TestBandCalc(TestCase):
         self.assertFalse(error_message)
         # iterate band sets
         expression = (
-                cfg.forbandsets + '[1]S ' + cfg.new_line +
-                cfg.variable_band_quotes + cfg.variable_bandset_name
+                cfg.forbandsets + '[1]S ' + cfg.new_line
+                + cfg.variable_band_quotes + cfg.variable_bandset_name
                 + cfg.variable_current_bandset + cfg.variable_band_name
                 + '1' + cfg.variable_band_quotes)
         out_exp, out_name_list, error_message = band_calc._check_expression(
@@ -186,10 +184,10 @@ class TestBandCalc(TestCase):
         self.assertFalse(error_message)
         # forbandsets range of dates
         expression = (
-                cfg.forbandsets + '[2021-01-01:2021-01-02]S ' +
-                cfg.new_line + cfg.variable_band_quotes
-                + cfg.variable_bandset_name +
-                cfg.variable_current_bandset + cfg.variable_band_name
+                cfg.forbandsets + '[2021-01-01:2021-01-02]S '
+                + cfg.new_line + cfg.variable_band_quotes
+                + cfg.variable_bandset_name
+                + cfg.variable_current_bandset + cfg.variable_band_name
                 + '1' + cfg.variable_band_quotes)
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
@@ -204,13 +202,12 @@ class TestBandCalc(TestCase):
         # iterate bands in band sets with output temp path and add output to
         # current BandSet
         expression = (
-                cfg.forbandsinbandset + '[1,2]S ' + cfg.new_line +
-                cfg.variable_band_quotes + cfg.variable_band
-                + cfg.variable_band_quotes +
-                cfg.variable_output_separator +
-                cfg.variable_output_temporary
-                + cfg.variable_output_separator + 'test' +
-                cfg.variable_bandset_number_separator
+                cfg.forbandsinbandset + '[1,2]S ' + cfg.new_line
+                + cfg.variable_band_quotes + cfg.variable_band
+                + cfg.variable_band_quotes + cfg.variable_output_separator
+                + cfg.variable_output_temporary
+                + cfg.variable_output_separator + 'test'
+                + cfg.variable_bandset_number_separator
                 + cfg.variable_current_bandset)
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
@@ -218,18 +215,16 @@ class TestBandCalc(TestCase):
         )
         self.assertEqual(
             out_exp[0][0].split(cfg.variable_output_separator)[0].strip(),
-            cfg.variable_band_quotes
-            + cfg.variable_bandset_name + '1' + cfg.variable_band_name + '1'
-            + cfg.variable_band_quotes
+            cfg.variable_band_quotes + cfg.variable_bandset_name + '1'
+            + cfg.variable_band_name + '1' + cfg.variable_band_quotes
         )
         self.assertFalse(error_message)
         # iterate bands with output temp path and add output to BandSet
         expression = (
-                cfg.forbandsinbandset + '[1,2]S ' + cfg.new_line +
-                cfg.variable_band_quotes + cfg.variable_band
-                + cfg.variable_band_quotes +
-                cfg.variable_output_separator +
-                cfg.variable_output_temporary
+                cfg.forbandsinbandset + '[1,2]S ' + cfg.new_line
+                + cfg.variable_band_quotes + cfg.variable_band
+                + cfg.variable_band_quotes + cfg.variable_output_separator
+                + cfg.variable_output_temporary
                 + cfg.variable_output_separator + 'test1')
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
@@ -237,50 +232,46 @@ class TestBandCalc(TestCase):
         )
         self.assertEqual(
             out_exp[0][0].split(cfg.variable_output_separator)[0].strip(),
-            cfg.variable_band_quotes
-            + cfg.variable_bandset_name + '1' + cfg.variable_band_name + '1'
-            + cfg.variable_band_quotes
+            cfg.variable_band_quotes + cfg.variable_bandset_name + '1'
+            + cfg.variable_band_name + '1' + cfg.variable_band_quotes
         )
         self.assertFalse(error_message)
         # iterate bands and add output to current BandSet
         expression = (
-                cfg.forbandsinbandset + '[1,2]S ' + cfg.new_line +
-                cfg.variable_band_quotes + cfg.variable_band
-                + cfg.variable_band_quotes +
-                cfg.variable_output_separator + 'test2'
-                + cfg.variable_bandset_number_separator +
-                cfg.variable_current_bandset)
+                cfg.forbandsinbandset + '[1,2]S ' + cfg.new_line
+                + cfg.variable_band_quotes + cfg.variable_band
+                + cfg.variable_band_quotes + cfg.variable_output_separator
+                + 'test2' + cfg.variable_bandset_number_separator
+                + cfg.variable_current_bandset)
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
             bandset_catalog=catalog
         )
         self.assertEqual(
             out_exp[0][0].split(cfg.variable_output_separator)[0].strip(),
-            cfg.variable_band_quotes
-            + cfg.variable_bandset_name + '1' + cfg.variable_band_name + '1'
-            + cfg.variable_band_quotes
+            cfg.variable_band_quotes + cfg.variable_bandset_name + '1'
+            + cfg.variable_band_name + '1' + cfg.variable_band_quotes
         )
         self.assertFalse(error_message)
         # iterate bands and output name
         expression = (
                 cfg.forbandsinbandset + '[1,2]S ' + cfg.new_line +
                 cfg.variable_band_quotes + cfg.variable_band
-                + cfg.variable_band_quotes + ' ' +
-                cfg.variable_output_separator + 'test3')
+                + cfg.variable_band_quotes + ' '
+                + cfg.variable_output_separator + 'test3')
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
             bandset_catalog=catalog
         )
         self.assertEqual(
             out_exp[0][0].split(cfg.variable_output_separator)[0].strip(),
-            cfg.variable_band_quotes
-            + cfg.variable_bandset_name + '1' + cfg.variable_band_name + '1'
-            + cfg.variable_band_quotes
+            cfg.variable_band_quotes + cfg.variable_bandset_name + '1'
+            + cfg.variable_band_name + '1' + cfg.variable_band_quotes
         )
         self.assertFalse(error_message)
         # spectral bands alias input
-        expression = 'max(' + cfg.variable_band_quotes + \
-                     cfg.variable_red_name + cfg.variable_band_quotes + ')'
+        expression = ('max(' + cfg.variable_band_quotes
+                      + cfg.variable_red_name + cfg.variable_band_quotes + ')')
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
             bandset_catalog=catalog
@@ -297,9 +288,8 @@ class TestBandCalc(TestCase):
         self.assertEqual(
             out_exp[0][0],
             'max(' + cfg.variable_band_quotes + cfg.variable_bandset_name + '1'
-            + cfg.variable_band_name + str(
-                band_number[0]
-            ) + cfg.variable_band_quotes + ')'
+            + cfg.variable_band_name + str(band_number[0])
+            + cfg.variable_band_quotes + ')'
         )
         self.assertFalse(error_message)
         # comment lines and nodata
@@ -308,8 +298,8 @@ class TestBandCalc(TestCase):
                 cfg.variable_band_quotes + cfg.variable_bandset_name
                 + cfg.variable_current_bandset + cfg.variable_band_name
                 + '3' + cfg.variable_band_quotes
-                + ' == nodata(' + cfg.variable_band_quotes +
-                cfg.variable_red_name + cfg.variable_band_quotes
+                + ' == nodata(' + cfg.variable_band_quotes
+                + cfg.variable_red_name + cfg.variable_band_quotes
                 + ')' + cfg.new_line + ' # comment line ' + cfg.new_line)
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
@@ -319,8 +309,8 @@ class TestBandCalc(TestCase):
             out_exp[0][0],
             cfg.variable_band_quotes + cfg.variable_bandset_name + '1'
             + cfg.variable_band_name + str(band_number[0])
-            + cfg.variable_band_quotes + ' == nodata(' +
-            cfg.variable_band_quotes
+            + cfg.variable_band_quotes + ' == nodata('
+            + cfg.variable_band_quotes
             + cfg.variable_bandset_name + '1' + cfg.variable_band_name
             + str(band_number[0]) + cfg.variable_band_quotes + ')'
         )
@@ -328,8 +318,8 @@ class TestBandCalc(TestCase):
         # output variables
         expression = (cfg.variable_band_quotes + name_list[0]
                       + cfg.variable_band_quotes + ' '
-                      + cfg.variable_output_separator + cfg.temp.dir +
-                      cfg.variable_output_separator + 'test.tif')
+                      + cfg.variable_output_separator + cfg.temp.dir
+                      + cfg.variable_output_separator + 'test.tif')
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
             bandset_catalog=catalog
@@ -337,10 +327,10 @@ class TestBandCalc(TestCase):
         self.assertEqual(out_name_list[0], 'test')
         self.assertFalse(error_message)
         # output variable name BandSet
-        expression = (cfg.variable_band_quotes + name_list[
-            0] + cfg.variable_band_quotes
-                      + cfg.variable_output_separator +
-                      cfg.variable_output_name_bandset + '.tif')
+        expression = (cfg.variable_band_quotes + name_list[0]
+                      + cfg.variable_band_quotes
+                      + cfg.variable_output_separator
+                      + cfg.variable_output_name_bandset + '.tif')
         out_exp, out_name_list, error_message = band_calc._check_expression(
             expression_string=expression, raster_variables=band_names,
             bandset_catalog=catalog
@@ -470,6 +460,15 @@ class TestBandCalc(TestCase):
                 + cfg.variable_band_quotes + cfg.variable_nir_name
                 + cfg.variable_band_quotes + ' + ' + cfg.variable_band_quotes
                 + cfg.variable_red_name + cfg.variable_band_quotes + ')'
+        )
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
+        calc = bandset.execute(rs.band_calc, output_path=temp,
+                               expression_string=expression)
+        self.assertTrue(calc.check)
+        self.assertTrue(files_directories.is_file(calc.paths[0]))
+        expression = (
+                cfg.variable_band_quotes + cfg.variable_ndvi_name
+                + cfg.variable_band_quotes
         )
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
         calc = bandset.execute(rs.band_calc, output_path=temp,
