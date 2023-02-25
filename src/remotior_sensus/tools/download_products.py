@@ -654,12 +654,15 @@ def download(
         cfg.logger.log.info('end')
         return OutputManager(path=output_csv_file)
     else:
-        cfg.progress.update(end=True)
-        cfg.logger.log.info('end')
-        return OutputManager(
-            paths=output_file_list,
-            extra={'directory_paths': output_directory_list}
-        )
+        if len(output_file_list) > 0:
+            cfg.progress.update(end=True)
+            cfg.logger.log.info('end')
+            return OutputManager(
+                paths=output_file_list,
+                extra={'directory_paths': output_directory_list}
+            )
+        else:
+            return OutputManager(check=False)
 
 
 def _check_sentinel_2_bands(
@@ -774,6 +777,7 @@ def _check_sentinel_2_bands(
 
 def _download_virtual_image(url, output_path, extent_list=None):
     """Downloads virtual image."""
+    cfg.logger.log.debug('url: %s' % str(url))
     try:
         raster_vector.create_virtual_raster(
             input_raster_list=['/vsicurl/%s' % url], output=output_path,

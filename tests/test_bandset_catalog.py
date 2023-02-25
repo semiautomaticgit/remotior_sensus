@@ -110,6 +110,19 @@ class TestBandSetCatalog(TestCase):
         )
         names = catalog.iterate_bandset_bands('name')
         self.assertGreater(len(names), 0)
+        # iterate BandSets
+        b_list = catalog.get_bandsets_by_list()
+        self.assertEqual(len(b_list), catalog.get_bandset_count())
+        b_list = catalog.get_bandsets_by_list(output_number=True)
+        self.assertEqual(len(b_list), catalog.get_bandset_count())
+        b_list = catalog.get_bandsets_by_list(bandset_list=[1, 3])
+        self.assertEqual(len(b_list), 2)
+        # get bandsets by date
+        bandsets = catalog.get_bandsets_by_date(
+            date_list=['>=2020-01-01 & <=2022-01-02', '2020-01-01'],
+            output_number=True
+        )
+        self.assertEqual(len(bandsets), 3)
         # move band in BandSet
         band_2 = catalog.get_bandset(1).get_band(2).name
         catalog.move_band_in_bandset(

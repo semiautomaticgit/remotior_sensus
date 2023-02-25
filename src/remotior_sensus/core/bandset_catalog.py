@@ -198,6 +198,134 @@ class BandSetCatalog(object):
             else:
                 return self.bandsets[str(uid[0])]
 
+    def get_bandsets_by_date(
+            self, date_list: list, output_number: Optional[bool] = False
+    ) -> list:
+        """Get BandSets by date.
+
+        This function gets the BandSets by date.
+
+        Args:
+            date_list: list of date strings, or single date string (format YYYY-MM-DD);
+                it can also include ranges using > or <, multiple conditions including &
+            output_number: if True then the output is the BandSet number,
+                if False then the output is the BandSet
+
+        Returns:
+            The BandSet identified by the name.
+
+        Examples:
+            Get the number of the BandSet by date.
+                >>> catalog = BandSetCatalog()
+                >>> bandset_number = catalog.get_bandsets_by_date(date_list=['2020-01-01'], output_number=True)
+                >>> print(bandset_number)
+                [1]
+                
+            Get the number of the BandSet by range of dates.
+                >>> catalog = BandSetCatalog()
+                >>> bandset_number = catalog.get_bandsets_by_date(date_list=['2020-01-01', '>=2021-01-01 & <=2022-01-02'], output_number=True)
+                >>> print(bandset_number)
+                [1, 3]
+        """  # noqa: E501
+        cfg.logger.log.debug(
+            'date_list: %s; output_number: %s' % (
+                str(date_list), output_number)
+        )
+        if output_number:
+            field = 'bandset_number'
+        else:
+            field = 'uid'
+        uids = []
+        b_uids = []
+        for d in date_list:
+            date_l = date_le = date_g = date_ge = date_eq = None
+            try:
+                if '&' in d:
+                    date_ranges = d.split('&')
+                    date_l = date_le = date_g = date_ge = None
+                    for r in date_ranges:
+                        if '<=' in r:
+                            date_le = numpy.datetime64(
+                                r.replace(' ', '').replace('<=', '')
+                            )
+                        elif '<' in r:
+                            date_l = numpy.datetime64(
+                                r.replace(' ', '').replace('<', '')
+                            )
+                        elif '>=' in r:
+                            date_ge = numpy.datetime64(
+                                r.replace(' ', '').replace('>=', '')
+                            )
+                        elif '>' in r:
+                            date_g = numpy.datetime64(
+                                r.replace(' ', '').replace('>', '')
+                            )
+                elif '<=' in d:
+                    date_le = numpy.datetime64(
+                        d.replace(' ', '').replace('<=', '')
+                    )
+                elif '<' in d:
+                    date_l = numpy.datetime64(
+                        d.replace(' ', '').replace('<', '')
+                    )
+                elif '>=' in d:
+                    date_ge = numpy.datetime64(
+                        d.replace(' ', '').replace('>=', '')
+                    )
+                elif '>' in d:
+                    date_g = numpy.datetime64(
+                        d.replace(' ', '').replace('>', '')
+                    )
+                else:
+                    date_eq = numpy.datetime64(
+                        d.replace(' ', '')
+                    )
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+                messages.error(str(err))
+            # get uids
+            if date_eq is not None:
+                uids = self.bandsets_table[
+                    self.bandsets_table['date'] == date_eq][field]
+            elif date_g is not None:
+                if date_l is not None:
+                    uids = self.bandsets_table[
+                        (self.bandsets_table['date'] > date_g)
+                        & (self.bandsets_table['date'] < date_l)][field]
+                elif date_le is not None:
+                    uids = self.bandsets_table[
+                        (self.bandsets_table['date'] > date_g)
+                        & (self.bandsets_table['date'] <= date_le)][field]
+                else:
+                    uids = self.bandsets_table[
+                        self.bandsets_table['date'] > date_g][field]
+            elif date_ge is not None:
+                if date_l is not None:
+                    uids = self.bandsets_table[
+                        (self.bandsets_table['date'] >= date_ge)
+                        & (self.bandsets_table['date'] < date_l)][field]
+                elif date_le is not None:
+                    uids = self.bandsets_table[
+                        (self.bandsets_table['date'] >= date_ge)
+                        & (self.bandsets_table['date'] <= date_le)][field]
+                else:
+                    uids = self.bandsets_table[
+                        self.bandsets_table['date'] >= date_ge][field]
+            elif date_l is not None:
+                uids = self.bandsets_table[
+                    self.bandsets_table['date'] < date_l][field]
+            elif date_le is not None:
+                uids = self.bandsets_table[
+                    self.bandsets_table['date'] <= date_le][field]
+            b_uids.extend(uids)
+        if output_number:
+            bandset_list = list(set(b_uids))
+        else:
+            bandset_list = []
+            for b in set(b_uids):
+                bandset_list.append(self.bandsets[b])
+        return bandset_list
+
     def get_bandset_catalog_attributes(
             self, bandset_number: int,
             attribute: Optional[str] = None
@@ -220,15 +348,13 @@ class BandSetCatalog(object):
         Examples:
             Get the 'date' attribute of the BandSet 1.
                 >>> catalog = BandSetCatalog()
-                >>> date = catalog.get_bandset_catalog_attributes(
-                bandset_number=1, attribute='date')
+                >>> date = catalog.get_bandset_catalog_attributes(bandset_number=1, attribute='date')
                 >>> print(date)
                 2000-12-31
 
             Get the list of attributes of the BandSet 1.
                 >>> catalog = BandSetCatalog()
-                >>> attributes = catalog.get_bandset_catalog_attributes(
-                bandset_number=1)
+                >>> attributes = catalog.get_bandset_catalog_attributes(bandset_number=1)
                 >>> print(attributes)
                 [(1, 'example', '2000-12-31', 'None', '20000101_1605495327_293')]
         """  # noqa: E501
@@ -867,6 +993,39 @@ class BandSetCatalog(object):
             band_list = None
         cfg.logger.log.debug('band list: %s' % str(band_list))
         return band_list
+
+    def get_bandsets_by_list(
+            self, bandset_list: Optional[list] = None,
+            output_number: Optional[bool] = False
+    ) -> list:
+        """Gets BandSets by list.
+
+        This function gets all the BandSets in the Catalog or filtered 
+        using a list of BandSet numbers.
+
+        Args:
+            bandset_list: list of integers BandSet numbers.
+            output_number: if True, returns the list of BandSet number; if False, returns the list of BandSet object.
+
+        Returns:
+            List of BandSets, or list of BandSets numbers if output_number is True.
+
+        Examples:
+            Iterate BandSets.
+                >>> catalog = BandSetCatalog()
+                >>> bandset_t = catalog.get_bandsets_by_list()
+                >>> for bandset in bandset_t:
+                >>>     print(bandset)
+        """  # noqa: E501
+        bandsets = []
+        if bandset_list is None:
+            bandset_list = range(1, self.get_bandset_count() + 1)
+        for i in bandset_list:
+            if output_number:
+                bandsets.append(i)
+            else:
+                bandsets.append(self.get_bandset(i))
+        return bandsets
 
     def iterate_bandset_bands(self, attribute: str) -> list:
         """Iterates BandSet attributes.

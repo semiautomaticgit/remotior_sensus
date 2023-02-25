@@ -176,51 +176,50 @@ def compare_crs(first_crs, second_crs):
 
 # raster information
 def raster_info(path):
-    if files_directories.is_file(path):
-        r_d = gdal.Open(path, gdal.GA_ReadOnly)
-        if r_d is None:
-            cfg.logger.log.error('raster: %s' % path)
-            return False
-        # x pixel count
-        x_count = r_d.RasterXSize
-        # y pixel count
-        y_count = r_d.RasterYSize
-        # geo transformation
-        gt = r_d.GetGeoTransform()
-        band = r_d.GetRasterBand(1)
-        # nodata value
-        nd = band.GetNoDataValue()
-        # offset and scale
-        offset = band.GetOffset()
-        scale = band.GetScale()
-        data_type = gdal.GetDataTypeName(band.DataType)
-        unit = None
-        # crs
-        try:
-            crs = r_d.GetProjection()
-            if len(crs) == 0:
-                crs = None
-            else:
-                crs_sr = osr.SpatialReference(wkt=crs)
-                if crs_sr.IsProjected:
-                    unit = crs_sr.GetAttrValue('unit')
-        except Exception as err:
-            crs = None
-            cfg.logger.log.error(str(err))
-        # band number and block size
-        number_of_bands = r_d.RasterCount
-        block_size = band.GetBlockSize()
-        info = [gt, crs, unit, [x_count, y_count], nd, number_of_bands, block_size,
-                [scale, offset], data_type]
-        cfg.logger.log.debug(
-            '{} :{}'.format(
-                path, [gt, unit, [x_count, y_count], nd, number_of_bands,
-                       block_size, [scale, offset], data_type, crs]
-            )
-        )
-        return info
-    else:
+    if not files_directories.is_file(path):
+        cfg.logger.log.warning('raster: %s' % path)
+    r_d = gdal.Open(path, gdal.GA_ReadOnly)
+    if r_d is None:
+        cfg.logger.log.error('raster: %s' % path)
         return False
+    # x pixel count
+    x_count = r_d.RasterXSize
+    # y pixel count
+    y_count = r_d.RasterYSize
+    # geo transformation
+    gt = r_d.GetGeoTransform()
+    band = r_d.GetRasterBand(1)
+    # nodata value
+    nd = band.GetNoDataValue()
+    # offset and scale
+    offset = band.GetOffset()
+    scale = band.GetScale()
+    data_type = gdal.GetDataTypeName(band.DataType)
+    unit = None
+    # crs
+    try:
+        crs = r_d.GetProjection()
+        if len(crs) == 0:
+            crs = None
+        else:
+            crs_sr = osr.SpatialReference(wkt=crs)
+            if crs_sr.IsProjected:
+                unit = crs_sr.GetAttrValue('unit')
+    except Exception as err:
+        crs = None
+        cfg.logger.log.error(str(err))
+    # band number and block size
+    number_of_bands = r_d.RasterCount
+    block_size = band.GetBlockSize()
+    info = [gt, crs, unit, [x_count, y_count], nd, number_of_bands, block_size,
+            [scale, offset], data_type]
+    cfg.logger.log.debug(
+        '{} :{}'.format(
+            path, [gt, unit, [x_count, y_count], nd, number_of_bands,
+                   block_size, [scale, offset], data_type, crs]
+        )
+    )
+    return info
 
 
 # raster no data value
