@@ -87,6 +87,37 @@ class TestBandSet(TestCase):
             )
         self.assertGreater(len(red_band['crs']), 0)
         self.assertGreater(len(nir_band['absolute_path']), 0)
+        """
+        cfg.logger.log.debug('>>> test tools')
+        expression = (
+                cfg.variable_band_quotes + cfg.variable_ndvi_name
+                + cfg.variable_band_quotes
+        )
+        calc = bandset.calc(expression)
+        self.assertTrue(calc.check)
+        self.assertTrue(files_directories.is_file(calc.paths[0]))
+        combination = bandset.combination()
+        self.assertTrue(combination.check)
+        self.assertTrue(files_directories.is_file(combination.paths[0]))
+        dilation = bandset.dilation(value_list=[1000], size=2)
+        self.assertTrue(dilation.check)
+        self.assertTrue(files_directories.is_file(dilation.paths[0]))
+        erosion = bandset.erosion(value_list=[1000], size=1)
+        self.assertTrue(erosion.check)
+        self.assertTrue(files_directories.is_file(erosion.paths[0]))
+        pca = bandset.pca()
+        self.assertTrue(pca.check)
+        self.assertTrue(files_directories.is_file(pca.paths[0]))
+        sieve = bandset.sieve(size=3, connected=True)
+        self.assertTrue(sieve.check)
+        self.assertTrue(files_directories.is_file(sieve.paths[0]))
+        neighbor_pixels = bandset.neighbor_pixels(
+            size=10, circular_structure=True, stat_name='Sum'
+        )
+        self.assertTrue(neighbor_pixels.check)
+        self.assertTrue(files_directories.is_file(neighbor_pixels.paths[0]))
+        """
+        cfg.logger.log.debug('>>> test methods')
         # get band by nearest wavelength
         band_x = bandset.get_band_by_wavelength(
             cfg.green_center, threshold=0.1
@@ -160,6 +191,6 @@ class TestBandSet(TestCase):
             root_directory='./data', box_coordinate_list=coordinate_list
             )
         self.assertEqual(bandset.box_coordinate_list, coordinate_list)
-        
+
         # clear temporary directory
         rs.close()

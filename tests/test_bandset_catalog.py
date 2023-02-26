@@ -3,6 +3,7 @@ from unittest import TestCase
 import numpy as np
 
 import remotior_sensus
+from remotior_sensus.util import files_directories
 
 
 class TestBandSetCatalog(TestCase):
@@ -104,6 +105,9 @@ class TestBandSetCatalog(TestCase):
                 catalog.current_bandset
             ).get_band_attributes('date')[0]
         )
+        # bandset calculation
+        calc = bs(3).calc('"b1" + "b2"')
+        self.assertTrue(files_directories.is_file(calc.paths[0]))
         # BandSet wavelengths
         self.assertEqual(
             bs(2).get_wavelengths(), catalog.get_bandset(2).get_wavelengths()

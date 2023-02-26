@@ -432,7 +432,9 @@ def _get_output_path(
         path = cfg.temp.temporary_file_path(
             name_suffix=cfg.vrt_suffix, name=expression_output_name
         )
+        virtual = True
     out_name = files_directories.file_name(path)
+    cfg.logger.log.debug('path: %s' % path)
     return path, out_name, virtual
 
 
@@ -1508,7 +1510,7 @@ def _check_numpy_operators(expression, layer_number: int):
 
 
 def _calculate_bandset(
-        input_bands: BandSet, output_path: str, expression_string: str,
+        input_bands: BandSet, expression_string: str, output_path: str,
         n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
         align_raster: Optional[str] = None,
@@ -1737,7 +1739,6 @@ def _check_expression_bandset(
                 )
             except Exception as err:
                 str(err)
-            print('calculation', calculation)
             # compose new line expression
             if output_path is not None and output_name is not None:
                 new_line = '%s %s%s%s%s' % (

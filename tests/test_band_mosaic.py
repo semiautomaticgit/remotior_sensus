@@ -17,7 +17,7 @@ class TestMosaicBands(TestCase):
                      './data/S2_2020-01-02/S2_B02.tif']
         temp = cfg.temp.dir
         cfg.logger.log.debug('>>> test mosaic')
-        mosaic = rs.band_mosaic(file_list, temp)
+        mosaic = rs.mosaic(file_list, temp)
         self.assertTrue(files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
         file_list_1 = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
@@ -42,11 +42,11 @@ class TestMosaicBands(TestCase):
         bandset_list = [catalog.get_bandset(1), catalog.get_bandset(2),
                         catalog.get_bandset(3)]
         cfg.logger.log.debug('>>> test mosaic BandSet')
-        mosaic = rs.band_mosaic(bandset_list, temp)
+        mosaic = rs.mosaic(bandset_list, temp)
         self.assertTrue(files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
         bandset_list = [1, 2]
-        mosaic = rs.band_mosaic(
+        mosaic = rs.mosaic(
             bandset_list, output_path=temp, bandset_catalog=catalog
             )
         self.assertTrue(files_directories.is_file(mosaic.paths[0]))

@@ -29,8 +29,16 @@ if TYPE_CHECKING:
 root_name = 'remotior_sensus'
 # type hint for Multiprocess
 multiprocess: Multiprocess
-# shared Log class
+# shared classes
 logger = None
+band_calc = None
+band_classification = None
+band_combination = None
+band_dilation = None
+band_erosion = None
+band_neighbor_pixels = None
+band_pca = None
+band_sieve = None
 # shared Temporary class
 temp = None
 # variables used in Progress class

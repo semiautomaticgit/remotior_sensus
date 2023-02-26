@@ -13,6 +13,27 @@ class TestDownloadProducts(TestCase):
         cfg = rs.configurations
         cfg.logger.log.debug('test')
         cfg.logger.log.debug('>>> test query database Sentinel-2')
+
+        tile_name = '33TTG'
+        start_period_date = '2022-07-01'
+        end_period_date = '2022-07-30'
+        maximum_cloud_cover = 10
+        # query the database
+        query_result = rs.download_products.search(
+            product='Sentinel-2', date_from=start_period_date,
+            date_to=end_period_date, max_cloud_cover=maximum_cloud_cover,
+            name_filter=tile_name
+        )
+        product_table = query_result.extra['product_table']
+        print('product_table', product_table)
+        filtered_table = product_table
+        downloaded_images = rs.download_products.download(
+            product_table=filtered_table,
+            band_list=['04', '08'],
+            output_path=cfg.temp.dir + '/downloaded_images',
+        )
+
+        """
         coordinate_list = [8, 43, 10, 41]
         output_manager = rs.download_products.query_sentinel_2_database(
             date_from='2020-01-01', date_to='2020-01-30', max_cloud_cover=80,
@@ -84,6 +105,8 @@ class TestDownloadProducts(TestCase):
             exporter=True
             )
         self.assertTrue(files_directories.is_file(output_manager.path))
+        """
+
         ''' user and password required
         # download HLS bands
         cfg.logger.log.debug('>>> test download HLS bands')

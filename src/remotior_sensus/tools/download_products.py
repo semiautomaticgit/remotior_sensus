@@ -262,7 +262,6 @@ def query_sentinel_2_database(
                 cfg.logger.log.error(str(err))
                 messages.error(str(err))
                 return OutputManager(check=False)
-            xml_file = min_lat = min_lon = max_lat = max_lon = url_2 = None
             entries = doc['value']
             for entry in entries:
                 e += 1
@@ -478,6 +477,7 @@ def download(
     min_progress = 0
     max_progress = min_progress + progress_step
     for i in range(total_products):
+        cloud_mask_gml = None
         if product_table['product'][i] == cfg.sentinel2:
             top_url = \
                 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
@@ -507,7 +507,7 @@ def download(
                     output_path, image_name, str(acquisition_date))
                 metadata_msi = base_output_dir + '/MTD_MSIL2A.xml'
                 metadata_tl = base_output_dir + '/MTD_TL.xml'
-                cloud_mask_gml = base_output_dir + '/MSK_CLOUDS_B00.gml'
+                # cloud_mask_gml = base_output_dir + '/MSK_CLOUDS_B00.gml'
                 base_url = ''.join(
                     [top_url, '/L2/tiles/', product_name[39:41], '/',
                      product_name[41], '/',
@@ -567,12 +567,13 @@ def download(
                         proxy_port=proxy_port, proxy_user=proxy_user,
                         proxy_password=proxy_password, progress=False
                     )
-                    download_tools.download_file(
-                        url=cloud_mask_gml_url, output_path=cloud_mask_gml,
-                        proxy_host=proxy_host, proxy_port=proxy_port,
-                        proxy_user=proxy_user,
-                        proxy_password=proxy_password, progress=False
-                    )
+                    if cloud_mask_gml:
+                        download_tools.download_file(
+                            url=cloud_mask_gml_url, output_path=cloud_mask_gml,
+                            proxy_host=proxy_host, proxy_port=proxy_port,
+                            proxy_user=proxy_user,
+                            proxy_password=proxy_password, progress=False
+                        )
             # download bands
             for band in band_list:
                 _check_sentinel_2_bands(

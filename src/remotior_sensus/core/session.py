@@ -49,7 +49,7 @@ from remotior_sensus.core.temporary import Temporary
 from remotior_sensus.tools import (
     band_calc, band_classification, band_combination, band_dilation,
     band_erosion, band_neighbor_pixels, band_pca, band_sieve,
-    cross_classification, download_products, band_mosaic, preprocess_products,
+    cross_classification, download_products, mosaic, preprocess_products,
     raster_reclassification, raster_report, raster_to_vector
 )
 from remotior_sensus.util import dates_times, system_tools, files_directories
@@ -81,7 +81,7 @@ class Session(object):
         band_sieve: tool :func:`~remotior_sensus.tools.band_sieve`
         cross_classification: tool :func:`~remotior_sensus.tools.cross_classification`
         download_products: tool :func:`~remotior_sensus.tools.download_products`
-        band_mosaic: tool :func:`~remotior_sensus.tools.band_mosaic`
+        mosaic: tool :func:`~remotior_sensus.tools.mosaic`
         preprocess_products: tool :func:`~remotior_sensus.tools.preprocess_products`
         raster_reclassification: tool :func:`~remotior_sensus.tools.preprocess_products`
         raster_report: tool :func:`~remotior_sensus.tools.raster_report`
@@ -180,19 +180,30 @@ class Session(object):
             self.table_manager = table_manager
             # available tools
             self.band_calc = band_calc.band_calc
+            self.configurations.band_calc = band_calc.band_calc
             self.band_classification = band_classification.band_classification
+            self.configurations.band_classification = \
+                band_classification.band_classification
             self.classifier = band_classification.Classifier
             self.band_combination = band_combination.band_combination
+            self.configurations.band_combination = \
+                band_combination.band_combination
             self.band_dilation = band_dilation.band_dilation
+            self.configurations.band_dilation = band_dilation.band_dilation
             self.band_erosion = band_erosion.band_erosion
+            self.configurations.band_erosion = band_erosion.band_erosion
+            self.mosaic = mosaic.mosaic
             self.band_neighbor_pixels = \
                 band_neighbor_pixels.band_neighbor_pixels
+            self.configurations.band_neighbor_pixels = \
+                band_neighbor_pixels.band_neighbor_pixels
             self.band_pca = band_pca.band_pca
+            self.configurations.band_pca = band_pca.band_pca
             self.band_sieve = band_sieve.band_sieve
+            self.configurations.band_sieve = band_sieve.band_sieve
             self.cross_classification = \
                 cross_classification.cross_classification
             self.download_products = download_products
-            self.band_mosaic = band_mosaic.band_mosaic
             self.preprocess_products = preprocess_products
             self.raster_reclassification = \
                 raster_reclassification.raster_reclassification

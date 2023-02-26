@@ -1,7 +1,7 @@
-remotior\_sensus.tools.band\_mosaic module
+remotior\_sensus.tools.mosaic module
 ==========================================
 
-.. automodule:: remotior_sensus.tools.band_mosaic
+.. automodule:: remotior_sensus.tools.mosaic
    :members:
    :undoc-members:
    :show-inheritance:

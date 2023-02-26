@@ -186,45 +186,6 @@ class BandSet(object):
     def box_coordinate_list(self, box_coordinate_list):
         self._box_coordinate_list = box_coordinate_list
 
-    def execute(self, function, *args, **kwargs):
-        """Executes a function.
-
-        Executes a functions directly from the BandSet, passing the argument input_bands.
-        The arguments are related to the function.
-
-        Args:
-            function: the function to be executed
-
-        Returns:
-            the output of the function
-
-        Examples:
-            Given that a session was previously started
-                >>> import remotior_sensus
-                >>> rs = remotior_sensus.Session()
-                >>> bandset = rs.bandset.create(
-                ...     ['file1.tif', 'file2.tif'], wavelengths=['Sentinel-2'],
-                ... )
-                
-            Calculation of sum of the first two bands 
-                >>> output_object = bandset.execute(
-                ...     rs.band_calc, output_path='output.tif', expression_string='"b1" + "b2"'
-                ... )
-                
-            Calculation of NDVI
-                >>> output_object = bandset.execute(
-                ...     rs.band_calc, output_path='output.tif', 
-                ...     expression_string='("#NIR#" - "#RED#") / ("#NIR#" + "#RED#")'
-                ... )
-                
-            Calculation of band combination
-                >>> output_object = bandset.execute(rs.band_combination, output_path='output.tif')
-
-        """  # noqa: E501
-
-        kwargs['input_bands'] = self
-        return function(*args, **kwargs)
-
     def get_band_count(self) -> int:
         """Gets the count of bands."""
         if self.bands is None:
@@ -274,8 +235,8 @@ class BandSet(object):
 
         Examples:
             Get band names
-            >>> bandset = BandSet()
-            >>> names = bandset.get_band_attributes('name')
+                >>> bandset = BandSet()
+                >>> names = bandset.get_band_attributes('name')
         """  # noqa: E501
         cfg.logger.log.debug('attribute: %s' % str(attribute))
         if attribute is None:
@@ -312,8 +273,8 @@ class BandSet(object):
 
         Examples:
             Get bands by attributes
-            >>> bandset = BandSet()
-            >>> band_x = bandset.get_bands_by_attributes('wavelength',0.8)
+                >>> bandset = BandSet()
+                >>> band_x = bandset.get_bands_by_attributes('wavelength',0.8)
         """  # noqa: E501
         cfg.logger.log.debug(
             'attribute: %s; attribute_value: %s; output_number: %s' % (
@@ -355,13 +316,13 @@ class BandSet(object):
 
         Examples:
             Get bands by number
-            >>> bandset = BandSet()
-            >>> # get first band
-            >>> band = bandset.get_band(1)
-            >>> # band x size
-            >>> band_x_size = band.x_size
-            >>> # get band nodata directly
-            >>> band_nodata = bandset.get_band(1).nodata
+                >>> bandset = BandSet()
+                >>> # get first band
+                >>> band = bandset.get_band(1)
+                >>> # band x size
+                >>> band_x_size = band.x_size
+                >>> # get band nodata directly
+                >>> band_nodata = bandset.get_band(1).nodata
         """  # noqa: E501
         cfg.logger.log.debug('number: %s' % number)
         if number is None:
@@ -383,9 +344,9 @@ class BandSet(object):
 
         Examples:
             Reset a BandSet
-            >>> bandset = BandSet()
-            >>> # reset
-            >>> bandset.reset()
+                >>> bandset = BandSet()
+                >>> # reset
+                >>> bandset.reset()
         """  # noqa: E501
         self.bands = self.name = self.date = self.root_directory = None
         self.box_coordinate_list = self.crs = None
@@ -826,6 +787,246 @@ class BandSet(object):
                 for attr in bandset_attributes:
                     band_list.append(attr)
         return band_list
+
+# Tools #######################################################################
+
+    def execute(self, function, *args, **kwargs):
+        """Executes a function.
+
+        Executes a functions directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+
+        Args:
+            function: the function to be executed.
+
+        Returns:
+            The output of the function.
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(
+                ...     ['file1.tif', 'file2.tif'], wavelengths=['Sentinel-2'],
+                ... )
+
+            Calculation of sum of the first two bands 
+                >>> output_object = bandset.execute(
+                ...     rs.band_calc, output_path='output.tif', expression_string='"b1" + "b2"'
+                ... )
+
+            Calculation of NDVI
+                >>> output_object = bandset.execute(
+                ...     rs.band_calc, output_path='output.tif', 
+                ...     expression_string='("#NIR#" - "#RED#") / ("#NIR#" + "#RED#")'
+                ... )
+
+            Calculation of band combination
+                >>> output_object = bandset.execute(rs.band_combination, output_path='output.tif')
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        try:
+            return function(*args, **kwargs)
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+            messages.error(str(err))
+            return None
+
+    def calc(self, *args, **kwargs):
+        """Executes a calculation.
+
+        Executes a calculation directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+        Bands in the BandSet can be reffered in the expressions such as "b1" or "b2";
+        also band alias such as "#RED#" and expression alias such as #NDVI# can be used.
+
+        Args:
+            kwargs: See :func:`~remotior_sensus.tools.band_calc`.
+
+        Returns:
+            The output of the function.
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(
+                ...     ['file1.tif', 'file2.tif'], wavelengths=['Sentinel-2'],
+                ... )
+
+            Calculation of sum of the first two bands and saving the output in temporary directory
+                >>> output_object = bandset.calc('"b1" + "b2"')
+
+            Calculation of NDVI
+                >>> output_object = bandset.calc(output_path='output.tif', 
+                ...     expression_string='("#NIR#" - "#RED#") / ("#NIR#" + "#RED#")'
+                ... )
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        return cfg.band_calc(*args, **kwargs)
+
+    def classification(self, *args, **kwargs):
+        """Executes a classification.
+
+        Executes a classification directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+
+        Args:
+            kwargs: See :func:`~remotior_sensus.tools.band_classification`.
+
+        Returns:
+            The output of the function.
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        return cfg.band_classification(*args, **kwargs)
+
+    def combination(self, *args, **kwargs):
+        """Band combination.
+
+        Combines classifications directly from the BandSet, in order to get a raster where each value 
+        corresponds to a combination of class values.
+        The arguments are related to the function.
+
+        Args:
+            kwargs: See :func:`~remotior_sensus.tools.band_combination`.
+
+        Returns:
+            The output of the function.
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(['file1.tif', 'file2.tif'])
+
+            Combination using two rasters having paths path_1 and path_2
+                >>> combination = bandset.combination(output_path='output_path')
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        return cfg.band_combination(*args, **kwargs)
+
+    def dilation(self, *args, **kwargs):
+        """Band dilation.
+
+        Band dilation directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+
+        Args:
+            kwargs: See :func:`~remotior_sensus.tools.band_dilation`.
+
+        Returns:
+            The output of the function.
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(['file1.tif', 'file2.tif'])
+
+            Dilation
+                >>> dilation = bandset.dilation(output_path='directory_path',
+                ...     value_list=[1, 2], size=5)
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        return cfg.band_dilation(*args, **kwargs)
+
+    def erosion(self, *args, **kwargs):
+        """Band erosion.
+
+        Band erosion directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+
+        Args:
+            kwargs: See :func:`~remotior_sensus.tools.band_erosion`.
+
+        Returns:
+            The output of the function.
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(['file1.tif', 'file2.tif'])
+
+            Erosion
+                >>> erosion = bandset.erosion(output_path='directory_path',
+                ...     value_list=[1, 2], size=1)
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        return cfg.band_erosion(*args, **kwargs)
+
+    def pca(self, *args, **kwargs):
+        """Band PCA.
+
+        Band PCA directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+
+        Args:
+            kwargs: See :func:`~remotior_sensus.tools.band_pca`.
+
+        Returns:
+            The output of the function.
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(['file1.tif', 'file2.tif'])
+
+            PCA
+                >>> pca = bandset.pca(output_path='directory_path')
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        return cfg.band_pca(*args, **kwargs)
+
+    def sieve(self, *args, **kwargs):
+        """Band sieve.
+
+        Band sieve directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+
+        Args:
+            kwargs: See :func:`~remotior_sensus.tools.band_sieve`.
+
+        Returns:
+            The output of the function.
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(['file1.tif', 'file2.tif'])
+
+            Sieve
+                >>> sieve = bandset.sieve(output_path='directory_path', size=3)
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        return cfg.band_sieve(*args, **kwargs)
+
+    def neighbor_pixels(self, *args, **kwargs):
+        """Band neighbor pixels.
+
+        Band neighbor pixels directly from the BandSet, passing the argument input_bands.
+        The arguments are related to the function.
+
+        Args:
+            kwargs: See :func:`~remotior_sensus.tools.band_neighbor_pixels`.
+
+        Returns:
+            The output of the function.
+
+        Examples:
+            Given that a session was previously started
+                >>> import remotior_sensus
+                >>> rs = remotior_sensus.Session()
+                >>> bandset = rs.bandset.create(['file1.tif', 'file2.tif'])
+
+            Neighbor pixels
+                >>> neighbor = bandset.neighbor_pixels(output_path='directory_path',
+                ... size=10, circular_structure=True, stat_name='Sum')
+        """  # noqa: E501
+        kwargs['input_bands'] = self
+        return cfg.band_neighbor_pixels(*args, **kwargs)
 
     @staticmethod
     def generate_uid() -> str:
