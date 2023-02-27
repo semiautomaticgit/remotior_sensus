@@ -44,7 +44,7 @@ from remotior_sensus.util import files_directories, raster_vector, shared_tools
 
 def mosaic(
         input_bands: Union[list, int, BandSet],
-        output_path: Optional[str] = None,
+        output_path: Optional[str] = None, overwrite: Optional[bool] = False,
         prefix: Optional[str] = '', nodata_value: Optional[int] = None,
         n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
@@ -63,6 +63,7 @@ def mosaic(
     Args:
         input_bands: list of paths of input rasters, or number of BandSet, or BandSet object.
         output_path: string of output path directory.
+        overwrite: if True, output overwrites existing files.
         prefix: optional string for output name prefix.
         nodata_value: value to be considered as nodata.
         n_processes: number of parallel processes.
@@ -178,7 +179,9 @@ def mosaic(
             p = shared_tools.join_path(
                 output_path, '{}{}{}'.format(prefix, output_name, n)
             ).replace('\\', '/')
-        out_path, vrt_r = files_directories.raster_output_path(p)
+        out_path, vrt_r = files_directories.raster_output_path(
+            p, overwrite=overwrite
+        )
         output_list.append(out_path)
         if virtual_output:
             try:

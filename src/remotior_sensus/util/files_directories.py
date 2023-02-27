@@ -190,9 +190,11 @@ def output_path(path, extension):
 
 
 # check raster output path
-def raster_output_path(path, virtual_output=False):
+def raster_output_path(path, virtual_output=False, overwrite=False):
     if path is None:
         path = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
+    elif is_file(path) and not overwrite:
+        raise Exception('existing path %s' % path)
     try:
         # vrt
         if virtual_output or file_extension(path) == cfg.vrt_suffix:
@@ -219,6 +221,7 @@ def raster_output_path(path, virtual_output=False):
                 ).replace('\\', '/')
             )
         cfg.logger.log.debug('o_path: %s:; virtual: %s' % (o_path, virtual))
+        create_parent_directory(o_path)
         return o_path, virtual
     except Exception as err:
         cfg.logger.log.error(str(err))
@@ -228,7 +231,7 @@ def raster_output_path(path, virtual_output=False):
 # check input_path raster path
 def input_path(path):
     if not is_file(path):
-        raise path
+        raise Exception('file not found: ' % path)
     return path
 
 

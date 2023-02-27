@@ -44,6 +44,7 @@ from remotior_sensus.util import shared_tools
 def band_dilation(
         input_bands: Union[list, int, BandSet], value_list: list, size: int,
         output_path: Union[list, str] = None,
+        overwrite: Optional[bool] = False,
         circular_structure: Optional[bool] = None,
         prefix: Optional[str] = '', n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
@@ -57,8 +58,9 @@ def band_dilation(
 
     Args:
         input_bands: input of type BandSet or list of paths or integer
-            number of BandSet
+            number of BandSet.
         output_path: string of output path directory or list of paths.
+        overwrite: if True, output overwrites existing files.
         value_list: list of values for dilation.
         size: size of dilation in pixels.
         virtual_output: if True (and output_path is directory), save output
@@ -89,7 +91,7 @@ def band_dilation(
     (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
-        input_bands=input_bands, output_path=output_path,
+        input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes,
         bandset_catalog=bandset_catalog, prefix=prefix,
         multiple_output=True, virtual_output=virtual_output

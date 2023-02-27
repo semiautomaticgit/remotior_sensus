@@ -86,7 +86,7 @@ def prepare_input_list(
 # prepare process files
 def prepare_process_files(
         input_bands: Union[list, int, BandSet], output_path: str,
-        n_processes: Optional[int] = None,
+        n_processes: Optional[int] = None, overwrite=False,
         bandset_catalog: Optional[BandSetCatalog] = None,
         temporary_virtual_raster=True, prefix=None, multiple_output=False,
         virtual_output=None

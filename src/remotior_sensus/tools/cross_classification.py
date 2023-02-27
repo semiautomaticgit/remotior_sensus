@@ -54,7 +54,7 @@ from remotior_sensus.util import (
 
 def cross_classification(
         classification_path: str, reference_path: str,
-        output_path: Optional[str] = None,
+        output_path: Optional[str] = None, overwrite: Optional[bool] = False,
         vector_field: Optional[str] = None, nodata_value: Optional[int] = None,
         cross_matrix: Optional[bool] = False,
         regression_raster: Optional[bool] = False,
@@ -76,6 +76,7 @@ def cross_classification(
         reference_path: path of the vector or raster file used as reference input.
         vector_field: in case of vector reference, the name of the field used as reference value.
         output_path: path of the output raster.
+        overwrite: if True, output overwrites existing files.
         nodata_value: value to be considered as nodata.
         cross_matrix: if True then calculate the cross matrix.
         regression_raster: if True then calculate linear regression statistics.
@@ -106,7 +107,8 @@ def cross_classification(
         start=True
     )
     # check output path
-    out_path, vrt_r = files_directories.raster_output_path(output_path)
+    out_path, vrt_r = files_directories.raster_output_path(output_path,
+                                                           overwrite=overwrite)
     vector, raster, reference_crs = raster_vector.raster_or_vector_input(
         reference_path
     )
@@ -150,7 +152,7 @@ def cross_classification(
         )
     combination = band_combination(
         input_bands=[reference_raster, classification_path],
-        output_path=output_path, nodata_value=nodata_value,
+        output_path=out_path, nodata_value=nodata_value,
         n_processes=n_processes, available_ram=available_ram,
         output_table=False, progress_message=False
     )

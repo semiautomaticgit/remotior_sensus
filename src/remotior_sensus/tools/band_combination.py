@@ -54,6 +54,7 @@ from remotior_sensus.util import (
 def band_combination(
         input_bands: Union[list, int, BandSet],
         output_path: Optional[str] = None, nodata_value: Optional[int] = None,
+        overwrite: Optional[bool] = False,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
         column_name_list: Optional[list] = None,
@@ -73,6 +74,7 @@ def band_combination(
     Args:
         input_bands: list of paths of input rasters, or number of BandSet, or BandSet object.
         output_path: path of the output raster.
+        overwrite: if True, output overwrites existing files.
         nodata_value: input value to be considered as nodata.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
@@ -130,7 +132,7 @@ def band_combination(
     (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
-        input_bands=input_bands, output_path=output_path,
+        input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog
     )
     # dummy bands for memory calculation as the number of input raster

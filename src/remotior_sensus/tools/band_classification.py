@@ -1014,12 +1014,14 @@ class Classifier(object):
         if self.classification_function is not None:
             cfg.multiprocess.run(
                 raster_path=vrt_check, function=self.classification_function,
-                function_argument=self.function_argument, n_processes=n_processes,
+                function_argument=self.function_argument,
+                n_processes=n_processes,
                 available_ram=available_ram, dummy_bands=dummy_bands,
                 function_variable=[macroclass, threshold],
                 output_raster_path=output_raster_path, classification=True,
                 classification_confidence=classification_confidence,
-                signature_raster=signature_raster, virtual_raster=virtual_raster,
+                signature_raster=signature_raster,
+                virtual_raster=virtual_raster,
                 progress_message='classification', min_progress=min_progress,
                 max_progress=max_progress
             )
@@ -1032,7 +1034,7 @@ class Classifier(object):
 
 def band_classification(
         input_bands: Union[list, int, BandSet],
-        output_path: Optional[str] = None,
+        output_path: Optional[str] = None, overwrite: Optional[bool] = False,
         spectral_signatures: Optional[SpectralSignaturesCatalog] = None,
         algorithm_name: Optional[str] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
@@ -1080,6 +1082,7 @@ def band_classification(
         input_bands: list of input raster paths, or a BandSet number,
             or a previously defined BandSet.
         output_path: path of output file.
+        overwrite: if True, output overwrites existing files.
         spectral_signatures: a SpectralSignaturesCatalog containing spectral signatures.
         algorithm_name: algorithm name selected from cfg.classification_algorithms; 
             if None, minimum distance is used.
@@ -1182,7 +1185,7 @@ def band_classification(
     (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
      vrt_r, vrt_path, n_processes, output_list,
      vrt_list) = shared_tools.prepare_process_files(
-        input_bands=input_bands, output_path=output_path,
+        input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog
     )
     if load_classifier is not None:

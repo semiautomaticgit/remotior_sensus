@@ -48,6 +48,7 @@ from remotior_sensus.util import files_directories, raster_vector
 
 def raster_reclassification(
         raster_path: str, output_path: Optional[str] = None,
+        overwrite: Optional[bool] = False,
         reclassification_table: Optional[Union[list, np.array]] = None,
         csv_path: Optional[str] = None, separator: Optional[str] = ',',
         output_data_type: Optional[str] = None,
@@ -67,6 +68,7 @@ def raster_reclassification(
     Args:
         raster_path: path of raster used as input.
         output_path: string of output path.
+        overwrite: if True, output overwrites existing files.
         reclassification_table: table of values for reclassification or list
             of values [[old_value, new_value], ...]; if None, csv_path is used.
         csv_path: path to a csv file containing the reclassification table; 
@@ -109,9 +111,8 @@ def raster_reclassification(
         output_data_type = data_type
     # check output path
     out_path, vrt_r = files_directories.raster_output_path(
-        output_path, virtual_output
+        output_path, virtual_output, overwrite=overwrite
     )
-    files_directories.create_parent_directory(output_path)
     # reclassification table
     if reclassification_table is None:
         if csv_path is None:

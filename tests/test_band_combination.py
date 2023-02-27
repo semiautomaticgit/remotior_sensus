@@ -34,7 +34,7 @@ class TestBandCombination(TestCase):
         self.assertGreater(len(table_f), 0)
         cfg.logger.log.debug('>>> test band combination input BandSet number')
         combination = rs.band_combination(
-            input_bands=1, output_path=temp, bandset_catalog=catalog
+            input_bands=1, bandset_catalog=catalog
             )
         raster, text = combination.paths
         table = read_write_files.open_text_file(text)
@@ -59,7 +59,7 @@ class TestBandCombination(TestCase):
         self.assertGreater(int(table_split[1][0]), 0)
         cfg.logger.log.debug('>>> test band combination without output table')
         combination = rs.band_combination(
-            input_bands=file_list, output_path=temp, output_table=False
+            input_bands=file_list, output_table=False
             )
         combinations_array = combination.extra['combinations']
         self.assertGreater(combinations_array.shape[0], 1)

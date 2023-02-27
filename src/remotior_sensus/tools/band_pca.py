@@ -55,6 +55,7 @@ from remotior_sensus.util import (
 def band_pca(
         input_bands: Union[list, int, BandSet],
         output_path: Union[list, str] = None,
+        overwrite: Optional[bool] = False,
         nodata_value: Optional[int] = None,
         n_processes: Optional[int] = None, available_ram: int = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
@@ -71,6 +72,7 @@ def band_pca(
         input_bands: input of type BandSet or list of paths or
             integer number of BandSet.
         output_path: string of output path directory or list of paths.
+        overwrite: if True, output overwrites existing files.
         nodata_value: value to be considered as nodata.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
@@ -105,7 +107,7 @@ def band_pca(
     (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
-        input_bands=input_bands, output_path=output_path,
+        input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog
     )
     if number_components is None or number_components > len(input_raster_list):

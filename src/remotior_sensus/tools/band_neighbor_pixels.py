@@ -44,6 +44,7 @@ from remotior_sensus.util import shared_tools
 def band_neighbor_pixels(
         input_bands: Union[list, int, BandSet], size: int,
         output_path: Optional[str] = None,
+        overwrite: Optional[bool] = False,
         stat_name: str = None, structure: Optional[any] = None,
         circular_structure: Optional[bool] = True,
         stat_percentile: Optional[Union[int, str]] = None,
@@ -74,6 +75,7 @@ def band_neighbor_pixels(
         input_bands: input of type BandSet or list of paths or integer
             number of BandSet.
         output_path: string of output path directory or list of paths.
+        overwrite: if True, output overwrites existing files.
         size: size of dilation in pixels.
         structure: optional path to csv file of structures, if None then the
             structure is created from size.
@@ -108,7 +110,7 @@ def band_neighbor_pixels(
     (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
-        input_bands=input_bands, output_path=output_path,
+        input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes,
         bandset_catalog=bandset_catalog, prefix=prefix,
         multiple_output=True, virtual_output=virtual_output
