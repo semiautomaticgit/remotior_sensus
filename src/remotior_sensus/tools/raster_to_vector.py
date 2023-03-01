@@ -26,19 +26,21 @@ Typical usage example:
     >>> import remotior_sensus
     >>> rs = remotior_sensus.Session()
     >>> # start the process
-    >>> vector = rs.raster_to_vector(raster_path='file.tif', output_path='vector.gpkg'))
+    >>> vector = rs.raster_to_vector(raster_path='file.tif',output_path='vector.gpkg')
+)
 """  # noqa: E501
 
 from typing import Optional
 
 from remotior_sensus.core import configurations as cfg
 from remotior_sensus.core.output_manager import OutputManager
-from remotior_sensus.util import files_directories
+from remotior_sensus.util import files_directories, shared_tools
 
 
 def raster_to_vector(
         raster_path, output_path: Optional[str] = None,
         dissolve: Optional[bool] = None, field_name: Optional[str] = None,
+        extent_list: Optional[list] = None,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None
 ) -> OutputManager:
     """Performs the conversion from raster to vector.
@@ -55,6 +57,7 @@ def raster_to_vector(
         dissolve: if True, dissolve adjacent polygons having the same values;
             if False, polygons are not dissolved and the process is rapider.
         field_name: name of the output vector field to store raster values (default = DN).
+        extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
 
@@ -64,7 +67,7 @@ def raster_to_vector(
 
     Examples:
         Perform the conversion to vector of a raster
-            >>> raster_to_vector(raster_path='file.tif', output_path='vector.gpkg')
+            >>> raster_to_vector(raster_path='file.tif',output_path='vector.gpkg')
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
@@ -72,6 +75,16 @@ def raster_to_vector(
         start=True
     )
     raster_path = files_directories.input_path(raster_path)
+    if extent_list is not None:
+        # prepare process files
+        (input_raster_list, raster_info, nodata_list, name_list, warped,
+         out_path_x, vrt_rx, vrt_pathx, n_processes_x,
+         output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+            input_bands=[raster_path], output_path=output_path,
+            n_processes=n_processes,
+            box_coordinate_list=extent_list, multiple_output=True
+        )
+        raster_path = input_raster_list[0]
     if output_path is None:
         output_path = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
     output_path = files_directories.output_path(output_path, cfg.gpkg_suffix)

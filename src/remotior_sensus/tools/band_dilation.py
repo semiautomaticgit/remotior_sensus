@@ -25,10 +25,9 @@ Typical usage example:
     >>> import remotior_sensus
     >>> rs = remotior_sensus.Session()
     >>> # start the process
-    >>> dilation = rs.band_dilation(
-    >>> input_bands=['file1.tif', 'file2.tif'], output_path='directory_path',
-    >>> value_list=[1], size=3, circular_structure=True, prefix='dilation_'
-    >>> )
+    >>> dilation = rs.band_dilation(input_bands=['file1.tif', 'file2.tif'],
+    ... value_list=[1], size=3, output_path='directory_path',
+    ... circular_structure=True, prefix='dilation_')
 """
 
 from typing import Union, Optional
@@ -46,7 +45,8 @@ def band_dilation(
         output_path: Union[list, str] = None,
         overwrite: Optional[bool] = False,
         circular_structure: Optional[bool] = None,
-        prefix: Optional[str] = '', n_processes: Optional[int] = None,
+        prefix: Optional[str] = '', extent_list: Optional[list] = None,
+        n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
         virtual_output: Optional[bool] = None
@@ -67,6 +67,7 @@ def band_dilation(
             as virtual raster of multiprocess parts
         circular_structure: if True, use circular structure; if False, square structure.
         prefix: optional string for output name prefix.
+        extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number
@@ -77,10 +78,7 @@ def band_dilation(
 
     Examples:
         Perform the dilation of size 5 for value 1 and 2
-            >>> dilation = band_dilation(
-            ... input_bands=['path_1', 'path_2'], output_path='directory_path',
-            ... value_list=[1, 2], size=5, circular_structure=True
-            ... )
+            >>> dilation = band_dilation(input_bands=['path_1', 'path_2'],value_list=[1, 2],size=5,output_path='directory_path',circular_structure=True)
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
@@ -92,7 +90,7 @@ def band_dilation(
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
-        n_processes=n_processes,
+        n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
         multiple_output=True, virtual_output=virtual_output
     )

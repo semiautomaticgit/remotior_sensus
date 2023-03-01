@@ -621,6 +621,7 @@ def create_virtual_raster(
             str(lefts), str(rights), str(tops), str(bottoms), str(p_x_sizes),
             str(p_y_sizes))
     )
+    cfg.logger.log.debug('box_coordinate_list: %s;' % box_coordinate_list)
     # calculate boundaries
     try:
         # minimum extent of intersection

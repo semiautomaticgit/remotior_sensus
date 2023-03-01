@@ -32,9 +32,7 @@ Typical usage example:
     >>> import remotior_sensus
     >>> rs = remotior_sensus.Session()
     >>> # start the process
-    >>> cross = rs.cross_classification(
-    ... classification_path='file1.tif', reference_path='file2.tif', output_path='output.tif'
-    ... )
+    >>> cross = rs.cross_classification(classification_path='file1.tif',reference_path='file2.tif',output_path='output.tif')
 """  # noqa: E501
 
 import io
@@ -59,6 +57,7 @@ def cross_classification(
         cross_matrix: Optional[bool] = False,
         regression_raster: Optional[bool] = False,
         error_matrix: Optional[bool] = False,
+        extent_list: Optional[list] = None,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None
 ) -> OutputManager:
     """Calculation of cross classification.
@@ -81,6 +80,7 @@ def cross_classification(
         cross_matrix: if True then calculate the cross matrix.
         regression_raster: if True then calculate linear regression statistics.
         error_matrix: if True then calculate error matrix.
+        extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
 
@@ -90,16 +90,10 @@ def cross_classification(
 
     Examples:
         Perform the cross classification between two files
-            >>> cross = cross_classification(
-            ... classification_path='file1.tif', reference_path='file2.tif', 
-            ... output_path='output.tif'
-            ... )
+            >>> cross = cross_classification(classification_path='file1.tif',reference_path='file2.tif',output_path='output.tif')
             
         Perform the cross classification between two files and calculate the error matrix
-            >>> cross = cross_classification(
-            ... classification_path='file1.tif', reference_path='file2.tif', 
-            ... output_path='output.tif', error_matrix=True
-            ... )
+            >>> cross = cross_classification(classification_path='file1.tif',reference_path='file2.tif',output_path='output.tif',error_matrix=True)
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
@@ -112,6 +106,28 @@ def cross_classification(
     vector, raster, reference_crs = raster_vector.raster_or_vector_input(
         reference_path
     )
+    if extent_list is not None:
+        if raster:
+            # prepare process files
+            (input_raster_list, raster_info, nodata_list, name_list, warped,
+             out_path_x, vrt_rx, vrt_pathx, n_processes_x,
+             output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+                input_bands=[classification_path, reference_path],
+                output_path=output_path,
+                overwrite=overwrite, n_processes=n_processes,
+                box_coordinate_list=extent_list, multiple_output=True
+            )
+            classification_path, reference_path = input_raster_list
+        else:
+            # prepare process files
+            (input_raster_list, raster_info, nodata_list, name_list, warped,
+             out_path_x, vrt_rx, vrt_pathx, n_processes_x,
+             output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+                input_bands=[classification_path], output_path=output_path,
+                overwrite=overwrite, n_processes=n_processes,
+                box_coordinate_list=extent_list, multiple_output=True
+            )
+            classification_path = input_raster_list[0]
     classification_crs = raster_vector.get_crs(classification_path)
     # check crs
     same_crs = raster_vector.compare_crs(reference_crs, classification_crs)
@@ -155,7 +171,7 @@ def cross_classification(
         output_path=out_path, nodata_value=nodata_value,
         n_processes=n_processes, available_ram=available_ram,
         output_table=False, progress_message=False
-    )
+        )
     vrt_check = combination.paths[0]
     rec_combinations_array = combination.extra['combinations']
     sum_val = combination.extra['sums']

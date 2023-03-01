@@ -26,7 +26,7 @@ Typical usage example:
     >>> import remotior_sensus
     >>> rs = remotior_sensus.Session()
     >>> # start the process
-    >>> report = rs.raster_report(raster_path='file.tif', output_path='report.csv')
+    >>> report = rs.raster_report(raster_path='file.tif',output_path='report.csv')
 """  # noqa: E501
 
 import io
@@ -40,13 +40,13 @@ from remotior_sensus.core.processor_functions import (
     raster_unique_values_with_sum
 )
 from remotior_sensus.util import (
-    files_directories, raster_vector, read_write_files
+    files_directories, raster_vector, read_write_files, shared_tools
 )
 
 
 def raster_report(
         raster_path: str, output_path: Optional[str] = None,
-        nodata_value: Optional[int] = None,
+        nodata_value: Optional[int] = None, extent_list: Optional[list] = None,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None
 ):
     """Calculation of a report providing information extracted from a raster.
@@ -60,6 +60,7 @@ def raster_report(
         raster_path: path of raster used as input.
         output_path: string of output path.
         nodata_value: value to be considered as nodata.
+        extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
 
@@ -69,14 +70,24 @@ def raster_report(
 
     Examples:
         Perform the report of a raster
-            >>> raster_report(raster_path='file.tif', output_path='report.csv')
-    """
+            >>> raster_report(raster_path='file.tif',output_path='report.csv')
+    """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
         start=True
     )
     raster_path = files_directories.input_path(raster_path)
+    if extent_list is not None:
+        # prepare process files
+        (input_raster_list, raster_info, nodata_list, name_list, warped,
+         out_path_x, vrt_rx, vrt_pathx, n_processes_x,
+         output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+            input_bands=[raster_path], output_path=output_path,
+            n_processes=n_processes,
+            box_coordinate_list=extent_list, multiple_output=True
+        )
+        raster_path = input_raster_list[0]
     if output_path is None:
         output_path = cfg.temp.temporary_file_path(name_suffix=cfg.csv_suffix)
     output_path = files_directories.output_path(output_path, cfg.csv_suffix)

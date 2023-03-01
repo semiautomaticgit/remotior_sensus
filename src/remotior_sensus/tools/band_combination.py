@@ -31,7 +31,7 @@ Typical usage example:
     >>> rs = remotior_sensus.Session()
     >>> # start the process
     >>> combination = rs.band_combination(input_bands=['path_1', 'path_2'],
-    ...                                   output_path='output_path')
+    ... output_path='output_path')
 """
 
 import io
@@ -57,6 +57,7 @@ def band_combination(
         overwrite: Optional[bool] = False,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
+        extent_list: Optional[list] = None,
         column_name_list: Optional[list] = None,
         output_table: Optional[bool] = True,
         progress_message: Optional[bool] = True
@@ -79,6 +80,7 @@ def band_combination(
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: BandSetCatalog object required if input_bands is a BandSet number.
+        extent_list: list of boundary coordinates left top right bottom.
         column_name_list: list of strings corresponding to input bands used 
             as column names in output table, if None then column names are extracted for input band names.
         output_table: if True then calculate output table; 
@@ -96,8 +98,7 @@ def band_combination(
 
     Examples:
         Combination using two rasters having paths path_1 and path_2
-            >>> combination = band_combination(input_bands=['path_1', 'path_2'], 
-            ...                                output_path='output_path')
+            >>> combination = band_combination(input_bands=['path_1', 'path_2'],output_path='output_path')
             
         The combination raster and the table are finally created; the paths can be retrieved from the output that is an :func:`~remotior_sensus.core.output_manager.OutputManager` object
             >>> raster_path, table_path = combination.paths
@@ -105,22 +106,18 @@ def band_combination(
             output_path
 
         Combination using a virtual raster as output file
-            >>> combination = band_combination(input_bands=['path_1', 'path_2'],
-            ...                                output_path='output_path.vrt')
+            >>> combination = band_combination(input_bands=['path_1', 'path_2'],output_path='output_path.vrt')
             >>> raster_path, table_path = combination.paths
             >>> print(raster_path)
             output_path.vrt
 
         Using input BandSet number
             >>> catalog = BandSetCatalog()
-            >>> combination = band_combination(
-            ...     input_bands=1, output_path='output_path', bandset_catalog=catalog
-            ... )
+            >>> combination = band_combination(input_bands=1,output_path='output_path',bandset_catalog=catalog)
 
         Using input BandSet
             >>> catalog = BandSetCatalog()
-            >>> combination = band_combination(input_bands=catalog.get_bandset(1), 
-            ...                                output_path='output_path')
+            >>> combination = band_combination(input_bands=catalog.get_bandset(1),output_path='output_path')
     """  # noqa: E501
     if progress_message:
         cfg.logger.log.info('start')
@@ -133,7 +130,8 @@ def band_combination(
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
-        n_processes=n_processes, bandset_catalog=bandset_catalog
+        n_processes=n_processes, bandset_catalog=bandset_catalog,
+        box_coordinate_list=extent_list
     )
     # dummy bands for memory calculation as the number of input raster
     dummy_bands = len(input_raster_list) + 1

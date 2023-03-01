@@ -15,8 +15,10 @@ class TestCrossClassification(TestCase):
         p1 = './data/S2_2020-01-01/S2_B04.tif'
         p2 = './data/S2_2020-01-01/S2_B02.tif'
         cfg.logger.log.debug('>>> test cross_classification')
+        coordinate_list = [230250, 4674550, 230320, 4674440]
         cross = rs.cross_classification(
-            classification_path=p1, reference_path=p2
+            classification_path=p1, reference_path=p2,
+            extent_list=coordinate_list
         )
         self.assertTrue(files_directories.is_file(cross.paths[0]))
         cross = rs.cross_classification(

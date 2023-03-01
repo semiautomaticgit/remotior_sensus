@@ -37,8 +37,9 @@ class TestRasterReclassification(TestCase):
             )
         self.assertTrue(files_directories.is_file(reclassification.path))
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        coordinate_list = [230250, 4674550, 230320, 4674440]
         reclassification = rs.raster_reclassification(
-            raster_path=p, output_path=temp,
+            raster_path=p, output_path=temp, extent_list=coordinate_list,
             reclassification_table=[['raster <= 3000', 1], ['raster > 500', 2]]
             )
         self.assertTrue(files_directories.is_file(reclassification.path))

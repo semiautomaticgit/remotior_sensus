@@ -21,5 +21,12 @@ class TestBandSieve(TestCase):
             )
         self.assertTrue(files_directories.is_file(sieve.paths[0]))
 
+        coordinate_list = [230250, 4674550, 230320, 4674440]
+        sieve = rs.band_sieve(
+            input_bands=file_list, output_path=cfg.temp.dir, size=2,
+            connected=False, prefix='sieve_', extent_list=coordinate_list
+            )
+        self.assertTrue(files_directories.is_file(sieve.paths[0]))
+
         # clear temporary directory
         rs.close()

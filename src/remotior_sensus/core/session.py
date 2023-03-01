@@ -100,7 +100,7 @@ class Session(object):
             >>> catalog = rs.bandset_catalog()
 
         Run the tool for raster report
-            >>> output = rs.raster_report(raster_path='file.tif', output_path='output.txt')
+            >>> output = rs.raster_report(raster_path='file.tif',output_path='output.txt')
 
         Stop a session at the end to clear temporary directory
             >>> rs.close()

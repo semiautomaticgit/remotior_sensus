@@ -89,13 +89,25 @@ def prepare_process_files(
         n_processes: Optional[int] = None, overwrite=False,
         bandset_catalog: Optional[BandSetCatalog] = None,
         temporary_virtual_raster=True, prefix=None, multiple_output=False,
-        virtual_output=None
+        virtual_output=None, box_coordinate_list: Optional[list] = None
 ):
     cfg.logger.log.debug('input_bands: %s' % str(input_bands))
     if n_processes is None:
         n_processes = cfg.n_processes
+    # TODO check overwrite file
+    if overwrite:
+        pass
     # get input list
     band_list = BandSetCatalog.get_band_list(input_bands, bandset_catalog)
+    if type(input_bands) is BandSet:
+        coord_list = input_bands.box_coordinate_list
+        if coord_list is not None:
+            box_coordinate_list = coord_list
+    elif type(input_bands) is int:
+        coord_list = bandset_catalog.get_bandset(
+            bandset_number=input_bands).box_coordinate_list
+        if coord_list is not None:
+            box_coordinate_list = coord_list
     # list of inputs
     (input_raster_list, raster_info, nodata_list, name_list,
      warped) = prepare_input_list(band_list, n_processes=n_processes)
@@ -141,14 +153,27 @@ def prepare_process_files(
             output_path, virtual_output
         )
     # create virtual raster of input
-    if temporary_virtual_raster:
-        temporary_virtual_raster = \
-            raster_vector.create_temporary_virtual_raster(
-                input_raster_list
-            )
+    if temporary_virtual_raster or box_coordinate_list is not None:
+        if multiple_output:
+            temp_list = []
+            for r in input_raster_list:
+                temporary_virtual_raster = \
+                    raster_vector.create_temporary_virtual_raster(
+                        input_raster_list=[r],
+                        box_coordinate_list=box_coordinate_list
+                    )
+                temp_list.append(temporary_virtual_raster)
+            input_raster_list = temp_list
+            temporary_virtual_raster = True
+        else:
+            temporary_virtual_raster = \
+                raster_vector.create_temporary_virtual_raster(
+                    input_raster_list=input_raster_list,
+                    box_coordinate_list=box_coordinate_list
+                )
     return [input_raster_list, raster_info, nodata_list, name_list, warped,
-            out_path, virtual_output,
-            temporary_virtual_raster, n_processes, output_list, vrt_list]
+            out_path, virtual_output, temporary_virtual_raster, n_processes,
+            output_list, vrt_list]
 
 
 # create base structure

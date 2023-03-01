@@ -25,10 +25,8 @@ Typical usage example:
     >>> import remotior_sensus
     >>> rs = remotior_sensus.Session()
     >>> # start the process
-    >>> sieve = rs.band_sieve(
-    ... input_bands=['file1.tif', 'file2.tif'], output_path='directory_path',
-    ... size=2, connected=False, prefix='sieve_'
-    ... )
+    >>> sieve = rs.band_sieve(input_bands=['file1.tif', 'file2.tif'],size=2,
+    ... output_path='directory_path',connected=False,prefix='sieve_')
 """
 
 from typing import Union, Optional
@@ -44,7 +42,8 @@ def band_sieve(
         input_bands: Union[list, int, BandSet], size: int,
         output_path: Union[list, str] = None, connected: Optional[bool] = None,
         overwrite: Optional[bool] = False,
-        prefix: Optional[str] = '', n_processes: Optional[int] = None,
+        prefix: Optional[str] = '', extent_list: Optional[list] = None,
+        n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
         virtual_output: Optional[bool] = None
@@ -64,6 +63,7 @@ def band_sieve(
             as virtual raster of multiprocess parts
         connected: if True, consider 8 pixel connection; if False, consider 4 pixel connection.
         prefix: optional string for output name prefix.
+        extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number
@@ -74,10 +74,7 @@ def band_sieve(
         
     Examples:
         Perform the sieve of size 3 with connected pixel (8 connection)
-            >>> sieve = band_sieve(
-            ... input_bands=['file1.tif', 'file2.tif'], output_path='directory_path', 
-            ... size=3, connected=True, prefix='sieve_'
-            ... )
+            >>> sieve = band_sieve(input_bands=['file1.tif', 'file2.tif'],size=3,output_path='directory_path',connected=True,prefix='sieve_')
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
@@ -90,6 +87,7 @@ def band_sieve(
      output_list, vrt_list) = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
+        box_coordinate_list=extent_list,
         prefix=prefix, multiple_output=True, virtual_output=virtual_output
     )
     # 4 connected pixels

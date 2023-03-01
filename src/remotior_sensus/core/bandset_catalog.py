@@ -809,23 +809,12 @@ class BandSetCatalog(object):
         # add BandSet to dictionary by uid
         bandset_copy.uid = bandset_copy.generate_uid()
         self.bandsets[bandset_copy.uid] = bandset_copy
-        if bandset_copy.box_coordinate_list is not None:
-            box_coordinate_left = bandset_copy.box_coordinate_list[0]
-            box_coordinate_top = bandset_copy.box_coordinate_list[1]
-            box_coordinate_right = bandset_copy.box_coordinate_list[2]
-            box_coordinate_bottom = bandset_copy.box_coordinate_list[3]
-        else:
-            box_coordinate_left = box_coordinate_top = box_coordinate_right \
-                = box_coordinate_bottom = None
         self.bandsets_table = tm.create_bandset_catalog_table(
             bandset_number=bandset_number,
             root_directory=bandset_copy.root_directory, date=bandset_copy.date,
             bandset_uid=bandset_copy.uid, bandset_name=bandset_copy.name,
             previous_catalog=self.bandsets_table,
-            crs=bandset_copy.crs, box_coordinate_left=box_coordinate_left,
-            box_coordinate_top=box_coordinate_top,
-            box_coordinate_right=box_coordinate_right,
-            box_coordinate_bottom=box_coordinate_bottom
+            crs=bandset_copy.crs
         )
         if not insert and bandset_number <= bandset_count:
             self._remove_bandset(-1, reorder=False)
@@ -1188,18 +1177,6 @@ class BandSetCatalog(object):
         self.get_bandset(
             bandset_number
         ).box_coordinate_list = box_coordinate_list
-        self.bandsets_table['box_coordinate_left'][
-            self.bandsets_table['bandset_number'] == bandset_number] = \
-            box_coordinate_list[0]
-        self.bandsets_table['box_coordinate_top'][
-            self.bandsets_table['bandset_number'] == bandset_number] = \
-            box_coordinate_list[1]
-        self.bandsets_table['box_coordinate_right'][
-            self.bandsets_table['bandset_number'] == bandset_number] = \
-            box_coordinate_list[2]
-        self.bandsets_table['box_coordinate_bottom'][
-            self.bandsets_table['bandset_number'] == bandset_number] = \
-            box_coordinate_list[3]
 
     def get_root_directory(self, bandset_number: Optional[int] = None) -> str:
         """Gets BandSet root directory.
@@ -1323,19 +1300,7 @@ class BandSetCatalog(object):
         if bandset is None:
             return None
         else:
-            box_coordinate_list = [
-                self.bandsets_table['box_coordinate_left'][
-                    self.bandsets_table['bandset_number'] == bandset_number][
-                    0],
-                self.bandsets_table['box_coordinate_top'][
-                    self.bandsets_table['bandset_number'] == bandset_number][
-                    0],
-                self.bandsets_table['box_coordinate_right'][
-                    self.bandsets_table['bandset_number'] == bandset_number][
-                    0],
-                self.bandsets_table['box_coordinate_bottom'][
-                    self.bandsets_table['bandset_number'] == bandset_number][
-                    0]]
+            box_coordinate_list = bandset.box_coordinate_list
             return box_coordinate_list
 
     def create_band_string_list(self, bandset_number: int = None) -> list:

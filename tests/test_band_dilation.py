@@ -27,6 +27,14 @@ class TestBandDilation(TestCase):
             circular_structure=True, prefix='dilation_'
             )
         self.assertTrue(files_directories.is_file(dilation.paths[0]))
+        cfg.logger.log.debug('>>> test band_dilation with coordinate list')
+        coordinate_list = [230250, 4674550, 230320, 4674440]
+        dilation = rs.band_dilation(
+            input_bands=file_list, value_list=[1, 425], size=3,
+            circular_structure=True, prefix='dilation_',
+            extent_list=coordinate_list
+            )
+        self.assertTrue(files_directories.is_file(dilation.paths[0]))
 
         # clear temporary directory
         rs.close()

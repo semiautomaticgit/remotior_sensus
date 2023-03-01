@@ -26,9 +26,9 @@ Typical usage example:
     >>> rs = remotior_sensus.Session()
     >>> # start the process
     >>> neighbor = rs.band_neighbor_pixels(
-    ... input_bands=['file1.tif', 'file2.tif'], output_path='directory_path',
-    ... size=1, circular_structure=True, stat_name='Mean', prefix='neighbor_'
-    ... )
+    ... input_bands=['file1.tif', 'file2.tif'],
+    ... size=1,output_path='directory_path',stat_name='Mean',
+    ... circular_structure=True,prefix='neighbor_')
 """
 
 from typing import Union, Optional
@@ -50,6 +50,7 @@ def band_neighbor_pixels(
         stat_percentile: Optional[Union[int, str]] = None,
         output_data_type: Optional[str] = None,
         virtual_output: Optional[bool] = None, prefix: Optional[str] = '',
+        extent_list: Optional[list] = None,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None
 ) -> OutputManager:
@@ -85,6 +86,7 @@ def band_neighbor_pixels(
         output_data_type: optional raster output data type, if None the data type is the same as input raster.
         virtual_output: if True (and output_path is directory), save output as virtual raster of multiprocess parts.
         prefix: optional string for output name prefix.
+        extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number.
@@ -95,11 +97,7 @@ def band_neighbor_pixels(
 
     Examples:
         Perform the band neighbor of size 10 pixels with the function Sum
-            >>> neighbor = band_neighbor_pixels(
-            ... input_bands=['file1.tif', 'file2.tif'],
-            ... output_path='directory_path',
-            ... size=10, circular_structure=True, stat_name='Sum'
-            ... )
+            >>> neighbor = band_neighbor_pixels(input_bands=['file1.tif', 'file2.tif'],size=10,output_path='directory_path',stat_name='Sum',circular_structure=True)
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
@@ -111,7 +109,7 @@ def band_neighbor_pixels(
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
-        n_processes=n_processes,
+        n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
         multiple_output=True, virtual_output=virtual_output
     )

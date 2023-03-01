@@ -27,10 +27,9 @@ Typical usage example:
     >>> import remotior_sensus
     >>> rs = remotior_sensus.Session()
     >>> # start the process
-    >>> reclassification = rs.raster_reclassification(
-    ... raster_path='file1.tif', output_path='output.tif',
-    ... reclassification_table=[[1, -10], ['nan', 6000]]
-    ... )
+    >>> reclassification = rs.raster_reclassification(raster_path='file1.tif',
+    ... output_path='output.tif',
+    ... reclassification_table=[[1, -10], ['nan', 6000]])
 """
 
 from typing import Union, Optional
@@ -43,7 +42,7 @@ from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
     raster_unique_values_with_sum, reclassify_raster
 )
-from remotior_sensus.util import files_directories, raster_vector
+from remotior_sensus.util import files_directories, raster_vector, shared_tools
 
 
 def raster_reclassification(
@@ -52,7 +51,7 @@ def raster_reclassification(
         reclassification_table: Optional[Union[list, np.array]] = None,
         csv_path: Optional[str] = None, separator: Optional[str] = ',',
         output_data_type: Optional[str] = None,
-        n_processes: Optional[int] = None,
+        extent_list: Optional[list] = None, n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
         virtual_output: Optional[bool] = None
 ) -> OutputManager:
@@ -76,6 +75,7 @@ def raster_reclassification(
         separator: separator character for csv file; default is comma separated.
         output_data_type: set output data type such as 'Float32' or 'Int32'; 
             if None, input data type is used.
+        extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         virtual_output: if True (and output_path is directory), save output
@@ -91,10 +91,7 @@ def raster_reclassification(
             >>> import remotior_sensus
             >>> rs = remotior_sensus.Session()
             >>> # start the process
-            >>> reclassification = rs.raster_reclassification(
-            ... raster_path='file1.tif', output_path='output.tif',
-            ... csv_path='file.csv'
-            ... )
+            >>> reclassification = rs.raster_reclassification(raster_path='file1.tif',output_path='output.tif',csv_path='file.csv')
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
@@ -105,6 +102,16 @@ def raster_reclassification(
     if n_processes is None:
         n_processes = cfg.n_processes
     raster_path = files_directories.input_path(raster_path)
+    if extent_list is not None:
+        # prepare process files
+        (input_raster_list, raster_info, nodata_list, name_list, warped,
+         out_path_x, vrt_rx, vrt_pathx, n_processes_x,
+         output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+            input_bands=[raster_path], output_path=output_path,
+            overwrite=overwrite, n_processes=n_processes,
+            box_coordinate_list=extent_list, multiple_output=True
+        )
+        raster_path = input_raster_list[0]
     (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_vector.raster_info(raster_path)
     if output_data_type is None:

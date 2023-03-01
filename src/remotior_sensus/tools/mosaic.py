@@ -30,7 +30,7 @@ Typical usage example:
     >>> rs = remotior_sensus.Session()
     >>> # start the process
     >>> file_list = ['file1_b1.tif', 'file2_b1.tif']
-    >>> mosaic = rs.mosaic(input_bands=file_list,output_path='output_directory')
+    >>> mosaic_bands = rs.mosaic(input_bands=file_list,output_path='output_directory')
 """  # noqa: E501
 
 from typing import Union, Optional
@@ -92,7 +92,8 @@ def mosaic(
             >>> catalog.create_bandset(file_list_2, bandset_number=2)
             >>> catalog.create_bandset(file_list_3, bandset_number=3)
             >>> # start the process
-            >>> mosaic = rs.mosaic(input_bands=[1, 2, 3],output_path='output_directory',bandset_catalog=catalog)
+            >>> mosaic_bands = rs.mosaic(input_bands=[1, 2, 3],
+            ... output_path='output_directory', bandset_catalog=catalog)
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(

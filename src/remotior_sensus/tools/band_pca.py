@@ -30,7 +30,7 @@ Typical usage example:
     >>> catalog.create_bandset(file_list_1, bandset_number=1)
     >>> # start the process
     >>> output = rs.band_pca(input_bands=catalog.get_bandset(1),
-    ...                      output_path='directory_path')
+    ... output_path='directory_path')
 """
 
 import io
@@ -56,7 +56,7 @@ def band_pca(
         input_bands: Union[list, int, BandSet],
         output_path: Union[list, str] = None,
         overwrite: Optional[bool] = False,
-        nodata_value: Optional[int] = None,
+        nodata_value: Optional[int] = None, extent_list: Optional[list] = None,
         n_processes: Optional[int] = None, available_ram: int = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
         number_components: Optional[int] = None,
@@ -74,6 +74,7 @@ def band_pca(
         output_path: string of output path directory or list of paths.
         overwrite: if True, output overwrites existing files.
         nodata_value: value to be considered as nodata.
+        extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number.
@@ -94,8 +95,7 @@ def band_pca(
             >>> file_list_1 = ['file1_b1.tif', 'file1_b2.tif', 'file1_b3.tif']
             >>> catalog.create_bandset(file_list_1, bandset_number=1)
             >>> # start the process
-            >>> pca = rs.band_pca(input_bands=catalog.get_bandset(1),
-            ...                   output_path='directory_path')
+            >>> pca = rs.band_pca(input_bands=catalog.get_bandset(1),output_path='directory_path')
     """  # noqa: E501
     if progress_message:
         cfg.logger.log.info('start')
@@ -108,7 +108,8 @@ def band_pca(
      vrt_r, vrt_path, n_processes,
      output_list, vrt_list) = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
-        n_processes=n_processes, bandset_catalog=bandset_catalog
+        n_processes=n_processes, bandset_catalog=bandset_catalog,
+        box_coordinate_list=extent_list
     )
     if number_components is None or number_components > len(input_raster_list):
         number_components = len(input_raster_list)

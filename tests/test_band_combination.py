@@ -33,6 +33,8 @@ class TestBandCombination(TestCase):
             )
         self.assertGreater(len(table_f), 0)
         cfg.logger.log.debug('>>> test band combination input BandSet number')
+        bs = catalog.get_bandset(1)
+        bs.box_coordinate_list = [230250, 4674550, 230320, 4674440]
         combination = rs.band_combination(
             input_bands=1, bandset_catalog=catalog
             )
