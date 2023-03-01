@@ -109,9 +109,9 @@ def raster_reclassification(
          output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
             input_bands=[raster_path], output_path=output_path,
             overwrite=overwrite, n_processes=n_processes,
-            box_coordinate_list=extent_list, multiple_output=True
+            box_coordinate_list=extent_list
         )
-        raster_path = input_raster_list[0]
+        raster_path = vrt_pathx
     (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_vector.raster_info(raster_path)
     if output_data_type is None:

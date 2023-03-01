@@ -84,10 +84,9 @@ def raster_report(
          out_path_x, vrt_rx, vrt_pathx, n_processes_x,
          output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
             input_bands=[raster_path], output_path=output_path,
-            n_processes=n_processes,
-            box_coordinate_list=extent_list, multiple_output=True
+            n_processes=n_processes, box_coordinate_list=extent_list
         )
-        raster_path = input_raster_list[0]
+        raster_path = vrt_pathx
     if output_path is None:
         output_path = cfg.temp.temporary_file_path(name_suffix=cfg.csv_suffix)
     output_path = files_directories.output_path(output_path, cfg.csv_suffix)

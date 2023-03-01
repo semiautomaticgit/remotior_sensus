@@ -695,6 +695,10 @@ def create_virtual_raster(
                 pixel_y_size = min(p_y_sizes)
             else:
                 pixel_x_size, pixel_y_size = pixel_size
+                if pixel_x_size is None:
+                    pixel_x_size = min(p_x_sizes)
+                if pixel_y_size is None:
+                    pixel_y_size = min(p_y_sizes)
         # find minimum extent raster
         elif grid_reference is not None:
             # raster extent and pixel size
@@ -707,6 +711,10 @@ def create_virtual_raster(
                 pixel_y_size = abs(gt[5])
             else:
                 pixel_x_size, pixel_y_size = pixel_size
+                if pixel_x_size is None:
+                    pixel_x_size = gt[1]
+                if pixel_y_size is None:
+                    pixel_y_size = abs(gt[5])
             # find raster box
             diff_left = round(
                 (box_coordinate_list[0] - r_left) / pixel_x_size
@@ -738,6 +746,10 @@ def create_virtual_raster(
                 pixel_y_size = min(p_y_sizes)
             else:
                 pixel_x_size, pixel_y_size = pixel_size
+                if pixel_x_size is None:
+                    pixel_x_size = min(p_x_sizes)
+                if pixel_y_size is None:
+                    pixel_y_size = min(p_y_sizes)
             if pixel_x_size in p_x_sizes:
                 input_reference = input_raster_list[
                     p_x_sizes.index(pixel_x_size)]
@@ -1141,6 +1153,9 @@ def create_virtual_raster_2_mosaic(
             i_bottom = i_top + diff_bottom
         else:
             pixel_x_size, pixel_y_size = pixel_size
+            if pixel_x_size is None:
+                pixel_x_size = min(p_x_sizes)
+                pixel_y_size = min(p_y_sizes)
     # box coordinates to be adapted
     else:
         # override coordinates with absolute coordinates
@@ -1161,6 +1176,9 @@ def create_virtual_raster_2_mosaic(
                 pixel_y_size = abs(gt[5])
             else:
                 pixel_x_size, pixel_y_size = pixel_size
+                if pixel_x_size is None:
+                    pixel_x_size = gt[1]
+                    pixel_y_size = abs(gt[5])
             # find raster box
             diff_left = round(
                 (box_coordinate_list[0] - r_left) / pixel_x_size

@@ -22,6 +22,7 @@ and Sentinel-2 datasets.
 
 import datetime
 import json
+import time
 from xml.dom import minidom
 
 from remotior_sensus.core import configurations as cfg, messages, \
@@ -561,6 +562,7 @@ def download(
                     files_directories.move_file(
                         in_path=temp_file, out_path=metadata_msi
                     )
+                    time.sleep(0.2)
                     download_tools.download_file(
                         url=metadata_tl_url, output_path=metadata_tl,
                         proxy_host=proxy_host,
@@ -568,6 +570,7 @@ def download(
                         proxy_password=proxy_password, progress=False
                     )
                     if cloud_mask_gml:
+                        time.sleep(0.2)
                         download_tools.download_file(
                             url=cloud_mask_gml_url, output_path=cloud_mask_gml,
                             proxy_host=proxy_host, proxy_port=proxy_port,
