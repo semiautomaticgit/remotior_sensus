@@ -38,8 +38,7 @@ from types import FunctionType
 from typing import Optional
 
 from remotior_sensus.core import configurations, messages, table_manager
-from remotior_sensus.core.bandset import BandSet
-from remotior_sensus.core.bandset_catalog import BandSetCatalog
+from remotior_sensus.core.bandset_catalog import BandSet, BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.log import Log
 from remotior_sensus.core.multiprocess_manager import Multiprocess
@@ -64,7 +63,7 @@ class Session(object):
 
     Attributes:
         configurations: module containing shared variables and functions
-        bandset: access :func:`~remotior_sensus.core.bandset.BandSet` class
+        bandset: access :func:`~remotior_sensus.core.bandset_catalog.BandSet` class
         bandset_catalog: access :func:`~remotior_sensus.core.bandset_catalog.BandSetCatalog` class
         spectral_signatures_catalog: access :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturesCatalog` class 
         output_manager: access :func:`~remotior_sensus.core.output_manager.OutputManager` class 

@@ -23,7 +23,7 @@ import numpy as np
 from remotior_sensus.core import (
     configurations as cfg, messages, table_manager as tm
 )
-from remotior_sensus.core.bandset import BandSet
+from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.processor_functions import spectral_signature
 from remotior_sensus.util import raster_vector, dates_times, files_directories
 

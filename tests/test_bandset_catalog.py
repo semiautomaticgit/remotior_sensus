@@ -22,13 +22,48 @@ class TestBandSetCatalog(TestCase):
         self.assertEqual(catalog.get_bandset_count(), 1)
         # empty BandSet
         catalog.create_bandset(insert=True, bandset_name='BandSet X')
+        # set box_coordinate_list
+        catalog.get(1).box_coordinate_list = [1, 1, 1, 1]
         # BandSet count
         self.assertEqual(catalog.get_bandset_count(), 2)
+        self.assertEqual(
+            catalog.get(1).box_coordinate_list[0],
+            catalog.bandsets_table['box_coordinate_left'][
+                catalog.bandsets_table.bandset_number == 1]
+        )
+        # set name
+        new_name = 'new_name'
+        catalog.get(1).name = new_name
+        self.assertEqual(
+            new_name, catalog.bandsets_table['bandset_name'][
+                catalog.bandsets_table.bandset_number == 1]
+        )
+        # set crs
+        new_crs = 'crs'
+        catalog.get(1).crs = new_crs
+        self.assertEqual(
+            new_crs, catalog.bandsets_table['crs'][
+                catalog.bandsets_table.bandset_number == 1]
+        )
+        # set date
+        catalog.get(1).date = '2022-01-01'
+        self.assertEqual(
+            catalog.get(1).date, catalog.bandsets_table['date'][
+                catalog.bandsets_table.bandset_number == 1]
+        )
+        # set root
+        catalog.get(1).root_directory = '/dir'
+        self.assertEqual(
+            catalog.get(1).root_directory,
+            catalog.bandsets_table['root_directory'][
+                catalog.bandsets_table.bandset_number == 1]
+        )
         # BandSet from directory
         catalog.create_bandset(
             paths=[data_directory, 'tif'], wavelengths=['Sentinel-2'],
             date=cfg.date_auto, bandset_number=1, bandset_name='bandset_1'
         )
+        self.assertEqual(catalog.get_bandset_count(), 2)
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
         date = '2021-01-01'
@@ -94,7 +129,7 @@ class TestBandSetCatalog(TestCase):
         self.assertEqual(str(bs(2, 'date')[0]), date)
         self.assertEqual(bs(2).date, catalog.get_bandset(2).date)
         self.assertEqual(
-            bs(2).date, str(catalog.get_bandset_catalog_attributes(2, 'date'))
+            bs(2).date, catalog.get_bandset_catalog_attributes(2, 'date')
         )
         self.assertEqual(str(catalog.get_bandset(2, 'date')[0]), date)
         date_current = catalog.get_bandset_catalog_attributes(
@@ -154,8 +189,8 @@ class TestBandSetCatalog(TestCase):
             bandset_number=1, attribute='wavelength',
             attribute_value=catalog.get(
                 1
-                ).get(1).wavelength
-            )
+            ).get(1).wavelength
+        )
         self.assertEqual(
             band_w[0].wavelength, catalog.get_bandset(1).get_band(1).wavelength
         )
@@ -208,7 +243,10 @@ class TestBandSetCatalog(TestCase):
         )
         # set BandSet date
         empty_catalog.set_date(bandset_number=1, date=date)
-        self.assertEqual(empty_catalog.get(1).date, empty_catalog.get_date(1))
+        self.assertEqual(
+            str(empty_catalog.get(1).date),
+            empty_catalog.get_date(1)
+            )
         # BandSet band count
         self.assertEqual(
             empty_catalog.get_band_count(bandset_number=1),

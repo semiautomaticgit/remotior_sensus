@@ -26,7 +26,7 @@ from typing import Union, Optional
 import numpy as np
 
 from remotior_sensus.core import configurations as cfg
-from remotior_sensus.core.bandset import BandSet
+from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.util import files_directories, raster_vector
 
@@ -119,7 +119,12 @@ def prepare_process_files(
     vrt_list = []
     if multiple_output:
         if output_path is None:
-            output_path = cfg.temp.dir
+            output_path = []
+            for _r in input_raster_list:
+                output_path.append(cfg.temp.temporary_raster_path(
+                    name=files_directories.file_name(_r),
+                    extension=cfg.vrt_suffix
+                ))
         if type(output_path) is not list and files_directories.is_directory(
                 output_path
         ):

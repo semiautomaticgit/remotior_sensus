@@ -41,7 +41,7 @@ import numpy as np
 from remotior_sensus.core import (
     configurations as cfg, messages, table_manager as tm
 )
-from remotior_sensus.core.bandset import BandSet
+from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (

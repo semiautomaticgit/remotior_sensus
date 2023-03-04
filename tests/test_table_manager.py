@@ -120,6 +120,13 @@ class TestTableManager(TestCase):
         )
         self.assertGreater(len(values2), 0)
         cfg.logger.log.debug('>>> test pivot_60')
+        fields = rs.table_manager.pivot_matrix(
+            joined_table, row_field='name_m1',
+            secondary_row_field_list=['name_m2'],
+            column_function_list=[['field3_m1', 'sum'], ['field3_m2', 'sum']],
+            filter_string='matrix["field3_m1"] <= 1000', field_names=True
+        )
+        self.assertGreater(len(fields), 0)
         pivot3 = rs.table_manager.pivot_matrix(
             joined_table, row_field='name_m1',
             secondary_row_field_list=['name_m2'],

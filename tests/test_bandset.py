@@ -1,5 +1,4 @@
 import datetime
-
 from unittest import TestCase
 
 import remotior_sensus
@@ -13,12 +12,14 @@ class TestBandSet(TestCase):
             n_processes=2, available_ram=1000, log_level=10
         )
         cfg = rs.configurations
+        # create BandSet Catalog
+        catalog = rs.bandset_catalog()
         cfg.logger.log.debug('test')
         data_directory = './data/S2_2020-01-01'
         file_list = files_directories.files_in_directory(
             data_directory, sort_files=True, path_filter='S',
             suffix_filter=cfg.tif_suffix
-            )
+        )
         file_list.pop(0)
         band_names = []
         wavelengths = []
@@ -35,8 +36,8 @@ class TestBandSet(TestCase):
         bandset = rs.bandset.create(
             file_list, band_names=band_names, wavelengths=wavelengths,
             multiplicative_factors=multiplicative_factors,
-            additive_factors=additive_factors, dates=date
-            )
+            additive_factors=additive_factors, dates=date, catalog=catalog
+        )
         # find bandset values in list
         bandset_values = bandset.find_values_in_list(
             attribute='wavelength', value_list=wavelengths[2:5],
@@ -58,10 +59,10 @@ class TestBandSet(TestCase):
         self.assertEqual(bs('path'), file_list)
         # BandSet date
         bs_date = bandset.date
-        self.assertEqual(bs_date, date)
+        self.assertEqual(str(bs_date), date)
         self.assertEqual(
             bs('date')[0], datetime.datetime.strptime(date, '%Y-%m-%d').date()
-            )
+        )
         # multiplicative and additive factors
         bs_multi = bs('multiplicative_factor')
         self.assertEqual(bs_multi, multiplicative_factors)
@@ -70,10 +71,10 @@ class TestBandSet(TestCase):
         cfg.logger.log.debug('>>> test bandset satellite')
         bandset = rs.bandset.create(
             [data_directory, 'tif'], wavelengths=['Sentinel-2'],
-            dates=cfg.date_auto
-            )
+            dates=cfg.date_auto, catalog=catalog
+        )
         # BandSet date
-        self.assertEqual(bandset.date, date)
+        self.assertEqual(str(bandset.date), date)
         # unit
         self.assertEqual(bandset.get_wavelength_units()[0], cfg.wl_micro)
         # spectral range bands
@@ -84,7 +85,7 @@ class TestBandSet(TestCase):
         self.assertAlmostEqual(nir_band['wavelength'], cfg.nir_center, 1)
         self.assertEqual(
             blue_band['wavelength_unit'], bandset.get_wavelength_units()[0]
-            )
+        )
         self.assertGreater(len(red_band['crs']), 0)
         self.assertGreater(len(nir_band['absolute_path']), 0)
         """
@@ -121,27 +122,27 @@ class TestBandSet(TestCase):
         # get band by nearest wavelength
         band_x = bandset.get_band_by_wavelength(
             cfg.green_center, threshold=0.1
-            )
+        )
         self.assertEqual(band_x['wavelength'], cfg.green_center)
         # get bands by attribute
         band_b = bandset.get_bands_by_attributes(
             'wavelength', band_x['wavelength']
-            )
+        )
         self.assertEqual(band_b['wavelength'], band_x['wavelength'])
         file_list = ['S2_2020-01-01/S2_B01.tif', 'S2_2020-01-01/S2_B02.tif',
                      'S2_2020-01-01/S2_B03.tif']
         cfg.logger.log.debug('>>> test bandset dates')
         bandset = rs.bandset.create(
             file_list, wavelengths=['Sentinel-2'], dates=cfg.date_auto,
-            root_directory='./data'
-            )
+            root_directory='./data', catalog=catalog
+        )
         # get BandSet attributes function
         bs = bandset.get_band_attributes
         # BandSet names
         bs_names = bs('name')
         self.assertEqual(
             bs_names[0], files_directories.file_name(file_list[0], False)
-            )
+        )
         # BandSet relative paths
         bs_paths = bandset.get_paths()
         self.assertEqual(bs_paths[0], file_list[0])
@@ -152,7 +153,7 @@ class TestBandSet(TestCase):
         self.assertEqual(
             bandset.get_band_attributes('wavelength')[0],
             cfg.satellites[cfg.satSentinel2][0][0]
-            )
+        )
         # get BandSet band function
         band = bandset.get_band
         # band wavelength
@@ -163,7 +164,7 @@ class TestBandSet(TestCase):
         self.assertEqual(
             files_directories.file_name(b_apath),
             files_directories.file_name(file_list[0], False)
-            )
+        )
         # band x size
         b_x_size = band(1).x_size
         self.assertGreater(b_x_size, 0)
@@ -180,16 +181,18 @@ class TestBandSet(TestCase):
         wavelengths.append(3)
         wavelengths.append(2)
         bandset_w = rs.bandset.create(
-            file_list, wavelengths=wavelengths, root_directory='./data'
-            )
+            file_list, wavelengths=wavelengths, root_directory='./data',
+            catalog=catalog
+        )
         bandset_w.sort_bands_by_wavelength()
         self.assertEqual(bandset_w.get_band_attributes('wavelength')[-1], 3)
         # box coordinate list
         coordinate_list = [230250, 4674550, 230320, 4674440]
         bandset = rs.bandset.create(
             file_list, wavelengths=['Sentinel-2'], dates=cfg.date_auto,
-            root_directory='./data', box_coordinate_list=coordinate_list
-            )
+            root_directory='./data', box_coordinate_list=coordinate_list,
+            catalog=catalog
+        )
         self.assertEqual(bandset.box_coordinate_list, coordinate_list)
 
         # clear temporary directory

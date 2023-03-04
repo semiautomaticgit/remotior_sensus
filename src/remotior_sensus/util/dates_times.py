@@ -61,3 +61,14 @@ def get_time_string():
 def get_date_string():
     time = datetime.datetime.now().strftime('%m%d')
     return time
+
+
+# create date
+def create_date(string: str):
+    # format YYYY-MM-DD
+    try:
+        date = datetime.datetime.strptime(string, '%Y-%m-%d')
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        date = None
+    return date

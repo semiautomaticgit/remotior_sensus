@@ -324,8 +324,8 @@ def join_tables(
 # calculate pivot_60
 def pivot_matrix(
         matrix, row_field, column_function_list, secondary_row_field_list=None,
-        filter_string=None,
-        nodata_value=-999, cross_matrix=None, progress_message=True
+        filter_string=None, nodata_value=-999, cross_matrix=None,
+        field_names=False, progress_message=True
 ):
     """
     :param matrix: matrix array
@@ -338,6 +338,8 @@ def pivot_matrix(
     :param nodata_value: optional value for nodata
     :param cross_matrix: optional, if True the output table field names are
         only combination values
+    :param field_names: optional, if True returns field names without
+        performing the pivot matrix
     :param progress_message: optional, if True display process message
 
     """
@@ -457,6 +459,8 @@ def pivot_matrix(
         'secondary_row_filter_list: %s; output_column_list: %s'
         % (str(secondary_row_filter_list), str(output_column_list))
     )
+    if field_names:
+        return output_column_list
     pivot = np.rec.fromarrays(pivot, dtype=output_column_list)
     pivot[row_field] = row_values
     # populate table
@@ -1171,16 +1175,21 @@ def create_band_table(
 # create bandset catalog table
 def create_bandset_catalog_table(
         bandset_number=0, root_directory=None, date='NaT', bandset_uid=0,
-        bandset_name=None, previous_catalog=None, crs=None
+        bandset_name=None, previous_catalog=None, crs=None,
+        box_coordinate_left=None, box_coordinate_top=None,
+        box_coordinate_right=None, box_coordinate_bottom=None
 ):
     dtype_list = [
         ('bandset_number', 'int64'), ('bandset_name', 'U512'),
         ('date', 'datetime64[D]'), ('root_directory', 'U1024'),
-        ('crs', 'U1024'), ('uid', 'U64')
+        ('crs', 'U1024'), ('box_coordinate_left', 'float64'),
+        ('box_coordinate_top', 'float64'), ('box_coordinate_right', 'float64'),
+        ('box_coordinate_bottom', 'float64'), ('uid', 'U64')
     ]
     rec_array = np.rec.fromrecords(
         [(bandset_number, bandset_name, date, root_directory, crs,
-          bandset_uid)], dtype=dtype_list
+          box_coordinate_left, box_coordinate_top, box_coordinate_right,
+          box_coordinate_bottom, bandset_uid)], dtype=dtype_list
     )
     # add to previous bandset catalog table
     if previous_catalog is not None:
