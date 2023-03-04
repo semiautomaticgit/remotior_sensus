@@ -66,6 +66,7 @@ available_ram = 2048
 # parameters for raster files
 raster_data_type = 'Float32'
 raster_compression = True
+raster_compression_format = 'LZW'
 # nodata values for data types
 nodata_val = -32768
 nodata_val_UInt16 = 65535

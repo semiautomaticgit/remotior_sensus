@@ -101,7 +101,7 @@ def band_calculation(*argv):
         cfg.logger.log.debug(
             '_array_function_placeholder.shape: %s; '
             '_array_function_placeholder.dtype: %s; '
-            '_array_function_placeholder.nbytes: %s'
+            '_array_function_placeholder.n_bytes: %s'
             % (
                 str(_array_function_placeholder.shape),
                 str(_array_function_placeholder.dtype),
@@ -121,7 +121,7 @@ def band_calculation(*argv):
         return False
     # check nodata
     cfg.logger.log.debug(
-        '_o.shape: %s; nodata_mask.shape: %s; _o.nbytes: %s; _o.dtype: %s'
+        '_o.shape: %s; nodata_mask.shape: %s; _o.n_bytes: %s; _o.dtype: %s'
         % (
             str(_o.shape), str(nodata_mask.shape), str(_o.nbytes),
             str(_o.dtype)
@@ -217,18 +217,19 @@ def classification_maximum_likelihood(*argv):
         classification_array[::, ::][
             nodata_mask == output_no_data] = output_no_data
         write_class = raster_vector.write_raster(
-            out_class, x - ro_x, y - ro_y, classification_array, output_no_data,
-            scale, offset
+            out_class, x - ro_x, y - ro_y, classification_array,
+            output_no_data, scale, offset
         )
         cfg.logger.log.debug('write_class: %s' % str(write_class))
         # write the algorithm raster
         if out_alg is not None:
             previous_array[::, ::][
                 classification_array == cfg.nodata_val] = output_no_data
-            previous_array[::, ::][nodata_mask == output_no_data] = output_no_data
+            previous_array[::, ::][
+                nodata_mask == output_no_data] = output_no_data
             write_alg = raster_vector.write_raster(
-                out_alg, x - ro_x, y - ro_y, previous_array, output_no_data, scale,
-                offset
+                out_alg, x - ro_x, y - ro_y, previous_array, output_no_data,
+                scale, offset
             )
             cfg.logger.log.debug('write_alg: %s' % str(write_alg))
         cfg.logger.log.debug(
@@ -1174,8 +1175,7 @@ def get_band_arrays(*argv):
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         raster_vector.vector_to_raster(
             vector_path=vector, burn_values=1, output_path=temp,
-            reference_raster_path=function_variable,
-            extent=True
+            reference_raster_path=function_variable, extent=True
         )
         _a = raster_vector.read_raster(temp)
         _a[::, ::][nodata_mask == output_no_data] = np.nan

@@ -21,6 +21,7 @@ Tools to download files
 
 import datetime
 import os
+import time
 import urllib.request
 from http.cookiejar import CookieJar
 
@@ -90,7 +91,8 @@ def open_general_url(
 def download_file(
         url, output_path, authentication_uri=None, user=None, password=None,
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
-        progress=True, message=None, min_progress=0, max_progress=100
+        progress=True, message=None, min_progress=0, max_progress=100,
+        retried=False
 ):
     cfg.logger.log.debug('url: %s' % url)
     if authentication_uri is None:
@@ -176,6 +178,19 @@ def download_file(
                     file.write(block_read)
         return True, output_path
     except Exception as err:
-        cfg.logger.log.error('%s; url: %s' % (err, url))
-        messages.error('%s; url: %s' % (err, url))
-        return False, str(err)
+        if '429' in str(err) and retried is False:
+            time.sleep(2)
+            download_file(
+                url=url, output_path=output_path,
+                authentication_uri=authentication_uri, user=user,
+                password=password,
+                proxy_host=proxy_host, proxy_port=proxy_port,
+                proxy_user=proxy_user,
+                proxy_password=proxy_password,
+                progress=progress, message=message, min_progress=min_progress,
+                max_progress=max_progress, retried=True
+            )
+        else:
+            cfg.logger.log.error('%s; url: %s' % (err, url))
+            messages.error('%s; url: %s' % (err, url))
+            return False, str(err)

@@ -49,7 +49,7 @@ from remotior_sensus.tools import (
     band_calc, band_classification, band_combination, band_dilation,
     band_erosion, band_neighbor_pixels, band_pca, band_sieve,
     cross_classification, download_products, mosaic, preprocess_products,
-    raster_reclassification, raster_report, raster_to_vector
+    raster_reclassification, raster_report, raster_to_vector, vector_to_raster
 )
 from remotior_sensus.util import dates_times, system_tools, files_directories
 
@@ -85,6 +85,7 @@ class Session(object):
         raster_reclassification: tool :func:`~remotior_sensus.tools.preprocess_products`
         raster_report: tool :func:`~remotior_sensus.tools.raster_report`
         raster_to_vector: tool :func:`~remotior_sensus.tools.raster_to_vector`
+        vector_to_raster: tool :func:`~remotior_sensus.tools.vector_to_raster`
 
     Examples:
         Start a session
@@ -208,6 +209,7 @@ class Session(object):
                 raster_reclassification.raster_reclassification
             self.raster_report = raster_report.raster_report
             self.raster_to_vector = raster_to_vector.raster_to_vector
+            self.vector_to_raster = vector_to_raster.vector_to_raster
             self.dates_times = dates_times
         else:
             self.configurations = None

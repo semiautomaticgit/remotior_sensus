@@ -19,11 +19,9 @@ class TestFilesDirectories(TestCase):
             path=path,
             root=root
             )
-        print(relative_path)
         absolute_path = files_directories.relative_to_absolute_path(
             path=relative_path, root=root
         )
-        print(absolute_path)
         self.assertEqual(absolute_path, path)
 
         # clear temporary directory

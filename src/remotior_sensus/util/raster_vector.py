@@ -155,9 +155,10 @@ def get_spatial_reference(input_projection):
 
 # compare two crs
 def compare_crs(first_crs, second_crs):
-    cfg.logger.log.debug(
-        'first_crs: %s; second_crs: %s' % (first_crs, second_crs)
-    )
+    if cfg.logger is not None:
+        cfg.logger.log.debug(
+            'first_crs: %s; second_crs: %s' % (first_crs, second_crs)
+        )
     try:
         first_sr = osr.SpatialReference()
         first_sr.ImportFromWkt(first_crs)
@@ -167,20 +168,24 @@ def compare_crs(first_crs, second_crs):
             same = True
         else:
             same = False
-        cfg.logger.log.debug('same: %s' % same)
+        if cfg.logger is not None:
+            cfg.logger.log.debug('same: %s' % same)
         return same
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        if cfg.logger is not None:
+            cfg.logger.log.error(str(err))
         return False
 
 
 # raster information
 def raster_info(path):
     if not files_directories.is_file(path):
-        cfg.logger.log.warning('raster: %s' % path)
+        if cfg.logger is not None:
+            cfg.logger.log.warning('raster: %s' % path)
     r_d = gdal.Open(path, gdal.GA_ReadOnly)
     if r_d is None:
-        cfg.logger.log.error('raster: %s' % path)
+        if cfg.logger is not None:
+            cfg.logger.log.error('raster: %s' % path)
         return False
     # x pixel count
     x_count = r_d.RasterXSize
@@ -207,18 +212,22 @@ def raster_info(path):
                 unit = crs_sr.GetAttrValue('unit')
     except Exception as err:
         crs = None
-        cfg.logger.log.error(str(err))
+        if cfg.logger is not None:
+            cfg.logger.log.error(str(err))
     # band number and block size
     number_of_bands = r_d.RasterCount
     block_size = band.GetBlockSize()
     info = [gt, crs, unit, [x_count, y_count], nd, number_of_bands, block_size,
             [scale, offset], data_type]
-    cfg.logger.log.debug(
-        '{} :{}'.format(
-            path, [gt, unit, [x_count, y_count], nd, number_of_bands,
-                   block_size, [scale, offset], data_type, crs]
+    try:
+        cfg.logger.log.debug(
+            '{} :{}'.format(
+                path, [gt, unit, [x_count, y_count], nd, number_of_bands,
+                       block_size, [scale, offset], data_type, crs]
+            )
         )
-    )
+    except Exception as err:
+        str(err)
     return info
 
 
@@ -263,7 +272,8 @@ def create_raster_from_reference(
         constant_value=None, x_size=None,
         y_size=None, scale=None, offset=None
 ):
-    cfg.logger.log.debug('path: %s' % path)
+    if cfg.logger is not None:
+        cfg.logger.log.debug('path: %s' % path)
     # open input_raster with GDAL
     gdal_raster_ref = gdal.Open(path, gdal.GA_ReadOnly)
     if gdal_format == 'Float64':
@@ -316,7 +326,8 @@ def create_raster_from_reference(
                 ['COMPRESS=%s' % compress_format]
             )
         if out_raster is None:
-            cfg.logger.log.error('out_raster None')
+            if cfg.logger is not None:
+                cfg.logger.log.error('out_raster None')
             return False
         # set raster projection from reference
         out_raster.SetGeoTransform(r_gt)
@@ -342,7 +353,8 @@ def create_raster_from_reference(
                 _band = out_raster.GetRasterBand(x)
                 _band.SetOffset(offset)
                 _band = None
-    cfg.logger.log.debug('output: %s' % str(output_raster_list))
+    if cfg.logger is not None:
+        cfg.logger.log.debug('output: %s' % str(output_raster_list))
     return output_raster_list
 
 
@@ -1414,7 +1426,8 @@ def reproject_vector(
         vector_type='wkbMultiPolygon',
         output_drive=None
 ):
-    cfg.logger.log.debug('start')
+    if cfg.logger is not None:
+        cfg.logger.log.debug('start')
     # input spatial reference
     input_sr = osr.SpatialReference()
     if input_epsg is None:
@@ -1425,10 +1438,12 @@ def reproject_vector(
             crs = proj.ExportToWkt()
             input_sr = crs.replace(' ', '')
             if len(input_sr) == 0:
-                cfg.logger.log.error('Error input vector')
+                if cfg.logger is not None:
+                    cfg.logger.log.error('Error input vector')
                 return False
         except Exception as err:
-            cfg.logger.log.error(str(err))
+            if cfg.logger is not None:
+                cfg.logger.log.error(str(err))
             return False
     else:
         # input EPSG or projection
@@ -1471,7 +1486,8 @@ def reproject_vector(
     elif vector_type == 'wkbPoint':
         o_layer = o_source.CreateLayer(name, output_sr, ogr.wkbPoint)
     else:
-        cfg.logger.log.error('Error vector type')
+        if cfg.logger is not None:
+            cfg.logger.log.error('Error vector type')
         return False
     i_layer_definition = i_layer.GetLayerDefn()
     # copy fields
@@ -1501,7 +1517,8 @@ def reproject_vector(
     # close files
     i_vector.Destroy()
     o_source.Destroy()
-    cfg.logger.log.debug('output: %s' % output)
+    if cfg.logger is not None:
+        cfg.logger.log.debug('output: %s' % output)
     return output
 
 
@@ -1518,28 +1535,49 @@ def get_layer_extent(layer_path):
 # convert reference layer to raster based on the resolution of a raster
 def vector_to_raster(
         vector_path=None, output_path=None, field_name=None,
-        reference_raster_path=None, all_touched=None,
-        output_format='GTiff', burn_values=None, attribute_filter=None,
-        extent=None, nodata_value=0,
+        reference_raster_path=None, all_touched=False,
+        area_based=False, output_format='GTiff', burn_values=None,
+        attribute_filter=None,
+        extent=None, nodata_value=0, x_y_size: list = None,
         background_value=0, compress=False, compress_format='DEFLATE21',
-        vector_layer=None
+        vector_layer=None, available_ram=None
 ):
-    cfg.logger.log.debug('start')
+    if cfg.logger is not None:
+        cfg.logger.log.debug('start')
+    # GDAL config
+    try:
+        if available_ram is None:
+            available_ram = cfg.available_ram
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', available_ram)
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+    except Exception as err:
+        str(err)
     if vector_path is not None:
         vector_crs = get_crs(vector_path)
     elif vector_layer is not None:
         vector_crs = get_layer_crs(vector_layer)
     else:
-        cfg.logger.log.error('input vector')
+        if cfg.logger is not None:
+            cfg.logger.log.error('input vector')
         return False
     (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_info(reference_raster_path)
     orig_x = gt[0]
     orig_y = gt[3]
+    if x_y_size is not None:
+        x_size = x_y_size[0]
+        y_size = x_y_size[1]
+    else:
+        x_size = gt[1]
+        y_size = abs(gt[5])
+    if area_based is True:
+        x_size = x_size/10
+        y_size = y_size/10
     # number of x pixels
-    grid_columns = xy_count[0]
+    grid_columns = int(round(xy_count[0] * gt[1] / x_size))
     # number of y pixels
-    grid_rows = xy_count[1]
+    grid_rows = int(round(xy_count[1] * abs(gt[5]) / y_size))
     # check crs
     same_crs = compare_crs(reference_crs, vector_crs)
     if vector_path is not None:
@@ -1559,11 +1597,13 @@ def vector_to_raster(
         try:
             v_layer = vector.GetLayer()
         except Exception as err:
-            cfg.logger.log.error(err)
+            if cfg.logger is not None:
+                cfg.logger.log.error(err)
             return False
     elif vector_layer is not None:
         if not same_crs:
-            cfg.logger.log.error('different crs')
+            if cfg.logger is not None:
+                cfg.logger.log.error('different crs')
             return False
         else:
             v_layer = vector_layer
@@ -1581,10 +1621,10 @@ def vector_to_raster(
         min_x, max_x, min_y, max_y = v_layer.GetExtent()
     # calculate minimum extent
     if not extent:
-        orig_x = gt[0] + gt[1] * int(round((min_x - gt[0]) / gt[1]))
-        orig_y = gt[3] + gt[5] * int(round((max_y - gt[3]) / gt[5]))
-        grid_columns = abs(int(round((max_x - min_x) / gt[1])))
-        grid_rows = abs(int(round((max_y - min_y) / gt[5])))
+        orig_x = gt[0] + x_size * int(round((min_x - gt[0]) / x_size))
+        orig_y = gt[3] + y_size * int(round((max_y - gt[3]) / y_size))
+        grid_columns = abs(int(round((max_x - min_x) / x_size)))
+        grid_rows = abs(int(round((max_y - min_y) / y_size)))
     driver = gdal.GetDriverByName(output_format)
     temporary_grid = cfg.temp.temporary_raster_path(extension=cfg.tif_suffix)
     # create raster _grid
@@ -1596,15 +1636,17 @@ def vector_to_raster(
             temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Int16
         )
     if _grid is None:
-        cfg.logger.log.error('error output raster')
+        if cfg.logger is not None:
+            cfg.logger.log.error('error output raster')
         return False
     try:
         _grid.GetRasterBand(1)
     except Exception as err:
-        cfg.logger.log.error(err)
+        if cfg.logger is not None:
+            cfg.logger.log.error(err)
         return False
     # set raster projection from reference
-    _grid.SetGeoTransform([orig_x, gt[1], 0, orig_y, 0, gt[5]])
+    _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
     _grid.SetProjection(reference_crs)
     _grid = None
     # create output raster
@@ -1616,7 +1658,7 @@ def vector_to_raster(
     )
     # convert reference layer to raster
     output_raster = gdal.Open(output_path, gdal.GA_Update)
-    if all_touched is None:
+    if all_touched is False:
         if burn_values is None:
             o_c = gdal.RasterizeLayer(
                 output_raster, [1], v_layer, options=[
@@ -1638,7 +1680,8 @@ def vector_to_raster(
                 output_raster, [1], v_layer, burn_values=[burn_values],
                 options=['all_touched=TRUE']
             )
-    cfg.logger.log.debug('gdal rasterize: %s' % str(o_c))
+    if cfg.logger is not None:
+        cfg.logger.log.debug('gdal rasterize: %s' % str(o_c))
     return output_path
 
 

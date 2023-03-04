@@ -112,8 +112,6 @@ def function_initiator(
     proc_error = False
     # raster counter
     raster_count = 0
-    # section counter
-    count_section_progress = 1
     start_time = datetime.datetime.now()
     cfg.logger.log.debug(
         'raster_list: %s; x_size_piece: %s; y_size_piece: %s:'
@@ -883,9 +881,9 @@ def gdal_warp(
 ):
     process_id = process_parameters[0]
     cfg.temp = process_parameters[1]
-    memory = process_parameters[2]
-    gdal_path = process_parameters[3]
-    progress_queue = process_parameters[4]
+    gdal_path = process_parameters[2]
+    progress_queue = process_parameters[3]
+    memory = process_parameters[4]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0')
     cfg.logger.log.debug('start')
     if gdal_path is not None:
@@ -1128,6 +1126,209 @@ def raster_sieve_process(
     progress_queue.put(100, False)
     logger = cfg.logger.stream.getvalue()
     return [[out_file]], False, logger
+
+
+# convert vector to raster based on the resolution of a raster
+def vector_to_raster(
+        process_parameters=None, input_parameters=None, output_parameters=None
+):
+    # process parameters
+    process_id = str(process_parameters[0])
+    cfg.temp = process_parameters[1]
+    gdal_path = process_parameters[2]
+    progress_queue = process_parameters[3]
+    memory = process_parameters[4]
+    # input_raster parameters
+    vector_path = input_parameters[0]
+    field_name = input_parameters[1]
+    reference_raster_path = input_parameters[2]
+    nodata_value = input_parameters[3]
+    background_value = input_parameters[4]
+    burn_values = input_parameters[5]
+    x_y_size = input_parameters[6]
+    all_touched = input_parameters[7]
+    area_based = input_parameters[8]
+    area_precision = input_parameters[9]
+    minimum_extent = input_parameters[10]
+    # output parameters
+    output_path = output_parameters[0]
+    output_format = output_parameters[1]
+    compress = output_parameters[2]
+    compress_format = output_parameters[3]
+    if background_value is None:
+        background_value = 0
+    if nodata_value is None:
+        nodata_value = 0
+    if output_format is None:
+        output_format = 'GTiff'
+    if gdal_path is not None:
+        for d in gdal_path.split(';'):
+            try:
+                os.add_dll_directory(d)
+                cfg.gdal_path = d
+            except Exception as err:
+                str(err)
+    from osgeo import gdal, ogr
+    cfg.logger = Log(directory=cfg.temp.dir, multiprocess=str(process_id))
+    cfg.logger.log.debug('start')
+    # GDAL config
+    try:
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', memory)
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+    except Exception as err:
+        str(err)
+    # open input with GDAL
+    cfg.logger.log.debug('vector_path: %s' % vector_path)
+    try:
+        _vector = ogr.Open(vector_path)
+        _v_layer = _vector.GetLayer()
+        # check projection
+        proj = _v_layer.GetSpatialRef()
+        crs = proj.ExportToWkt()
+        crs = crs.replace(' ', '')
+        if len(crs) == 0:
+            crs = None
+        vector_crs = crs
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        logger = cfg.logger.stream.getvalue()
+        return None, str(err), logger
+    # create output file
+    out_file = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix,
+                                            name_prefix=process_id)
+    cfg.logger.log.debug('out_file: %s' % str(out_file))
+    (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
+     scale_offset, data_type) = raster_vector.raster_info(
+        reference_raster_path)
+    orig_x = gt[0]
+    orig_y = gt[3]
+    cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
+    if x_y_size is not None:
+        x_size = x_y_size[0]
+        y_size = x_y_size[1]
+    else:
+        x_size = gt[1]
+        y_size = abs(gt[5])
+    if area_based is True:
+        x_size = x_size / area_precision
+        y_size = y_size / area_precision
+    cfg.logger.log.debug('x_size, y_size: %s,%s' % (x_size, y_size))
+    # number of x pixels
+    grid_columns = int(round(xy_count[0] * gt[1] / x_size))
+    # number of y pixels
+    grid_rows = int(round(xy_count[1] * abs(gt[5]) / y_size))
+    cfg.logger.log.debug('grid_columns, grid_rows: %s,%s'
+                         % (grid_columns, grid_rows))
+    # check crs
+    same_crs = raster_vector.compare_crs(reference_crs, vector_crs)
+    cfg.logger.log.debug('same_crs: %s' % str(same_crs))
+    if not same_crs:
+        input_vector = cfg.temp.temporary_file_path(
+            name_suffix=files_directories.file_extension(vector_path)
+        )
+        raster_vector.reproject_vector(
+            vector_path, input_vector, input_epsg=vector_crs,
+            output_epsg=reference_crs
+        )
+        # open input vector
+        _vector = None
+        _v_layer = None
+        # get layer
+        try:
+            vector = ogr.Open(input_vector)
+            _v_layer = vector.GetLayer()
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+            logger = cfg.logger.stream.getvalue()
+            return None, str(err), logger
+    # calculate minimum extent
+    if minimum_extent:
+        min_x, max_x, min_y, max_y = _v_layer.GetExtent()
+        orig_x = orig_x + x_size * int(round((min_x - orig_x) / x_size))
+        orig_y = orig_y + y_size * int(round((max_y - orig_y) / y_size))
+        cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
+        grid_columns = abs(int(round((max_x - min_x) / x_size)))
+        grid_rows = abs(int(round((max_y - min_y) / y_size)))
+        cfg.logger.log.debug('grid_columns, grid_rows: %s,%s'
+                             % (grid_columns, grid_rows))
+    driver = gdal.GetDriverByName(output_format)
+    temporary_grid = cfg.temp.temporary_raster_path(extension=cfg.tif_suffix)
+    # create raster _grid
+    _grid = driver.Create(
+        temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Float32
+    )
+    if _grid is None:
+        _grid = driver.Create(
+            temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Int16
+        )
+    if _grid is None:
+        cfg.logger.log.error('error output raster')
+        logger = cfg.logger.stream.getvalue()
+        return None, 'error grid', logger
+    try:
+        _grid.GetRasterBand(1)
+    except Exception as err:
+        cfg.logger.log.error(err)
+        logger = cfg.logger.stream.getvalue()
+        return None, str(err), logger
+    # set raster projection from reference
+    _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
+    _grid.SetProjection(reference_crs)
+    _grid = None
+    # start progress
+    progress_queue.put(1, False)
+    if int(process_id) == 0:
+        progress_gdal = (lambda percentage, m, c: progress_queue.put(
+            int(percentage * 100), False
+        ))
+    else:
+        progress_gdal = None
+    # create output raster
+    raster_vector.create_raster_from_reference(
+        path=temporary_grid, band_number=1,
+        output_raster_list=[out_file],
+        nodata_value=nodata_value, driver='GTiff',
+        gdal_format=cfg.raster_data_type, compress=compress,
+        compress_format=compress_format, constant_value=background_value
+    )
+    # convert reference layer to raster
+    _output_raster = gdal.Open(out_file, gdal.GA_Update)
+    if all_touched is False:
+        if burn_values is None:
+            _o_c = gdal.RasterizeLayer(
+                _output_raster, [1], _v_layer, options=[
+                    'ATTRIBUTE=%s' % str(field_name)], callback=progress_gdal
+            )
+        else:
+            _o_c = gdal.RasterizeLayer(
+                _output_raster, [1], _v_layer, burn_values=[burn_values],
+                callback=progress_gdal
+            )
+    else:
+        if burn_values is None:
+            _o_c = gdal.RasterizeLayer(
+                _output_raster, [1], _v_layer,
+                options=['ATTRIBUTE=%s' % str(field_name),
+                         'all_touched=TRUE'], callback=progress_gdal
+            )
+        else:
+            _o_c = gdal.RasterizeLayer(
+                _output_raster, [1], _v_layer, burn_values=[burn_values],
+                options=['all_touched=TRUE'], callback=progress_gdal
+            )
+    _output_raster = None
+    if os.path.isfile(out_file):
+        try:
+            import shutil
+            shutil.move(out_file, output_path)
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+    cfg.logger.log.debug('end')
+    # end progress
+    progress_queue.put(100, False)
+    logger = cfg.logger.stream.getvalue()
+    return [[output_path]], False, logger
 
 
 # class to create a raster piece from raster sections

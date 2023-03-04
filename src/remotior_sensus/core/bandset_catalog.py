@@ -81,7 +81,6 @@ class BandSet(object):
 
     Attributes:
         bands: BandSet of band tables.
-        crs: BandSet coordinate reference system.
         get: alias for get_band function.
 
     Examples:

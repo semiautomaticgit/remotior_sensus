@@ -63,10 +63,9 @@ try:
     import torch
     from remotior_sensus.util.pytorch_tools import train_pytorch_model
 except Exception as error:
-    try:
+    if cfg.logger is not None:
         cfg.logger.log.error(str(error))
-    except Exception as error2:
-        str(error2)
+    else:
         print(str(error))
 
 try:
@@ -77,10 +76,9 @@ try:
     from sklearn.multiclass import OneVsRestClassifier
     from sklearn.neural_network import MLPClassifier
 except Exception as error:
-    try:
+    if cfg.logger is not None:
         cfg.logger.log.error(str(error))
-    except Exception as error2:
-        str(error2)
+    else:
         print(str(error))
 
 

@@ -62,7 +62,7 @@ def prepare_input_list(
                 raster_path=band_list[i], output_path=t_pmd,
                 output_wkt=str(reference_raster_crs), n_processes=n_processes,
                 src_nodata=src_nodata, dst_nodata=dst_nodata
-            )
+                )
             warped = True
         else:
             reference_raster = band_list[i]

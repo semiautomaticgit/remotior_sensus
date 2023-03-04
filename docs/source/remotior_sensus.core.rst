@@ -7,7 +7,6 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   remotior_sensus.core.bandset
    remotior_sensus.core.bandset_catalog
    remotior_sensus.core.configurations
    remotior_sensus.core.log

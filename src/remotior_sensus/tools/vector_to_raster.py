@@ -1,0 +1,176 @@
+# Remotior Sensus , software to process remote sensing and GIS data.
+# Copyright (C) 2022-2023 Luca Congedo.
+# Author: Luca Congedo
+# Email: ing.congedoluca@gmail.com
+#
+# This file is part of Remotior Sensus.
+# Remotior Sensus is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by 
+# the Free Software Foundation, either version 3 of the License,
+# or (at your option) any later version.
+# Remotior Sensus is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
+"""
+Vector to raster.
+
+This tool allows for the conversion from vector polygons to raster.
+
+Typical usage example:
+
+    >>> # import Remotior Sensus and start the session
+    >>> import remotior_sensus
+    >>> rs = remotior_sensus.Session()
+    >>> # start the process
+    >>> vector = rs.vector_to_raster(vector_path='file.gpkg',
+    ...     output_path='vector.tif')
+"""  # noqa: E501
+
+from typing import Union, Optional
+
+from remotior_sensus.core import configurations as cfg
+from remotior_sensus.core.bandset_catalog import BandSet
+from remotior_sensus.core.bandset_catalog import BandSetCatalog
+from remotior_sensus.core.output_manager import OutputManager
+from remotior_sensus.util import files_directories, shared_tools, raster_vector
+
+
+def vector_to_raster(
+        vector_path, align_raster: Union[str, BandSet, int],
+        vector_field: Optional[str] = None,
+        constant: Optional[int] = None,
+        pixel_size: Optional[int] = None,
+        output_path: Optional[str] = None,
+        method: Optional[str] = None,
+        area_precision: Optional[int] = 20,
+        nodata_value: Optional[int] = 255,
+        minimum_extent: Optional[bool] = True,
+        extent_list: Optional[list] = None, output_format='GTiff',
+        compress=False, compress_format=None,
+        n_processes: Optional[int] = None, available_ram: Optional[int] = None,
+        bandset_catalog: Optional[BandSetCatalog] = None,
+) -> OutputManager:
+    """Performs the conversion from vector to raster.
+
+    This tool performs the conversion from vector polygons to raster.
+
+    Args:
+        vector_path: path of vector used as input.
+        align_raster: optional string path of raster used for aligning output pixels and projections; it can also be a BandSet or an integer number of a BandSet in a Catalog.
+        output_path: string of output path.
+        vector_field: the name of the field used as reference value.
+        constant: integer value used as reference for all the polygons.
+        pixel_size: size of pixel of output raster.
+        minimum_extent: if True, raster has the minimum vector extent; if False, the extent is the same as the align raster.
+        extent_list: list of boundary coordinates left top right bottom.
+        output_format: output format, default GTiff
+        method: method of conversion, default pixel_center, other methods are all_touched for burning all pixels touched or area_based for burning values based on area proportion.
+        area_precision: for area_based method, the higher the value, the more is the precision in area proportion calculation.
+        compress: if True, compress the output raster.
+        compress_format: compress format.
+        nodata_value: value to be considered as nodata.
+        n_processes: number of parallel processes.
+        available_ram: number of megabytes of RAM available to processes.
+        bandset_catalog: BandSetCatalog object.
+
+    Returns:
+        object :func:`~remotior_sensus.core.output_manager.OutputManager` with
+            - path = output path
+
+    Examples:
+        Perform the conversion to raster of a vector
+            >>> vector_to_raster(vector_path='file.gpkg',output_path='vector.tif')
+    """  # noqa: E501
+    cfg.logger.log.info('start')
+    cfg.progress.update(
+        process=__name__.split('.')[-1].replace('_', ' '), message='starting',
+        start=True
+    )
+    vector_path = files_directories.input_path(vector_path)
+    if type(align_raster) is str:
+        input_bands = [align_raster]
+    else:
+        input_bands = align_raster
+    cfg.logger.log.debug('input_bands: %s' % str(input_bands))
+    # prepare process files
+    (input_raster_list, raster_info, nodata_list, name_list, warped,
+     out_path_x, vrt_rx, reference_path, n_processes_x,
+     output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+        input_bands=input_bands, output_path=output_path,
+        n_processes=n_processes, box_coordinate_list=extent_list,
+        bandset_catalog=bandset_catalog
+    )
+    # prepare output
+    temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    if output_path is None:
+        output_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    output_path = files_directories.output_path(output_path, cfg.tif_suffix)
+    files_directories.create_parent_directory(output_path)
+    if n_processes is None:
+        pass
+    # perform conversion
+    if compress is None:
+        compress = cfg.raster_compression
+    if compress_format is None:
+        compress_format = 'DEFLATE21'
+    if pixel_size is None:
+        x_y_size = None
+    else:
+        x_y_size = [pixel_size, pixel_size]
+    if vector_field is None and constant is None:
+        constant = 1
+    nodata_value_set = nodata_value
+    min_progress = 0
+    max_progress = 100
+    if method is None or method.lower() == 'pixel_center':
+        all_touched = None
+        area_based = None
+    elif method.lower() == 'all_touched':
+        all_touched = True
+        area_based = None
+    elif method.lower() == 'area_based':
+        all_touched = None
+        area_based = True
+        nodata_value_set = None
+        max_progress = 50
+    else:
+        all_touched = None
+        area_based = None
+    # perform conversion
+    cfg.multiprocess.multiprocess_vector_to_raster(
+        vector_path=vector_path, field_name=vector_field,
+        output_path=temp_path, reference_raster_path=reference_path,
+        output_format=output_format, nodata_value=nodata_value_set,
+        background_value=nodata_value, burn_values=constant,
+        compress=compress, compress_format=compress_format,
+        x_y_size=x_y_size, all_touched=all_touched, area_based=area_based,
+        available_ram=available_ram, minimum_extent=minimum_extent,
+        area_precision=area_precision, min_progress=min_progress,
+        max_progress=max_progress
+    )
+    if method is not None and method.lower() == 'area_based':
+        t_pmd = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
+        (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
+         scale_offset, data_type) = raster_vector.raster_info(temp_path)
+        resample = 'mode'
+        # copy raster
+        cfg.multiprocess.gdal_copy_raster(
+            temp_path, t_pmd, 'GTiff', compress, compress_format,
+            additional_params='-r %s -tr %s %s -a_nodata %s' % (
+                str(resample), gt[1] * area_precision, gt[5] * area_precision,
+                nodata_value),
+            n_processes=n_processes, available_ram=available_ram,
+            min_progress=51, max_progress=100
+        )
+        temp_path = t_pmd
+    if files_directories.is_file(temp_path):
+        try:
+            files_directories.move_file(temp_path, output_path)
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+    cfg.progress.update(end=True)
+    cfg.logger.log.info('end; output_path: %s' % output_path)
+    return OutputManager(path=output_path)

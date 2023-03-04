@@ -138,11 +138,15 @@ def cross_classification(
             reference_raster = cfg.multiprocess.create_warped_vrt(
                 raster_path=reference_path, output_path=t_pmd,
                 output_wkt=str(classification_crs)
-            )
+                )
         else:
             reference_raster = reference_path
     # if reference is vector
     else:
+        if vector_field is None:
+            cfg.logger.log.error('vector field missing')
+            messages.error('vector field missing')
+            return OutputManager(check=False)
         if not same_crs:
             # project vector to raster crs
             t_vector = cfg.temp.temporary_file_path(
@@ -161,11 +165,15 @@ def cross_classification(
         reference_raster = cfg.temp.temporary_raster_path(
             extension=cfg.tif_suffix
         )
-        raster_vector.vector_to_raster(
+        # perform conversion
+        cfg.multiprocess.multiprocess_vector_to_raster(
             vector_path=reference_path, field_name=vector_field,
             output_path=reference_raster,
-            reference_raster_path=classification_path, extent=True
+            reference_raster_path=classification_path, nodata_value=0,
+            background_value=0, available_ram=available_ram,
+            minimum_extent=False
         )
+
     combination = band_combination(
         input_bands=[reference_raster, classification_path],
         output_path=out_path, nodata_value=nodata_value,

@@ -35,10 +35,9 @@ except Exception as error:
     class Module:
         pass
     nn_module = Module
-    try:
+    if cfg.logger is not None:
         cfg.logger.log.error(str(error))
-    except Exception as err:
-        str(err)
+    else:
         print(str(error))
 
 

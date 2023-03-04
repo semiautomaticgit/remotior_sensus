@@ -44,7 +44,7 @@ class TestDownloadProducts(TestCase):
             exporter=True
             )
         self.assertTrue(files_directories.is_file(output_manager.path))
-        time.sleep(0.5)
+        time.sleep(1)
         # download Sentinel-2 bands
         cfg.logger.log.debug('>>> test download Sentinel-2 bands')
         output_manager = rs.download_products.download(
@@ -52,7 +52,7 @@ class TestDownloadProducts(TestCase):
             output_path=cfg.temp.dir + '/test_1', band_list=['01']
             )
         self.assertTrue(files_directories.is_file(output_manager.paths[0]))
-        time.sleep(0.5)
+        time.sleep(1)
         # download Sentinel-2 virtual bands
         cfg.logger.log.debug('>>> test download sentinel-2 virtual bands')
         output_manager = rs.download_products.download(
@@ -61,7 +61,7 @@ class TestDownloadProducts(TestCase):
             virtual_download=True
             )
         self.assertTrue(files_directories.is_file(output_manager.paths[0]))
-        time.sleep(0.5)
+        time.sleep(1)
         # download Sentinel-2 virtual bands with subset
         cfg.logger.log.debug(
             '>>> test download sentinel-2 virtual bands with subset'

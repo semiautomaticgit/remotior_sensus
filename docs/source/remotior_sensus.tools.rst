@@ -22,6 +22,7 @@ Submodules
    remotior_sensus.tools.raster_reclassification
    remotior_sensus.tools.raster_report
    remotior_sensus.tools.raster_to_vector
+   remotior_sensus.tools.vector_to_raster
 
 Module contents
 ---------------

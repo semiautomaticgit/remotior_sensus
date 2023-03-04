@@ -160,6 +160,10 @@ class Multiprocess(object):
             progress_message = 'processing'
         if available_ram is None:
             available_ram = cfg.available_ram
+        if compress is None:
+            compress = cfg.raster_compression
+        if compress_format is None:
+            compress_format = cfg.raster_compression_format
         # calculate block size
         block_size = _calculate_block_size(
             raster_path, n_processes, memory_unit, dummy_bands,
@@ -288,6 +292,8 @@ class Multiprocess(object):
         :param scale: list of integer number of output scale
         :param keep_output_argument: if True keep output argument for
             post-processing
+        :param dummy_bands: integer number of dummy bands to be counted for
+            calculating block size
         :param keep_output_array: if True keep output array for post-processing
         :param available_ram: integer value of RAM in MB
         :param any_nodata_mask:  True to apply the nodata where any input is
@@ -345,6 +351,10 @@ class Multiprocess(object):
             progress_message = 'processing'
         if available_ram is None:
             available_ram = cfg.available_ram
+        if compress is None:
+            compress = cfg.raster_compression
+        if compress_format is None:
+            compress_format = cfg.raster_compression_format
         # progress queue
         p_mq = self.manager.Queue()
         # calculate block size
@@ -936,7 +946,7 @@ class Multiprocess(object):
         if available_ram is None:
             available_ram = cfg.available_ram
         available_ram = str(int(available_ram) * 1000000)
-        process_parameters = [p, cfg.temp, available_ram, cfg.gdal_path, p_mq]
+        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram]
         cfg.logger.log.debug(
             'process_parameters: %s' % str(process_parameters)
         )
@@ -980,11 +990,10 @@ class Multiprocess(object):
     def create_warped_vrt(
             self, raster_path, output_path, output_wkt=None,
             align_raster_path=None, same_extent=False,
-            n_processes: int = None, src_nodata=None, dst_nodata=None
+            n_processes: int = None, src_nodata=None, dst_nodata=None,
+            extra_params=None
     ):
         cfg.logger.log.debug('start')
-        # additional params
-        extra = None
         # calculate minimal extent
         if align_raster_path is not None:
             # align raster extent and pixel size
@@ -1058,12 +1067,12 @@ class Multiprocess(object):
                 right_r = right_align
                 top_r = top_align
                 bottom_r = bottom_align
-            extra = '-tr %s %s -te %s %s %s %s' % (
+            extra_params = '-tr %s %s -te %s %s %s %s' % (
                 str(p_x_align), str(p_y_align), str(left_r), str(bottom_r),
                 str(right_r), str(top_r))
         self._gdal_warping(
             input_raster=raster_path, output=output_path, output_format='VRT',
-            s_srs=None, t_srs=output_wkt, additional_params=extra,
+            s_srs=None, t_srs=output_wkt, additional_params=extra_params,
             n_processes=n_processes, src_nodata=src_nodata,
             dst_nodata=dst_nodata
         )
@@ -1468,6 +1477,77 @@ class Multiprocess(object):
         gc.collect()
         cfg.progress.update(percentage=False)
         self.output = output
+        cfg.logger.log.debug('end')
+
+    # convert vector to raster
+    def multiprocess_vector_to_raster(
+            self, vector_path, field_name=None,
+            output_path=None, reference_raster_path=None,
+            output_format=None, nodata_value=None,
+            background_value=None, burn_values=None, minimum_extent=None,
+            x_y_size=None, all_touched=None, area_based=None,
+            area_precision=None, compress=None, compress_format=None,
+            n_processes: int = 1,
+            available_ram: int = None, min_progress=0, max_progress=100
+    ):
+        cfg.logger.log.debug('start')
+        if compress_format is None:
+            compress_format = 'LZW'
+        # progress queue
+        p_mq = self.manager.Queue()
+        results = []
+        self.output = False
+        if available_ram is None:
+            available_ram = cfg.available_ram
+        available_ram = int(available_ram / (n_processes * 2))
+        # temporary raster output
+        process_result = {}
+        process_output_files = {}
+        p = 0
+        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram]
+        input_parameters = [vector_path, field_name, reference_raster_path,
+                            nodata_value, background_value, burn_values,
+                            x_y_size, all_touched, area_based, area_precision,
+                            minimum_extent]
+        output_parameters = [output_path, output_format, compress,
+                             compress_format]
+        c = self.pool.apply_async(
+            processor.vector_to_raster,
+            args=(process_parameters, input_parameters, output_parameters)
+        )
+        results.append([c, p])
+        while True:
+            # update progress
+            p_r = []
+            for r in results:
+                p_r.append(r[0].ready())
+            if all(p_r):
+                break
+            time.sleep(cfg.refresh_time)
+            # progress message
+            try:
+                p_m_qp = p_mq.get(False)
+                progress = int(p_m_qp)
+                cfg.progress.update(
+                    step=progress, steps=100, minimum=min_progress,
+                    maximum=max_progress, percentage=progress
+                )
+            except Exception as err:
+                str(err)
+                cfg.progress.update(ping=True)
+        for r in results:
+            res = r[0].get()
+            process_result[r[1]] = res[0]
+            process_output_files[r[1]] = res[0]
+            cfg.logger.log.debug(res[2])
+            # error
+            if res[1] is not False:
+                cfg.logger.log.error('error multiprocess: %s' % str(res[1]))
+                gc.collect()
+                return
+        gc.collect()
+        cfg.progress.update(percentage=False)
+        self.output = output_path
         cfg.logger.log.debug('end')
 
     # sum the output of multiprocess
