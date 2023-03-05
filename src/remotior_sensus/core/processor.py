@@ -89,8 +89,9 @@ def function_initiator(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', memory)
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
         str(err)
     cfg.logger.log.debug('start')
@@ -850,8 +851,9 @@ def gdal_translate(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', memory)
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
         str(err)
     try:
@@ -897,8 +899,9 @@ def gdal_warp(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', memory)
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
         str(err)
     try:
@@ -949,8 +952,9 @@ def raster_to_vector_process(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', memory)
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
         str(err)
     # open input with GDAL
@@ -1067,8 +1071,9 @@ def raster_sieve_process(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', memory)
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
         str(err)
     # open input with GDAL
@@ -1174,8 +1179,9 @@ def vector_to_raster(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', memory)
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
         str(err)
     # open input with GDAL
@@ -1256,11 +1262,13 @@ def vector_to_raster(
     temporary_grid = cfg.temp.temporary_raster_path(extension=cfg.tif_suffix)
     # create raster _grid
     _grid = driver.Create(
-        temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Float32
+        temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Float32,
+        options=['COMPRESS=LZW']
     )
     if _grid is None:
         _grid = driver.Create(
-            temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Int16
+            temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Int16,
+            options=['COMPRESS=LZW']
         )
     if _grid is None:
         cfg.logger.log.error('error output raster')

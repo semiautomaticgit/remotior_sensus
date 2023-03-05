@@ -314,7 +314,7 @@ def create_raster_from_reference(
             r = y_size
         if not compress:
             out_raster = t_d.Create(o, c, r, band_number, gdal_format)
-        elif compress == 'DEFLATE21':
+        elif compress_format == 'DEFLATE21':
             out_raster = t_d.Create(
                 o, c, r, band_number, gdal_format,
                 options=['COMPRESS=DEFLATE', 'PREDICTOR=2',
@@ -1629,11 +1629,13 @@ def vector_to_raster(
     temporary_grid = cfg.temp.temporary_raster_path(extension=cfg.tif_suffix)
     # create raster _grid
     _grid = driver.Create(
-        temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Float32
+        temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Float32,
+        options=['COMPRESS=LZW']
     )
     if _grid is None:
         _grid = driver.Create(
-            temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Int16
+            temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Int16,
+            options=['COMPRESS=LZW']
         )
     if _grid is None:
         if cfg.logger is not None:

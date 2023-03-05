@@ -28,6 +28,7 @@ class TestVectorToRaster(TestCase):
         )
         raster = rs.vector_to_raster(vector_path=v, align_raster=r,
                                      vector_field='class', method='area_based',
+                                     area_precision=2,
                                      minimum_extent=False, output_path=temp)
         self.assertTrue(files_directories.is_file(raster.path))
 

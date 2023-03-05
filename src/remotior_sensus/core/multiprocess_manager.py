@@ -65,7 +65,7 @@ class Multiprocess(object):
             function_variable=None, calculation_datatype=None,
             use_value_as_nodata=None, any_nodata_mask=True,
             output_raster_path=None, output_data_type=None,
-            output_nodata_value=None, compress=False, compress_format='LZW',
+            output_nodata_value=None, compress=None, compress_format='LZW',
             n_processes: int = None, available_ram: int = None,
             dummy_bands=1, output_band_number=1, boundary_size=None,
             unique_section=False, keep_output_array=False,
@@ -143,6 +143,10 @@ class Multiprocess(object):
             n_processes = self.n_processes
         elif n_processes > self.n_processes:
             self.start(n_processes)
+        if compress is None:
+            compress = cfg.raster_compression
+        if compress_format is None:
+            compress_format = cfg.raster_compression_format
         if device == 'cuda':
             n_processes = 1
         if min_progress is None:
@@ -277,7 +281,7 @@ class Multiprocess(object):
             function_variable=None, calculation_datatype=None,
             use_value_as_nodata=None, any_nodata_mask=True,
             output_raster_list=None, output_data_type=None,
-            output_nodata_value=None, compress=False, compress_format='LZW',
+            output_nodata_value=None, compress=None, compress_format='LZW',
             n_processes: int = None, available_ram: int = None,
             output_band_number_list=None, boundary_size=None,
             dummy_bands=0,
@@ -616,7 +620,7 @@ class Multiprocess(object):
             self, process_result, output_raster_path, function_argument=None,
             scale=None, offset=None, virtual_raster=None,
             output_nodata_value=None, output_data_type=None,
-            compress=False, compress_format='LZW',
+            compress=None, compress_format='LZW',
             delete_array=None, n_processes=1, available_ram: int = None,
             min_progress=None, max_progress=None
     ):
@@ -901,7 +905,7 @@ class Multiprocess(object):
         return output_raster_path
 
     # warp with GDAL
-    def _gdal_warping(
+    def gdal_warping(
             self, input_raster, output, output_format='GTiff', s_srs=None,
             t_srs=None, resample_method=None, raster_data_type=None,
             compression=None, compress_format='DEFLATE', additional_params='',
@@ -1070,12 +1074,12 @@ class Multiprocess(object):
             extra_params = '-tr %s %s -te %s %s %s %s' % (
                 str(p_x_align), str(p_y_align), str(left_r), str(bottom_r),
                 str(right_r), str(top_r))
-        self._gdal_warping(
+        self.gdal_warping(
             input_raster=raster_path, output=output_path, output_format='VRT',
             s_srs=None, t_srs=output_wkt, additional_params=extra_params,
             n_processes=n_processes, src_nodata=src_nodata,
             dst_nodata=dst_nodata
-        )
+            )
         # workaround to gdalwarp issue ignoring scale and offset
         try:
             (gt, r_p, unit, xy_count, nd, number_of_bands, block_size,
@@ -1939,7 +1943,7 @@ class Multiprocess(object):
 
     # copy raster with GDAL
     def gdal_copy_raster(
-            self, input_raster, output, output_format='GTiff', compress=False,
+            self, input_raster, output, output_format='GTiff', compress=None,
             compress_format='DEFLATE',
             additional_params='', n_processes=1, available_ram: int = None,
             min_progress=None, max_progress=None
@@ -1950,6 +1954,10 @@ class Multiprocess(object):
         out_dir = files_directories.parent_directory(output)
         files_directories.create_directory(out_dir)
         op = ' -co BIGTIFF=YES -co NUM_THREADS=%s' % str(n_processes)
+        if compress is None:
+            compress = cfg.raster_compression
+        if compress_format is None:
+            compress_format = cfg.raster_compression_format
         if not compress:
             op += ' -of %s' % output_format
         else:
