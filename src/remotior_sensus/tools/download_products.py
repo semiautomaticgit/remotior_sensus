@@ -475,7 +475,11 @@ def download(
     # list of output directories
     output_directory_list = []
     total_products = product_table.shape[0]
-    progress_step = 100 / (len(band_list) * total_products)
+    try:
+        progress_step = 100 / (len(band_list) * total_products)
+    except Exception as err:
+        progress_step = 1
+        str(err)
     min_progress = 0
     max_progress = min_progress + progress_step
     for i in range(total_products):

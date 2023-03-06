@@ -105,11 +105,7 @@ def vector_to_raster(
         bandset_catalog=bandset_catalog
     )
     # prepare output
-    temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
-    if output_path is None:
-        output_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
-    output_path = files_directories.output_path(output_path, cfg.tif_suffix)
-    files_directories.create_parent_directory(output_path)
+    temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
     if n_processes is None:
         n_processes = cfg.n_processes
     # perform conversion
@@ -125,7 +121,7 @@ def vector_to_raster(
         constant = 1
     nodata_value_set = nodata_value
     min_progress = 1
-    max_progress = 100
+    max_progress = 50
     if method is None or method.lower() == 'pixel_center':
         all_touched = None
         area_based = None
@@ -138,7 +134,6 @@ def vector_to_raster(
         compress = True
         minimum_extent = False
         nodata_value_set = None
-        max_progress = 50
     else:
         all_touched = None
         area_based = None
@@ -155,6 +150,12 @@ def vector_to_raster(
         area_precision=area_precision, min_progress=min_progress,
         max_progress=max_progress
     )
+    if output_path is None:
+        output_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    output_path = files_directories.output_path(output_path, cfg.tif_suffix)
+    files_directories.create_parent_directory(output_path)
+    min_progress = 51
+    max_progress = 100
     if method is not None and method.lower() == 'area_based':
         t_pmd = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
         (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
@@ -172,17 +173,19 @@ def vector_to_raster(
             left, bottom, right, top,
             p_x_size * area_precision, p_y_size * area_precision)
         cfg.multiprocess.gdal_warping(
-            input_raster=temp_path, output=t_pmd, output_format='GTiff',
+            input_raster=temp_path, output=output_path, output_format='GTiff',
             resample_method=resample, compression=True,
             compress_format=compress_format, additional_params=extra_params,
-            n_processes=n_processes, dst_nodata=nodata_value
+            n_processes=n_processes, dst_nodata=nodata_value,
+            min_progress=min_progress, max_progress=max_progress
             )
-        temp_path = t_pmd
-    if files_directories.is_file(temp_path):
-        try:
-            files_directories.move_file(temp_path, output_path)
-        except Exception as err:
-            cfg.logger.log.error(str(err))
+    else:
+        # copy raster
+        cfg.multiprocess.gdal_copy_raster(
+            temp_path, output_path, 'GTiff', cfg.raster_compression, 'LZW',
+            n_processes=n_processes, available_ram=available_ram,
+            min_progress=min_progress, max_progress=max_progress
+        )
     cfg.progress.update(end=True)
     cfg.logger.log.info('end; output_path: %s' % output_path)
     return OutputManager(path=output_path)

@@ -910,7 +910,8 @@ class Multiprocess(object):
             t_srs=None, resample_method=None, raster_data_type=None,
             compression=None, compress_format='DEFLATE', additional_params='',
             n_processes: int = None, available_ram: int = None,
-            src_nodata=None, dst_nodata=None
+            src_nodata=None, dst_nodata=None, min_progress=None,
+            max_progress=None
     ):
         cfg.logger.log.debug('start')
         out_dir = files_directories.parent_directory(output)
@@ -972,9 +973,10 @@ class Multiprocess(object):
                 p_m_qp = p_mq.get(False)
                 progress = int(p_m_qp)
                 cfg.progress.update(
-                    message='writing raster', percentage=progress
+                    message='writing raster', step=progress, steps=100,
+                    minimum=min_progress, maximum=max_progress,
+                    percentage=progress
                 )
-                cfg.logger.log.debug('progress: %s' % str(progress))
             except Exception as err:
                 str(err)
                 cfg.progress.update(ping=True)
@@ -1491,35 +1493,73 @@ class Multiprocess(object):
             background_value=None, burn_values=None, minimum_extent=None,
             x_y_size=None, all_touched=None, area_based=None,
             area_precision=None, compress=None, compress_format=None,
-            n_processes: int = 1,
+            n_processes: int = None,
             available_ram: int = None, min_progress=0, max_progress=100
     ):
         cfg.logger.log.debug('start')
         if compress_format is None:
             compress_format = 'LZW'
-        # progress queue
-        p_mq = self.manager.Queue()
-        results = []
         self.output = False
+        if n_processes is None:
+            n_processes = self.n_processes
         if available_ram is None:
             available_ram = cfg.available_ram
         available_ram = int(available_ram / (n_processes * 2))
+        # calculate block size
+        info = raster_vector.raster_info(reference_raster_path)
+        if info is not False:
+            (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
+             scale_offset, data_type) = info
+        else:
+            cfg.logger.log.error(
+                'unable to get raster info: %s' % str(reference_raster_path)
+            )
+            return False
+        min_x = gt[0]
+        max_y = gt[3]
+        max_x = gt[0] + gt[1] * xy_count[0]
+        min_y = gt[3] + gt[5] * xy_count[1]
+        block = abs(gt[5]) * round(((max_y - min_y) / abs(gt[5]))
+                                   / n_processes)
+        if block == 0:
+            block = abs(gt[5])
+        pieces = []
+        _b = min_y
+        while True:
+            if _b + block < max_y:
+                pieces.append((_b, _b + block))
+            else:
+                pieces.append((_b, max_y))
+                break
+            _b += block
         # temporary raster output
         process_result = {}
         process_output_files = {}
-        p = 0
-        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram]
-        input_parameters = [vector_path, field_name, reference_raster_path,
-                            nodata_value, background_value, burn_values,
-                            x_y_size, all_touched, area_based, area_precision,
-                            minimum_extent]
-        output_parameters = [output_path, output_format, compress,
-                             compress_format]
-        c = self.pool.apply_async(
-            processor.vector_to_raster,
-            args=(process_parameters, input_parameters, output_parameters)
-        )
-        results.append([c, p])
+        # progress queue
+        p_mq = self.manager.Queue()
+        results = []
+        for p in range(len(pieces)):
+            temp_path = cfg.temp.temporary_file_path(
+                name_suffix=cfg.vrt_suffix
+                )
+            virtual = raster_vector.create_virtual_raster(
+                input_raster_list=[reference_raster_path], output=temp_path,
+                box_coordinate_list=[min_x, pieces[p][1], max_x, pieces[p][0]]
+            )
+            output = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
+            process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq,
+                                  available_ram]
+            input_parameters = [vector_path, field_name, virtual,
+                                nodata_value, background_value, burn_values,
+                                x_y_size, all_touched, area_based,
+                                area_precision, minimum_extent]
+            output_parameters = [output, output_format, compress,
+                                 compress_format]
+            c = self.pool.apply_async(
+                processor.vector_to_raster,
+                args=(process_parameters, input_parameters, output_parameters)
+            )
+            results.append([c, p])
         while True:
             # update progress
             p_r = []
@@ -1549,9 +1589,16 @@ class Multiprocess(object):
                 cfg.logger.log.error('error multiprocess: %s' % str(res[1]))
                 gc.collect()
                 return
+        multiprocess_result = self._collect_results(
+            process_result, process_output_files, output_path,
+            virtual_raster=True,
+            output_nodata_value=nodata_value, compress=compress,
+            compress_format=compress_format,
+            n_processes=n_processes, available_ram=available_ram
+        )
         gc.collect()
         cfg.progress.update(percentage=False)
-        self.output = output_path
+        self.output = multiprocess_result
         cfg.logger.log.debug('end')
 
     # sum the output of multiprocess
@@ -2137,8 +2184,7 @@ def _compute_raster_pieces(
                         sections_list.append(
                             processor.RasterSection(
                                 x_min=0, y_min=y, x_max=block_size_x,
-                                y_max=y_max,
-                                x_size=block_size_x, y_size=y_size
+                                y_max=y_max, x_size=block_size_x, y_size=y_size
                             )
                         )
                         # range variables

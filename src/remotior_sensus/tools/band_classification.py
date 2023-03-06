@@ -1315,7 +1315,7 @@ def _get_x_y_arrays_from_rois(
     min_x, max_x, min_y, max_y = raster_vector.get_layer_extent(roi_path)
     virtual_path_list = []
     for p in raster_paths:
-        temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
         virtual = raster_vector.create_virtual_raster(
             input_raster_list=[p], output=temp_path,
             box_coordinate_list=[min_x, max_y, max_x, min_y]
