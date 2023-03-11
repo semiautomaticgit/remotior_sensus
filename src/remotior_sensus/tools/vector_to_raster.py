@@ -138,6 +138,21 @@ def vector_to_raster(
         all_touched = None
         area_based = None
     cfg.progress.update(message='processing', step=1)
+    # open input with GDAL
+    cfg.logger.log.debug('vector_path: %s' % vector_path)
+    vector_crs = raster_vector.get_crs(vector_path)
+    reference_crs = raster_vector.get_crs(reference_path)
+    # check crs
+    same_crs = raster_vector.compare_crs(vector_crs, reference_crs)
+    cfg.logger.log.debug('same_crs: %s' % str(same_crs))
+    if not same_crs:
+        input_vector = cfg.temp.temporary_file_path(
+            name_suffix=files_directories.file_extension(vector_path)
+        )
+        vector_path = raster_vector.reproject_vector(
+            vector_path, input_vector, input_epsg=vector_crs,
+            output_epsg=reference_crs
+        )
     # perform conversion
     cfg.multiprocess.multiprocess_vector_to_raster(
         vector_path=vector_path, field_name=vector_field,
@@ -156,8 +171,8 @@ def vector_to_raster(
     files_directories.create_parent_directory(output_path)
     min_progress = 51
     max_progress = 100
+    # resample raster
     if method is not None and method.lower() == 'area_based':
-        t_pmd = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
         (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
          scale_offset, data_type) = raster_vector.raster_info(temp_path)
         # copy raster
@@ -172,13 +187,12 @@ def vector_to_raster(
         extra_params = ' -te %s %s %s %s -tr %s %s' % (
             left, bottom, right, top,
             p_x_size * area_precision, p_y_size * area_precision)
-        cfg.multiprocess.gdal_warping(
+        raster_vector.gdal_warping(
             input_raster=temp_path, output=output_path, output_format='GTiff',
             resample_method=resample, compression=True,
             compress_format=compress_format, additional_params=extra_params,
             n_processes=n_processes, dst_nodata=nodata_value,
-            min_progress=min_progress, max_progress=max_progress
-            )
+            min_progress=min_progress, max_progress=max_progress)
     else:
         # copy raster
         cfg.multiprocess.gdal_copy_raster(

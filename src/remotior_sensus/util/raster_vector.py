@@ -1397,6 +1397,9 @@ def project_point_coordinates(
             input_coordinates.SetAxisMappingStrategy(
                 osr.OAMS_TRADITIONAL_GIS_ORDER
             )
+        except Exception as err:
+            str(err)
+        try:
             output_coordinates.SetAxisMappingStrategy(
                 osr.OAMS_TRADITIONAL_GIS_ORDER
             )
@@ -1451,17 +1454,28 @@ def reproject_vector(
             input_sr.ImportFromEPSG(input_epsg)
         except Exception as err:
             str(err)
-            input_sr = input_epsg
+            try:
+                input_sr.ImportFromWkt(input_epsg)
+            except Exception as err:
+                str(err)
+                input_sr = input_epsg
     # output spatial reference
     output_sr = osr.SpatialReference()
     try:
         output_sr.ImportFromEPSG(output_epsg)
     except Exception as err:
         str(err)
-        output_sr = output_epsg
+        try:
+            output_sr.ImportFromWkt(output_epsg)
+        except Exception as err:
+            str(err)
+            output_sr = output_epsg
     # required by GDAL 3 coordinate order
     try:
         input_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    except Exception as err:
+        str(err)
+    try:
         output_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     except Exception as err:
         str(err)
@@ -1989,3 +2003,71 @@ def get_polygon_from_vector(vector_path, attribute_filter=None):
     _v_layer = None
     _d_s = None
     return temp
+
+
+# gdal warp
+def gdal_warping(
+        input_raster, output, output_format='GTiff', s_srs=None,
+        t_srs=None, resample_method=None, raster_data_type=None,
+        compression=None, compress_format='DEFLATE', additional_params='',
+        n_processes: int = None, available_ram: int = None,
+        src_nodata=None, dst_nodata=None, min_progress=0, max_progress=100
+):
+    cfg.logger.log.debug('start')
+    out_dir = files_directories.parent_directory(output)
+    files_directories.create_directory(out_dir)
+    if resample_method is None:
+        resample_method = 'near'
+    elif resample_method == 'sum':
+        gdal_v = get_gdal_version()
+        if float('%s.%s' % (gdal_v[0], gdal_v[1])) < 3.1:
+            cfg.logger.log.error('Error GDAL version')
+            return False
+    if n_processes is None:
+        n_processes = cfg.n_processes
+    option_string = ' -r %s -co BIGTIFF=YES -multi -wo NUM_THREADS=%s' % (
+        resample_method, str(n_processes))
+    if compression is None:
+        if cfg.raster_compression:
+            option_string += ' -co COMPRESS=%s' % compress_format
+    elif compression:
+        option_string += ' -co COMPRESS=%s' % compress_format
+    if s_srs is not None:
+        option_string += ' -s_srs %s' % s_srs
+    if t_srs is not None:
+        option_string += ' -t_srs %s' % t_srs
+    if raster_data_type is not None:
+        option_string += ' -ot %s' % raster_data_type
+    if src_nodata is not None:
+        option_string += ' -srcnodata %s' % str(src_nodata)
+    if dst_nodata is not None:
+        option_string += ' -dstnodata %s' % str(dst_nodata)
+    option_string += ' -of %s' % output_format
+    if additional_params is not None:
+        option_string = ' %s %s' % (additional_params, option_string)
+    if available_ram is None:
+        available_ram = cfg.available_ram
+    available_ram = str(int(available_ram) * 1000000)
+    # GDAL config
+    try:
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+    except Exception as err:
+        str(err)
+    try:
+        progress_gdal = (lambda percentage, m, c: cfg.progress.update(
+            percentage=100 if int(percentage * 100) > 100
+            else int(percentage * 100), steps=100, minimum=min_progress,
+            maximum=max_progress, step=100 if int(percentage * 100) > 100
+            else int(percentage * 100)
+        ))
+
+        to = gdal.WarpOptions(
+            gdal.ParseCommandLine(option_string), callback=progress_gdal
+        )
+        gdal.Warp(output, input_raster, options=to)
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+    cfg.logger.log.debug('end; output: %s' % output)

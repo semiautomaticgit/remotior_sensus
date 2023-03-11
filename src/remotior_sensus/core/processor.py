@@ -1230,24 +1230,9 @@ def vector_to_raster(
     same_crs = raster_vector.compare_crs(reference_crs, vector_crs)
     cfg.logger.log.debug('same_crs: %s' % str(same_crs))
     if not same_crs:
-        input_vector = cfg.temp.temporary_file_path(
-            name_suffix=files_directories.file_extension(vector_path)
-        )
-        raster_vector.reproject_vector(
-            vector_path, input_vector, input_epsg=vector_crs,
-            output_epsg=reference_crs
-        )
-        # open input vector
-        _vector = None
-        _v_layer = None
-        # get layer
-        try:
-            vector = ogr.Open(input_vector)
-            _v_layer = vector.GetLayer()
-        except Exception as err:
-            cfg.logger.log.error(str(err))
-            logger = cfg.logger.stream.getvalue()
-            return None, str(err), logger
+        cfg.logger.log.error('different crs')
+        logger = cfg.logger.stream.getvalue()
+        return None, 'different crs', logger
     # calculate minimum extent
     if minimum_extent:
         min_x, max_x, min_y, max_y = _v_layer.GetExtent()
@@ -1297,7 +1282,7 @@ def vector_to_raster(
         path=temporary_grid, band_number=1,
         output_raster_list=[out_file],
         nodata_value=nodata_value, driver='GTiff',
-        gdal_format=cfg.raster_data_type, compress=compress,
+        gdal_format='Int32', compress=compress,
         compress_format=compress_format, constant_value=background_value
     )
     # convert reference layer to raster
