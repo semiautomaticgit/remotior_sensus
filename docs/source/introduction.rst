@@ -52,7 +52,7 @@ such as order number or center wavelength.
 .. image:: _static/bandset.jpg
     :align: center
 
-Multimple BandSets can be defined and identified by their reference number.
+Multiple BandSets can be defined and identified by their reference number.
 Therefore, BandSets can be used as input for operations on multiple bands
 such as Principal Components Analysis, classification, mosaic,
 or band calculation.

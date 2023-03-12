@@ -26,7 +26,6 @@ from remotior_sensus.core import (
     configurations as cfg, messages, table_manager as tm
 )
 from remotior_sensus.util import dates_times, files_directories, raster_vector
-#catalog_class = globals()['BandSetCatalog']()
 
 """BandSet manager.
 
@@ -2341,7 +2340,6 @@ class BandSetCatalog(object):
         if bandset_number is None:
             bandset_number = self.current_bandset
         self.get_bandset(bandset_number).name = name
-        #self.bandsets_table['bandset_name'][self.bandsets_table['bandset_number'] == bandset_number] = name
 
     def set_box_coordinate_list(
             self, box_coordinate_list: list,
