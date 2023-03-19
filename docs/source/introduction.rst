@@ -110,6 +110,10 @@ See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with Remotior Sensus. If not, see https://www.gnu.org/licenses/.
 
+How to cite
+__________________________
+
+Congedo, Luca, (2023). Remotior Sensus. https://github.com/semiautomaticgit/remotior_sensus
 
 Official site
 _____________

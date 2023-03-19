@@ -121,22 +121,25 @@ def vector_to_raster(
         constant = 1
     nodata_value_set = nodata_value
     min_progress = 1
-    max_progress = 50
     if method is None or method.lower() == 'pixel_center':
         all_touched = None
         area_based = None
+        max_progress = 100
     elif method.lower() == 'all_touched':
         all_touched = True
         area_based = None
+        max_progress = 100
     elif method.lower() == 'area_based':
         all_touched = None
         area_based = True
         compress = True
         minimum_extent = False
         nodata_value_set = None
+        max_progress = 50
     else:
         all_touched = None
         area_based = None
+        max_progress = 100
     cfg.progress.update(message='processing', step=1)
     # open input with GDAL
     cfg.logger.log.debug('vector_path: %s' % vector_path)
@@ -169,8 +172,6 @@ def vector_to_raster(
         output_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
     output_path = files_directories.output_path(output_path, cfg.tif_suffix)
     files_directories.create_parent_directory(output_path)
-    min_progress = 51
-    max_progress = 100
     # resample raster
     if method is not None and method.lower() == 'area_based':
         (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
@@ -187,6 +188,8 @@ def vector_to_raster(
         extra_params = ' -te %s %s %s %s -tr %s %s' % (
             left, bottom, right, top,
             p_x_size * area_precision, p_y_size * area_precision)
+        min_progress = 51
+        max_progress = 100
         raster_vector.gdal_warping(
             input_raster=temp_path, output=output_path, output_format='GTiff',
             resample_method=resample, compression=True,
@@ -194,12 +197,10 @@ def vector_to_raster(
             n_processes=n_processes, dst_nodata=nodata_value,
             min_progress=min_progress, max_progress=max_progress)
     else:
-        # copy raster
-        cfg.multiprocess.gdal_copy_raster(
-            temp_path, output_path, 'GTiff', cfg.raster_compression, 'LZW',
-            n_processes=n_processes, available_ram=available_ram,
-            min_progress=min_progress, max_progress=max_progress
-        )
+        if files_directories.is_file(temp_path):
+            files_directories.move_file(
+                in_path=temp_path, out_path=output_path
+            )
     cfg.progress.update(end=True)
     cfg.logger.log.info('end; output_path: %s' % output_path)
     return OutputManager(path=output_path)

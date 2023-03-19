@@ -9,3 +9,4 @@ The following tutorials are available.
    :titlesonly:
 
    quickstart.rst
+   tutorial_ndvi.rst
