@@ -30,24 +30,18 @@ to create a `Conda` environment.
     Proceed ([y]/n)? y
     $ conda activate environment
 
-Install the fundamental dependencies using `Conda`:
+Install Remotior Sensus using `Conda` (the fundamental dependencies are also installed):
 
 .. code-block:: console
 
-    $ conda install -c conda-forge gdal numpy scipy
+    $ conda install -c conda-forge remotior-sensus
 
 For machine learning functionalities run:
 
 .. code-block:: console
 
-    $ conda install -c conda-forge gdal numpy scipy scikit-learn pytorch
+    $ conda install -c conda-forge remotior-sensus scikit-learn pytorch
 
-For Remotior Sensus package installation use `pip`
-in the previously created `Conda` environment:
-
-.. code-block:: console
-
-    $ pip install -U remotior-sensus
 
 Installation in Linux
 _______________________

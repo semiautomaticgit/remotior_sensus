@@ -75,22 +75,14 @@ Installation
 ______________
 
 Remotior Sensus requires `GDAL`, `NumPy` and `SciPy` for most functionalities.
-Also, `scikit-learn` and `PyTorch` are required for machine learning.
+Also, `scikit-learn` and `PyTorch` are optional but required for machine learning.
 
-Before installing Remotior Sensus please install the dependencies using
-a `Conda` environment.
-
-.. code-block:: console
-
-    $ conda install -c conda-forge gdal numpy scipy scikit-learn pytorch
-
-
-For Remotior Sensus package installation use `pip`
-in the previously created `Conda` environment:
+It is recommended to install Remotior Sensus using a `Conda` environment.
 
 .. code-block:: console
 
-    $ pip install -U remotior-sensus
+    $ conda install -c conda-forge remotior-sensus scikit-learn pytorch
+
 
 
 License of Remotior Sensus

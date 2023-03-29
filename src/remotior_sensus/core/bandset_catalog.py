@@ -2447,7 +2447,7 @@ class BandSetCatalog(object):
             bandset_number: number of BandSet; if None, current BandSet is used.
 
         Returns:
-            count of bands.
+            Count of bands.
             
         Examples:
             Get BandSet 1 band count.
