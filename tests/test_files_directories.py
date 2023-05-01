@@ -10,7 +10,7 @@ class TestFilesDirectories(TestCase):
     def test_files_directories(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-        )
+            )
         cfg = rs.configurations
         cfg.logger.log.debug('test')
         path = '/home/user/file.tif'

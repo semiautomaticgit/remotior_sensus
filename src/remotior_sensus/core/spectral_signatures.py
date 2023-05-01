@@ -184,7 +184,7 @@ class SpectralSignaturesCatalog(object):
                         )
             if len(value_list) == 0:
                 cfg.logger.log.error('file: %s' % csv_path)
-                messages.error('error importing file %s' % csv_path)
+                cfg.messages.error('error importing file %s' % csv_path)
                 return
             if len(wavelength_list) == 0:
                 wavelength_list = None
@@ -200,7 +200,7 @@ class SpectralSignaturesCatalog(object):
             cfg.logger.log.debug('end; imported: %s' % csv_path)
         else:
             cfg.logger.log.error('error file not found: %s' % csv_path)
-            messages.error('error file not found: %s' % csv_path)
+            cfg.messages.error('error file not found: %s' % csv_path)
 
     # import vector to Spectral Signatures Catalog
     def import_vector(
@@ -308,7 +308,7 @@ class SpectralSignaturesCatalog(object):
             cfg.logger.log.debug('end; imported: %s' % file_path)
         else:
             cfg.logger.log.error('error file not found: %s' % file_path)
-            messages.error('error file not found: %s' % file_path)
+            cfg.messages.error('error file not found: %s' % file_path)
 
     # import vector to Spectral Signatures Catalog
     def calculate_signature(self, roi_path, n_processes: int = None):

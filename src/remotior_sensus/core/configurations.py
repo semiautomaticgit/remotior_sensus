@@ -30,14 +30,8 @@ root_name = 'remotior_sensus'
 # type hint for Multiprocess
 multiprocess: Multiprocess
 # shared classes
-logger = None
-band_calc = None
-band_classification = None
-band_combination = None
-band_dilation = None
-band_erosion = None
-band_neighbor_pixels = None
-band_pca = None
+logger = messages = band_calc = band_classification = band_combination = None
+band_dilation = band_erosion = band_neighbor_pixels = band_pca = None
 band_sieve = None
 # shared Temporary class
 temp = None

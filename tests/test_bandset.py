@@ -10,7 +10,7 @@ class TestBandSet(TestCase):
     def test_create(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-        )
+            )
         cfg = rs.configurations
         # create BandSet Catalog
         catalog = rs.bandset_catalog()

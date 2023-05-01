@@ -54,3 +54,18 @@ def error(message: str):
                 >>> error('error message')
         """
     print('▲ error: %s' % message)
+
+
+def info(message: str):
+    """Info message.
+
+        Prints an info message.
+
+        Args:
+            message: message.
+
+        Examples:
+            Display a message
+                >>> info('error message')
+        """
+    print('info: %s' % message)

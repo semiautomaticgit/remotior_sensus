@@ -542,7 +542,7 @@ class Classifier(object):
                     )
                 except Exception as err:
                     cfg.logger.log.error(str(err))
-                    messages.error(str(err))
+                    cfg.messages.error(str(err))
                     return cls(
                         algorithm_name=None,
                         spectral_signatures=None,
@@ -1175,7 +1175,7 @@ def band_classification(
         algorithm_name = cfg.minimum_distance
     elif algorithm_name not in cfg.classification_algorithms:
         cfg.logger.log.error('unknown algorithm name')
-        messages.error('unknown algorithm name')
+        cfg.messages.error('unknown algorithm name')
         return OutputManager(check=False)
     cfg.progress.update(message='starting the classifier', step=1)
     cfg.logger.log.debug('algorithm_name: %s' % str(algorithm_name))
@@ -1192,7 +1192,7 @@ def band_classification(
             classifier = loaded_classifier.extra['classifier']
         else:
             cfg.logger.log.error('failed loading classifier')
-            messages.error('failed loading classifier')
+            cfg.messages.error('failed loading classifier')
             return OutputManager(check=False)
     else:
         # collect x and y matrices
@@ -1404,7 +1404,7 @@ def _get_x_y_arrays_from_rois(
                     covariance_matrices_dict[s] = cov_matrix
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error('covariance matrix')
+                cfg.messages.error('covariance matrix')
     cfg.logger.log.error(
         'covariance_matrices_dict: %s'
         % str(covariance_matrices_dict)

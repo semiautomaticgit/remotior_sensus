@@ -94,13 +94,13 @@ class Session(object):
 
         Start a session defining number of parallel processes. and available RAM
             >>> import remotior_sensus
-            >>> rs = remotior_sensus.Session(n_processes=4, available_ram=4096)
+            >>> rs = remotior_sensus.Session(n_processes=4,available_ram=4096)
 
         Create a :func:`~remotior_sensus.core.bandset_catalog.BandSetCatalog`
             >>> catalog = rs.bandset_catalog()
 
         Run the tool for raster report
-            >>> output = rs.raster_report(raster_path='file.tif',output_path='output.txt')
+            >>> output = rs.raster_report(raster_path='file.tif', output_path='output.txt')
 
         Stop a session at the end to clear temporary directory
             >>> rs.close()
@@ -110,7 +110,8 @@ class Session(object):
             self, n_processes: Optional[int] = 2, available_ram: int = 2048,
             temporary_directory: str = None,
             directory_prefix: str = None, log_level: int = 20,
-            log_time: bool = True, progress_callback=None
+            log_time: bool = True, progress_callback=None,
+            multiprocess_module=None, messages_callback=None
     ):
         """Starts a session.
 
@@ -139,12 +140,14 @@ class Session(object):
             log_level: level of logging (10 for DEBUG, 20 for INFO).
             log_time: if True, logging includes the time.
             progress_callback: function for progress callback.
+            multiprocess_module: multiprocess module, useful if Remotior Sensus' session is started from another Python module.
+            messages_callback: message module, useful if Remotior Sensus' session is started from another Python module.
 
         Examples:
             Start a session
                 >>> import remotior_sensus
                 >>> rs = remotior_sensus.Session()
-        """
+        """  # noqa: E501
         configurations.n_processes = n_processes
         configurations.available_ram = available_ram
         # create temporary directory
@@ -166,12 +169,18 @@ class Session(object):
         if progress_callback is None:
             progress_callback = Progress.print_progress_replace
         configurations.progress = Progress(callback=progress_callback)
+        if messages_callback is None:
+            configurations.messages = messages
+        else:
+            configurations.messages = messages_callback
         system_tools.get_system_info()
         check = _check_dependencies(configurations)
         if check:
             self.configurations = configurations
             # create multiprocess instance
-            self.configurations.multiprocess = Multiprocess(n_processes)
+            self.configurations.multiprocess = Multiprocess(
+                n_processes, multiprocess_module
+                )
             # available core tools
             self.bandset = BandSet
             self.bandset_catalog = BandSetCatalog
@@ -336,29 +345,29 @@ def _check_dependencies(configuration_module: configurations) -> bool:
             import numpy
         except Exception as err:
             configuration_module.logger.log.error(str(err))
-            messages.error('dependency error: numpy')
+            cfg.messages.error('dependency error: numpy')
             check = False
         try:
             from scipy import signal
         except Exception as err:
             configuration_module.logger.log.error(str(err))
-            messages.error('dependency error: scipy')
+            cfg.messages.error('dependency error: scipy')
             check = False
         try:
             import torch
         except Exception as err:
             configuration_module.logger.log.error(str(err))
-            messages.error('dependency error: pytorch')
+            cfg.messages.error('dependency error: pytorch')
         if configuration_module.gdal_path is not None:
             os.add_dll_directory(configuration_module.gdal_path)
         try:
             from osgeo import gdal
         except Exception as err:
             configuration_module.logger.log.error(str(err))
-            messages.error('dependency error: gdal')
+            cfg.messages.error('dependency error: gdal')
             check = False
     except Exception as err:
         configuration_module.logger.log.error(str(err))
-        messages.error(str(err))
+        cfg.messages.error(str(err))
         check = False
     return check

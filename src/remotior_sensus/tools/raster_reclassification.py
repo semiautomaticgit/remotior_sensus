@@ -124,7 +124,7 @@ def raster_reclassification(
     if reclassification_table is None:
         if csv_path is None:
             cfg.logger.log.error('unable to reclassify')
-            messages.error('unable to reclassify')
+            cfg.messages.error('unable to reclassify')
             return OutputManager(check=False)
         else:
             table = _import_reclassification_table(
@@ -134,7 +134,7 @@ def raster_reclassification(
                 reclassification_table = table.extra['table']
             else:
                 cfg.logger.log.error('unable to reclassify')
-                messages.error('unable to reclassify')
+                cfg.messages.error('unable to reclassify')
                 return OutputManager(check=False)
     # if reclassification list
     elif type(reclassification_table) is list:
@@ -143,7 +143,7 @@ def raster_reclassification(
             reclassification_table = table.extra['table']
         else:
             cfg.logger.log.error('unable to reclassify')
-            messages.error('unable to reclassify')
+            cfg.messages.error('unable to reclassify')
             return OutputManager(check=False)
     # check output data type
     cfg.logger.log.debug('output_data_type: %s' % str(output_data_type))
@@ -247,7 +247,7 @@ def _list_to_reclassification_table(input_list):
             eval(new_value.replace('nan', 'np.nan'))
         except Exception as err:
             cfg.logger.log.error(str(err))
-            messages.error(str(err))
+            cfg.messages.error(str(err))
             return OutputManager(check=False)
         # check old value
         try:
@@ -265,7 +265,7 @@ def _list_to_reclassification_table(input_list):
                 cfg.logger.log.error(
                     'unable to process value %s' % str(input_list[i][0])
                 )
-                messages.error(
+                cfg.messages.error(
                     'unable to process value %s' % str(input_list[i][0])
                 )
                 return OutputManager(check=False)
@@ -304,7 +304,7 @@ def _import_reclassification_table(csv_path, separator=','):
             eval(new_value.replace('nan', 'np.nan'))
         except Exception as err:
             cfg.logger.log.error(str(err))
-            messages.error(str(err))
+            cfg.messages.error(str(err))
             return OutputManager(check=False)
         # check old value
         try:
@@ -324,7 +324,7 @@ def _import_reclassification_table(csv_path, separator=','):
                 cfg.logger.log.error(
                     'unable to process value %s' % str(csv[cfg.old_value][i])
                 )
-                messages.error(
+                cfg.messages.error(
                     'unable to process value %s' % str(csv[cfg.old_value][i])
                 )
                 return OutputManager(check=False)

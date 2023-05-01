@@ -36,18 +36,26 @@ except Exception as error:
 # class for multiprocess functions
 class Multiprocess(object):
 
-    def __init__(self, n_processes: int = None):
-        self.pool = multiprocessing.Pool(processes=n_processes)
-        self.manager = multiprocessing.Manager()
+    def __init__(self, n_processes: int = None, multiprocess_module=None):
+        if multiprocess_module is None:
+            self.pool = multiprocessing.Pool(processes=n_processes)
+            self.manager = multiprocessing.Manager()
+        else:
+            self.pool = multiprocess_module.Pool(processes=n_processes)
+            self.manager = multiprocess_module.Manager()
         self.n_processes = n_processes
         self.output = False
 
     # start multiprocess
-    def start(self, n_processes):
+    def start(self, n_processes, multiprocess_module=None):
         self.stop()
-        self.pool = multiprocessing.Pool(processes=n_processes)
         cfg.multiprocess = self
-        self.manager = multiprocessing.Manager()
+        if multiprocess_module is None:
+            self.pool = multiprocessing.Pool(processes=n_processes)
+            self.manager = multiprocessing.Manager()
+        else:
+            self.pool = multiprocess_module.Pool(processes=n_processes)
+            self.manager = multiprocess_module.Manager()
         self.n_processes = n_processes
         self.output = False
 
@@ -179,7 +187,7 @@ class Multiprocess(object):
              number_of_bands) = block_size
         else:
             cfg.logger.log.error('unable to get raster: %s' % raster_path)
-            messages.error('unable to get raster: %s' % raster_path)
+            cfg.messages.error('unable to get raster: %s' % raster_path)
             return
         # compute raster pieces
         pieces = _compute_raster_pieces(
@@ -245,7 +253,7 @@ class Multiprocess(object):
             # error
             if res[2] is not False:
                 cfg.logger.log.error('multiprocess: %s' % res[2])
-                messages.error('multiprocess: %s' % res[2])
+                cfg.messages.error('multiprocess: %s' % res[2])
                 gc.collect()
                 return
         gc.collect()
@@ -461,7 +469,7 @@ class Multiprocess(object):
             # error
             if res[2] is not False:
                 cfg.logger.log.error('multiprocess: %s' % res[2])
-                messages.error('multiprocess: %s' % res[2])
+                cfg.messages.error('multiprocess: %s' % res[2])
                 gc.collect()
                 return
         gc.collect()
@@ -505,7 +513,7 @@ class Multiprocess(object):
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 gc.collect()
-                messages.error(str(err))
+                cfg.messages.error(str(err))
                 return False
             # collect temporary raster paths
             for r in process_output_files:
@@ -568,7 +576,7 @@ class Multiprocess(object):
                     )
                 except Exception as err:
                     cfg.logger.log.error(str(err))
-                    messages.error(str(err))
+                    cfg.messages.error(str(err))
                 try:
                     # copy raster
                     self.gdal_copy_raster(
@@ -580,7 +588,7 @@ class Multiprocess(object):
                     )
                 except Exception as err:
                     cfg.logger.log.error(str(err))
-                    messages.error(str(err))
+                    cfg.messages.error(str(err))
                     try:
                         # try to create different virtual raster then copy
                         vrt_file = cfg.temp.temporary_raster_path(
@@ -602,7 +610,7 @@ class Multiprocess(object):
                     except Exception as err:
                         cfg.logger.log.error(str(err))
                         gc.collect()
-                        messages.error(str(err))
+                        cfg.messages.error(str(err))
                         return False
         # delete temporary rasters
         if delete_array and not virtual_raster:
@@ -781,7 +789,7 @@ class Multiprocess(object):
                     )
                 except Exception as err:
                     cfg.logger.log.error(str(err))
-                    messages.error(str(err))
+                    cfg.messages.error(str(err))
                 try:
                     # copy raster
                     self.gdal_copy_raster(
@@ -793,7 +801,7 @@ class Multiprocess(object):
                     )
                 except Exception as err:
                     cfg.logger.log.error(str(err))
-                    messages.error(str(err))
+                    cfg.messages.error(str(err))
                     try:
                         # try to create different virtual raster then copy
                         vrt_file = cfg.temp.temporary_raster_path(
@@ -815,7 +823,7 @@ class Multiprocess(object):
                     except Exception as err:
                         cfg.logger.log.error(str(err))
                         gc.collect()
-                        messages.error(str(err))
+                        cfg.messages.error(str(err))
                         return False
                 # algorithm raster
                 if len(output_algorithm_list) > 0:
@@ -831,7 +839,7 @@ class Multiprocess(object):
                         )
                     except Exception as err:
                         cfg.logger.log.error(str(err))
-                        messages.error(str(err))
+                        cfg.messages.error(str(err))
                     try:
                         # copy raster
                         self.gdal_copy_raster(
@@ -845,7 +853,7 @@ class Multiprocess(object):
                         )
                     except Exception as err:
                         cfg.logger.log.error(str(err))
-                        messages.error(str(err))
+                        cfg.messages.error(str(err))
                 # signature rasters
                 if len(signature_raster_list) > 0:
                     for s in signature_raster_list:
@@ -875,7 +883,7 @@ class Multiprocess(object):
                             )
                         except Exception as err:
                             cfg.logger.log.error(str(err))
-                            messages.error(str(err))
+                            cfg.messages.error(str(err))
                         try:
                             # copy raster
                             self.gdal_copy_raster(
@@ -890,7 +898,7 @@ class Multiprocess(object):
                             )
                         except Exception as err:
                             cfg.logger.log.error(str(err))
-                            messages.error(str(err))
+                            cfg.messages.error(str(err))
         # delete temporary rasters
         if delete_array and not virtual_raster:
             output_classification_list.extend(output_algorithm_list)
@@ -1278,7 +1286,7 @@ class Multiprocess(object):
             # error
             if res[2] is not False:
                 cfg.logger.log.error('multiprocess: %s' % str(res[2]))
-                messages.error('multiprocess: %s' % str(res[2]))
+                cfg.messages.error('multiprocess: %s' % str(res[2]))
                 gc.collect()
                 return
         gc.collect()

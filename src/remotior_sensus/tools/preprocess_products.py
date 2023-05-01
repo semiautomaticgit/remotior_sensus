@@ -24,9 +24,7 @@ from xml.dom import minidom
 
 import numpy as np
 
-from remotior_sensus.core import (
-    configurations as cfg, messages, table_manager as tm
-)
+from remotior_sensus.core import configurations as cfg, table_manager as tm
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
     band_calculation, raster_unique_values_with_sum
@@ -422,13 +420,13 @@ def perform_preprocess(
     )
     if len(output_raster_path_list) == 0:
         cfg.logger.log.error('unable to process files')
-        messages.error('unable to process files')
+        cfg.messages.error('unable to process files')
         return OutputManager(check=False)
     else:
         for i in output_raster_path_list:
             if not files_directories.is_file(i):
                 cfg.logger.log.error('unable to process file: %s' % str(i))
-                messages.error('unable to process file: %s' % str(i))
+                cfg.messages.error('unable to process file: %s' % str(i))
                 return OutputManager(check=False)
     cfg.progress.update(end=True)
     cfg.logger.log.info(
@@ -507,7 +505,7 @@ def create_product_table(
             except Exception as err:
                 str(err)
         except Exception as err:
-            messages.error('unable to open metadata')
+            cfg.messages.error('unable to open metadata')
             cfg.logger.log.error(str(err))
             return OutputManager(check=False)
     # Sentinel-2
@@ -552,12 +550,12 @@ def create_product_table(
                 cfg.logger.log.debug('metadata')
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
         # use default values
         else:
             scale_value = 1 / 10000
             offset_value_list = [0] * len(sentinel2_bands)
-            messages.warning('using default values without metadata')
+            cfg.messages.warning('using default values without metadata')
             cfg.logger.log.debug('no metadata')
         # get bands
         file_list = files_directories.files_in_directory(
@@ -732,7 +730,7 @@ def create_product_table(
                 product_date = acquisition_date
             else:
                 product_date = '2000-01-01'
-            messages.warning('using default values without metadata')
+            cfg.messages.warning('using default values without metadata')
             cfg.logger.log.debug('no metadata')
         cfg.logger.log.debug('sensor_id: %s' % sensor_id)
         # get bands

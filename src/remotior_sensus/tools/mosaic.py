@@ -143,7 +143,7 @@ def mosaic(
                     band_list_list.append(new_list)
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
                 return OutputManager(check=False)
     # mosaic every list of bands
     n = 0
@@ -193,7 +193,7 @@ def mosaic(
                 )
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
                 return OutputManager(check=False)
         else:
             vrt_file = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
@@ -211,7 +211,7 @@ def mosaic(
                 )
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
                 return OutputManager(check=False)
         n = n + 1
     cfg.progress.update(end=True)

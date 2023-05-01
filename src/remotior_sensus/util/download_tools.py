@@ -83,7 +83,7 @@ def open_general_url(
     except Exception as err:
         response = None
         cfg.logger.log.error('{}; url:{}'.format(err, url))
-        messages.error('{}; url:{}'.format(err, url))
+        cfg.messages.error('{}; url:{}'.format(err, url))
     return response
 
 
@@ -192,5 +192,5 @@ def download_file(
             )
         else:
             cfg.logger.log.error('%s; url: %s' % (err, url))
-            messages.error('%s; url: %s' % (err, url))
+            cfg.messages.error('%s; url: %s' % (err, url))
             return False, str(err)

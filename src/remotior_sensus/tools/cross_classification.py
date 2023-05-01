@@ -145,7 +145,7 @@ def cross_classification(
     else:
         if vector_field is None:
             cfg.logger.log.error('vector field missing')
-            messages.error('vector field missing')
+            cfg.messages.error('vector field missing')
             return OutputManager(check=False)
         if not same_crs:
             # project vector to raster crs
@@ -158,7 +158,7 @@ def cross_classification(
                 )
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
                 return OutputManager(check=False)
             reference_path = t_vector
         # convert vector to raster

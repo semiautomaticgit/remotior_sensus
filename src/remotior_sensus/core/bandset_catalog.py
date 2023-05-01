@@ -22,9 +22,7 @@ from typing import Union, Optional
 
 import numpy as np
 
-from remotior_sensus.core import (
-    configurations as cfg, messages, table_manager as tm
-)
+from remotior_sensus.core import configurations as cfg, table_manager as tm
 from remotior_sensus.util import dates_times, files_directories, raster_vector
 
 """BandSet manager.
@@ -770,7 +768,7 @@ class BandSet(object):
             band_name = _raster_to_band_names(path)[0]
         if self.root_directory != root_directory:
             cfg.logger.log.warning('root_directory: %s' % root_directory)
-            messages.warning('root_directory: %s' % root_directory)
+            cfg.messages.warning('root_directory: %s' % root_directory)
         if multiplicative_factor is None:
             multiplicative_factor = 1
         if additive_factor is None:
@@ -884,7 +882,7 @@ class BandSet(object):
             return function(*args, **kwargs)
         except Exception as err:
             cfg.logger.log.error(str(err))
-            messages.error(str(err))
+            cfg.messages.error(str(err))
             return None
 
     def calc(self, *args, **kwargs):
@@ -1134,12 +1132,12 @@ def _create_table_of_bands(
             absolute_path = path
         else:
             cfg.logger.log.error('path: %s' % path)
-            messages.error('path: %s' % path)
+            cfg.messages.error('path: %s' % path)
             return None
     info = raster_vector.raster_info(absolute_path)
     if info is False:
         cfg.logger.log.error('path: %s' % path)
-        messages.error('path: %s' % path)
+        cfg.messages.error('path: %s' % path)
         return None
     else:
         (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
@@ -1450,7 +1448,7 @@ class BandSetCatalog(object):
                     )
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
             # get uids
             if date_eq is not None:
                 uids = self.bandsets_table[
@@ -1978,7 +1976,7 @@ class BandSetCatalog(object):
                     bandset_number = bandset_count + 1
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
         # add BandSet to dictionary by uid
         if keep_uid is False:
             bandset_copy.uid = bandset_copy.generate_uid()
@@ -2088,7 +2086,7 @@ class BandSetCatalog(object):
         cfg.logger.log.debug('bandset_number: %s' % str(bandset_number))
         if bandset_number > self.get_bandset_count():
             cfg.logger.log.warning('bandset_number: %s' % str(bandset_number))
-            messages.warning('bandset_number: %s' % str(bandset_number))
+            cfg.messages.warning('bandset_number: %s' % str(bandset_number))
         else:
             record = self.bandsets_table[
                 self.bandsets_table['bandset_number'] == bandset_number]

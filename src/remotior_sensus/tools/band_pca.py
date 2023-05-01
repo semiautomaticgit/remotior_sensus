@@ -137,7 +137,7 @@ def band_pca(
             )
     except Exception as err:
         cfg.logger.log.error(str(err))
-        messages.error(str(err))
+        cfg.messages.error(str(err))
         return OutputManager(check=False)
     # calculate covariance
     # dummy bands for memory calculation
@@ -226,7 +226,7 @@ def band_pca(
         )
     except Exception as err:
         cfg.logger.log.error(str(err))
-        messages.error(str(err))
+        cfg.messages.error(str(err))
         return OutputManager(check=False)
     # save principal component details to table
     tbl_out = shared_tools.join_path(
@@ -238,13 +238,13 @@ def band_pca(
     output_raster_path_list.append(tbl_out)
     if len(output_raster_path_list) == 0:
         cfg.logger.log.error('unable to process files')
-        messages.error('unable to process files')
+        cfg.messages.error('unable to process files')
         return OutputManager(check=False)
     else:
         for i in output_raster_path_list:
             if not files_directories.is_file(i):
                 cfg.logger.log.error('unable to process file: %s' % str(i))
-                messages.error('unable to process file: %s' % str(i))
+                cfg.messages.error('unable to process file: %s' % str(i))
                 return OutputManager(check=False)
     cfg.progress.update(end=True)
     cfg.logger.log.info('end; pca: %s' % str(output_raster_path_list))

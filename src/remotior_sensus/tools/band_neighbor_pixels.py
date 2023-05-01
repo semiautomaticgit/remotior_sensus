@@ -128,7 +128,7 @@ def band_neighbor_pixels(
             )
         except Exception as err:
             cfg.logger.log.error(err)
-            messages.error(str(err))
+            cfg.messages.error(str(err))
             return OutputManager(check=False)
     else:
         function_numpy = stat_numpy.replace('array', 'A, axis=2')
@@ -143,7 +143,7 @@ def band_neighbor_pixels(
             structure = shared_tools.open_structure(structure)
         except Exception as err:
             cfg.logger.log.error(err)
-            messages.error(str(err))
+            cfg.messages.error(str(err))
             return OutputManager(check=False)
     # process calculation
     n = 0

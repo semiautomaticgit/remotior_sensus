@@ -21,16 +21,14 @@ and Sentinel-2 datasets.
 """
 
 import datetime
-import random
 import json
-import time
 from xml.dom import minidom
 
-from remotior_sensus.core import configurations as cfg, messages, \
-    table_manager as tm
+from remotior_sensus.core import configurations as cfg, table_manager as tm
 from remotior_sensus.core.output_manager import OutputManager
-from remotior_sensus.util import download_tools, raster_vector, \
-    files_directories, dates_times, read_write_files
+from remotior_sensus.util import (
+    download_tools, raster_vector, files_directories, dates_times,
+    read_write_files)
 
 
 def search(
@@ -90,7 +88,7 @@ def query_sentinel_2_database(
         result_number:
         name_filter:
         coordinate_list: list [left, top, right, bottom] WGS84 coordinates
-        progress_message:
+        progress_message: progress message
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager`
@@ -126,7 +124,7 @@ def query_sentinel_2_database(
                 coordinate_list[1] - coordinate_list[3]
         ) > 10:
             cfg.logger.log.warning('search area extent beyond limits')
-            messages.warning('search area extent beyond limits')
+            cfg.messages.warning('search area extent beyond limits')
     # get total count products
     if coordinate_list is None:
         # get level 2A
@@ -185,13 +183,13 @@ def query_sentinel_2_database(
                 doc = json.load(json_search)
         except Exception as err:
             cfg.logger.log.error(str(err))
-            messages.error(str(err))
+            cfg.messages.error(str(err))
             return OutputManager(check=False)
         product_count = doc['@odata.count']
         cfg.logger.log.debug('product_count: %s' % str(product_count))
     else:
         cfg.logger.log.error('error: search failed')
-        messages.error('error: search failed')
+        cfg.messages.error('error: search failed')
         return OutputManager(check=False)
     base_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
     product_table_list = []
@@ -262,7 +260,7 @@ def query_sentinel_2_database(
                     doc = json.load(json_search)
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
                 return OutputManager(check=False)
             entries = doc['value']
             for entry in entries:
@@ -409,14 +407,14 @@ def query_sentinel_2_database(
                                 cfg.logger.log.warning(
                                     'failed to get metadata: %s' % url_2
                                 )
-                                messages.warning(
+                                cfg.messages.warning(
                                     'warning: failed to get metadata %s'
                                     % url_2
                                 )
                                 break
         else:
             cfg.logger.log.error('error: search failed')
-            messages.error('error: search failed')
+            cfg.messages.error('error: search failed')
             return OutputManager(check=False)
     cfg.progress.update(end=True)
     cfg.logger.log.info('end')
@@ -453,10 +451,14 @@ def download(
         virtual_download: if True create a virtual raster of the linked image
         extent_coordinate_list: list of coordinates for defining a subset
             region [left, top, right, bottom]
-        proxy_host:
-        proxy_port:
-        proxy_user:
-        proxy_password:
+        proxy_host: proxy host
+        proxy_port: proxy port
+        proxy_user: proxy user
+        proxy_password: proxy password
+        authentication_uri: authentication uri
+        user: user for authentication
+        password: password for authentication
+        progress_message: progress message
 
     Returns:
         object OutputManger
@@ -644,7 +646,7 @@ def download(
                             'downloaded file %s' % output_file
                         )
                     else:
-                        messages.error(
+                        cfg.messages.error(
                             'failed download %s_B%s' % (image_name[0:-7], band)
                         )
                         cfg.logger.log.error(
@@ -773,7 +775,7 @@ def _check_sentinel_2_bands(
             output_list.append(output_file)
             cfg.logger.log.debug('downloaded file %s' % output_file)
         else:
-            messages.error(
+            cfg.messages.error(
                 'failed download %s_B%s' % (image_name[0:-7], band_number)
             )
             cfg.logger.log.error(
@@ -847,7 +849,7 @@ def query_nasa_cmr(
                 coordinate_list[1] - coordinate_list[3]
         ) > 10:
             cfg.logger.log.warning('search area extent beyond limits')
-            messages.warning('search area extent beyond limits')
+            cfg.messages.warning('search area extent beyond limits')
     # loop for results
     max_result_number = result_number
     if max_result_number > 2000:
@@ -857,7 +859,7 @@ def query_nasa_cmr(
         page += 1
         if coordinate_list is None:
             cfg.logger.log.error('search area required')
-            messages.error('search area required')
+            cfg.messages.error('search area required')
             return OutputManager(check=False)
         else:
             # ignoring cloud cover because of issue returning 0 results
@@ -976,5 +978,5 @@ def query_nasa_cmr(
             )
         else:
             cfg.logger.log.error('error: search failed')
-            messages.error('error: search failed')
+            cfg.messages.error('error: search failed')
             return OutputManager(check=False)

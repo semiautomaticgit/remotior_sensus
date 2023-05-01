@@ -9,7 +9,7 @@ class TestBandClassification(TestCase):
     def test_band_classification(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-        )
+            )
         cfg = rs.configurations
         cfg.logger.log.debug('test')
         cfg.logger.log.debug('>>> test semiautomatic classification')

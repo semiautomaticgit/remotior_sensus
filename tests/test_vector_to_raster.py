@@ -9,7 +9,7 @@ class TestVectorToRaster(TestCase):
     def test_vector_to_raster(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-        )
+            )
         cfg = rs.configurations
         cfg.logger.log.debug('test')
         v = './data/files/roi.gpkg'

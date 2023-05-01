@@ -306,7 +306,7 @@ def _run_expression(
         _check_numpy_operators(expr_function, len(input_rasters))
     except Exception as err:
         cfg.logger.log.error(str(err))
-        messages.error(str(err))
+        cfg.messages.error(str(err))
         return False, False
     # get input files
     input_raster_list, raster_info, nodata_list, name_list, warped = \
@@ -358,7 +358,7 @@ def _run_expression(
             )
         except Exception as err:
             cfg.logger.log.error(str(err))
-            messages.error(str(err))
+            cfg.messages.error(str(err))
     return output, out_name
 
 
@@ -469,7 +469,7 @@ def _band_names_alias(
                                ] = str(input_raster_list[i])
             except Exception as err:
                 cfg.logger.log.error(str(err))
-                messages.error(str(err))
+                cfg.messages.error(str(err))
                 break
     # BandSet bands
     if bandset_catalog is not None:
