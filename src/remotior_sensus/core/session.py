@@ -345,29 +345,29 @@ def _check_dependencies(configuration_module: configurations) -> bool:
             import numpy
         except Exception as err:
             configuration_module.logger.log.error(str(err))
-            cfg.messages.error('dependency error: numpy')
+            configuration_module.messages.error('dependency error: numpy')
             check = False
         try:
             from scipy import signal
         except Exception as err:
             configuration_module.logger.log.error(str(err))
-            cfg.messages.error('dependency error: scipy')
+            configuration_module.messages.error('dependency error: scipy')
             check = False
         try:
             import torch
         except Exception as err:
             configuration_module.logger.log.error(str(err))
-            cfg.messages.error('dependency error: pytorch')
+            configuration_module.messages.error('dependency error: pytorch')
         if configuration_module.gdal_path is not None:
             os.add_dll_directory(configuration_module.gdal_path)
         try:
             from osgeo import gdal
         except Exception as err:
             configuration_module.logger.log.error(str(err))
-            cfg.messages.error('dependency error: gdal')
+            configuration_module.messages.error('dependency error: gdal')
             check = False
     except Exception as err:
         configuration_module.logger.log.error(str(err))
-        cfg.messages.error(str(err))
+        configuration_module.messages.error(str(err))
         check = False
     return check
