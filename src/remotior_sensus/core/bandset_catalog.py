@@ -16,14 +16,16 @@
 # along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
 
 from copy import deepcopy
-
+from xml.etree import cElementTree
+from xml.dom import minidom
 import random
 from typing import Union, Optional
 
 import numpy as np
 
 from remotior_sensus.core import configurations as cfg, table_manager as tm
-from remotior_sensus.util import dates_times, files_directories, raster_vector
+from remotior_sensus.util import (
+    dates_times, files_directories, raster_vector, read_write_files)
 
 """BandSet manager.
 
@@ -401,6 +403,121 @@ class BandSet(object):
         self.bands = self.name = self.date = self.root_directory = None
         self.box_coordinate_list = self.crs = None
         cfg.logger.log.debug('reset')
+
+    def export_as_xml(self, output_path=None):
+        """Exports a BandSet as xml.
+
+        Exports a BandSet bands and attributes.
+
+        Examples:
+            Export a BandSet
+                >>> bandset = BandSet()
+                >>> # reset
+                >>> bandset.export_as_xml()
+        """  # noqa: E501
+        root = cElementTree.Element('bandset')
+        root.set('name', str(self.name))
+        root.set('date', str(self.date))
+        root.set('root_directory', str(self.root_directory))
+        root.set('crs', str(self.crs))
+        if self.box_coordinate_list is not None:
+            root.set('box_coordinate_left', str(self.box_coordinate_list[0]))
+            root.set('box_coordinate_top', str(self.box_coordinate_list[1]))
+            root.set('box_coordinate_right', str(self.box_coordinate_list[2]))
+            root.set('box_coordinate_bottom', str(self.box_coordinate_list[3]))
+        if self.bands is not None:
+            for band in self.bands:
+                band_element = cElementTree.SubElement(root, 'band')
+                band_element.set('band_number', str(band['band_number']))
+                for attribute in self.bands.dtype.names:
+                    if attribute != 'band_number':
+                        element = cElementTree.SubElement(band_element,
+                                                          attribute)
+                        element.text = str(band[attribute])
+        cfg.logger.log.debug('export bandset')
+        if output_path is None:
+            return cElementTree.tostring(root)
+        else:
+            # save to file
+            pretty_xml = minidom.parseString(
+                cElementTree.tostring(root)).toprettyxml()
+            read_write_files.write_file(pretty_xml, output_path)
+            return output_path
+
+    def import_as_xml(self, xml_path):
+        """Imports a BandSet as xml.
+
+        Imports a BandSet bands and attributes.
+
+        Examples:
+            Import a BandSet
+                >>> bandset = BandSet()
+                >>> # reset
+                >>> bandset.import_as_xml('xml_path')
+        """  # noqa: E501
+
+        tree = cElementTree.parse(xml_path)
+        root = tree.getroot()
+        name = root.get('name')
+        date = root.get('date')
+        root_directory = root.get('root_directory')
+        crs = root.get('crs')
+        box_coordinate_left = root.get('box_coordinate_left')
+        box_coordinate_top = root.get('box_coordinate_top')
+        box_coordinate_right = root.get('box_coordinate_right')
+        box_coordinate_bottom = root.get('box_coordinate_bottom')
+        if box_coordinate_left is None:
+            box_coordinate_list = None
+        else:
+            box_coordinate_list = [
+                float(box_coordinate_left), float(box_coordinate_top),
+                float(box_coordinate_right), float(box_coordinate_bottom)
+            ]
+        bands_list = []
+        for child in root:
+            band_number = child.get('band_number')
+            attributes = {}
+            for attribute in self.bands.dtype.names:
+                if attribute != 'band_number':
+                    element = child.find(attribute).text
+                    if element == 'None':
+                        element = None
+                    attributes[attribute] = element
+            new_band = tm.create_band_table(
+                band_number=band_number, raster_band=attributes['raster_band'],
+                path=attributes['path'],
+                absolute_path=attributes['absolute_path'],
+                name=attributes['name'], wavelength=attributes['wavelength'],
+                wavelength_unit=attributes['wavelength_unit'],
+                additive_factor=attributes['additive_factor'],
+                multiplicative_factor=attributes['multiplicative_factor'],
+                date=attributes['date'], x_size=attributes['x_size'],
+                y_size=attributes['y_size'], top=attributes['top'],
+                left=attributes['left'], bottom=attributes['bottom'],
+                right=attributes['right'], x_count=attributes['x_count'],
+                y_count=attributes['y_count'], nodata=attributes['nodata'],
+                data_type=attributes['data_type'], crs=attributes['crs'],
+                number_of_bands=attributes['number_of_bands'],
+                x_block_size=attributes['x_block_size'],
+                y_block_size=attributes['y_block_size'],
+                scale=attributes['scale'], offset=attributes['offset']
+            )
+            bands_list.append(new_band)
+        self.bands = tm.create_bandset_table(bands_list)
+        if date is None:
+            date = 'NaT'
+        self.date = np.array(date, dtype='datetime64[D]')
+        if root_directory == 'None':
+            root_directory = None
+        self.root_directory = root_directory
+        if crs == 'None':
+            crs = None
+        self.crs = crs
+        if name == 'None':
+            name = None
+        self.name = name
+        self.box_coordinate_list = box_coordinate_list
+        cfg.logger.log.debug('import bandset: %s' % xml_path)
 
     @classmethod
     def create(
@@ -2128,6 +2245,31 @@ class BandSetCatalog(object):
             box_coordinate_bottom=box_coordinate_bottom
         )
         cfg.logger.log.debug('empty bandset')
+
+    def clear_bandset(self, bandset_number):
+        """Function to clear a BandSet."""
+        bandset = self.get_bandset(bandset_number)
+        bandset.reset()
+        cfg.logger.log.debug('clear bandset')
+
+    def export_bandset_as_xml(self, bandset_number, output_path=None):
+        """Function to export a BandSet as xml."""
+        cfg.logger.log.debug('export bandset as xml')
+        bandset = self.get_bandset(bandset_number)
+        xml = bandset.export_as_xml()
+        pretty_xml = minidom.parseString(xml).toprettyxml()
+        if output_path is None:
+            return pretty_xml
+        else:
+            # save to file
+            read_write_files.write_file(pretty_xml, output_path)
+            return output_path
+
+    def import_bandset_from_xml(self, bandset_number, xml_path):
+        """Function to import a BandSet from xml."""
+        cfg.logger.log.debug('import bandset from xml')
+        bandset = self.get_bandset(bandset_number)
+        bandset.import_as_xml(xml_path)
 
     @staticmethod
     def get_band_list(

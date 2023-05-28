@@ -58,6 +58,8 @@ class TestBandSetCatalog(TestCase):
             catalog.bandsets_table['root_directory'][
                 catalog.bandsets_table.bandset_number == 1]
         )
+        # clear BandSet
+        catalog.clear_bandset(bandset_number=1)
         # BandSet from directory
         catalog.create_bandset(
             paths=[data_directory, 'tif'], wavelengths=['Sentinel-2'],
@@ -91,6 +93,22 @@ class TestBandSetCatalog(TestCase):
             catalog.get_box_coordinate_list(3)
         )
         self.assertEqual(coordinate_list, catalog.get_box_coordinate_list(3))
+        # export as xml
+        temp = cfg.temp.temporary_file_path(name_suffix='.xml')
+        catalog.export_bandset_as_xml(2, output_path=temp)
+        self.assertTrue(files_directories.is_file(temp))
+        catalog.import_bandset_from_xml(3, xml_path=temp)
+        for i in range(len(catalog.get(2).bands[0])):
+            if str(catalog.get(2).bands[0][i]) != 'NaT':
+                self.assertEqual(catalog.get(2).bands[0][i],
+                                 catalog.get(3).bands[0][i])
+        self.assertEqual(
+            [catalog.get(2).date, catalog.get(2).root_directory,
+             catalog.get(2).crs, catalog.get(2).name,
+             catalog.get(2).box_coordinate_list],
+            [catalog.get(3).date, catalog.get(3).root_directory,
+             catalog.get(3).crs, catalog.get(3).name,
+             catalog.get(3).box_coordinate_list])
         # set current BandSet
         catalog.current_bandset = 10
         # current BandSet
