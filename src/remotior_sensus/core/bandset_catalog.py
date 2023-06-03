@@ -1924,12 +1924,12 @@ class BandSetCatalog(object):
         # move up bands between band_number_input and band_number_output
         elif band_number_input > band_number_output:
             bandset.bands['band_number'][
-                (bandset.bands['band_number'] >= band_number_input) & (
-                        bandset.bands['band_number'] < band_number_output)] = \
+                (bandset.bands['band_number'] >= band_number_output) & (
+                        bandset.bands['band_number'] < band_number_input)] = \
                 bandset.bands['band_number'][
-                    (bandset.bands['band_number'] >= band_number_input) & (
+                    (bandset.bands['band_number'] >= band_number_output) & (
                             bandset.bands[
-                                'band_number'] < band_number_output)] + 1
+                                'band_number'] < band_number_input)] + 1
         # set band_number_output to moved band
         bandset.bands['band_number'][
             bandset.bands['band_number'] == -1] = band_number_output

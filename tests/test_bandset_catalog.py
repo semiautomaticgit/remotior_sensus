@@ -181,11 +181,16 @@ class TestBandSetCatalog(TestCase):
         )
         self.assertEqual(len(bandsets), 3)
         # move band in BandSet
-        band_2 = catalog.get_bandset(1).get_band(2).name
+        band_3 = catalog.get_bandset(1).get_band(3).name
         catalog.move_band_in_bandset(
-            bandset_number=1, band_number_input=2, band_number_output=5
+            bandset_number=1, band_number_input=3, band_number_output=2
         )
-        self.assertEqual(band_2, catalog.get_bandset(1).get_band(5).name[0])
+        self.assertEqual(band_3, catalog.get_bandset(1).get_band(2).name[0])
+        band_4 = catalog.get_bandset(1).get_band(4).name
+        catalog.move_band_in_bandset(
+            bandset_number=1, band_number_input=4, band_number_output=6
+        )
+        self.assertEqual(band_4, catalog.get_bandset(1).get_band(6).name[0])
         # add band to BandSet
         bandset_1_count = catalog.get_bandset(1).get_band_count()
         catalog.add_band_to_bandset(

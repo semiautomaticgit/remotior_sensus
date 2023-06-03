@@ -356,8 +356,13 @@ def _check_dependencies(configuration_module: configurations) -> bool:
         try:
             import torch
         except Exception as err:
-            configuration_module.logger.log.error(str(err))
-            configuration_module.messages.error('dependency error: pytorch')
+            configuration_module.logger.log.warning(str(err))
+            configuration_module.messages.warning('dependency error: pytorch')
+        try:
+            from sklearn import svm
+        except Exception as err:
+            configuration_module.logger.log.warning(str(err))
+            configuration_module.messages.warning('dependency error: sklearn')
         if configuration_module.gdal_path is not None:
             os.add_dll_directory(configuration_module.gdal_path)
         try:
