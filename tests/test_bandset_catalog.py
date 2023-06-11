@@ -293,6 +293,16 @@ class TestBandSetCatalog(TestCase):
         empty_catalog.remove_bandset(1)
         empty_catalog.remove_bandset(1)
         self.assertEqual(empty_catalog.get_bandset(1).get_band_count(), 0)
+        # set date
+        catalog.get(2).date = '2022-01-01'
+        catalog.sort_bandsets_by_date()
+        self.assertEqual(catalog.get_date(3), '2022-01-01')
+        # print bandset 1
+        catalog.print_bandset(1)
+        # update crs
+        catalog.get(1).crs = None
+        catalog.update_crs(bandset_number=1)
+        self.assertTrue(catalog.get(1).crs is not None)
 
         # clear temporary directory
         rs.close()

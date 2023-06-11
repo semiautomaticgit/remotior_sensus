@@ -118,7 +118,11 @@ class BandSet(object):
             Initialize a BandSet
                 >>> BandSet.create(name=name,box_coordinate_list=box_coordinate_list)
         """  # noqa: E501
-        self.bands = tm.create_bandset_table(bands_list)
+        if bands_list is None:
+            # create an empty band table ('empty' to cause exception)
+            self.bands = tm.create_band_table(band_number='empty')
+        else:
+            self.bands = tm.create_bandset_table(bands_list)
         # unique ID
         self.uid = bandset_uid
         if date is None:
@@ -410,7 +414,7 @@ class BandSet(object):
         Exports a BandSet bands and attributes.
 
         Examples:
-            Export a BandSet
+            Export a BandSet.
                 >>> bandset = BandSet()
                 >>> # reset
                 >>> bandset.export_as_xml()
@@ -443,6 +447,80 @@ class BandSet(object):
                 cElementTree.tostring(root)).toprettyxml()
             read_write_files.write_file(pretty_xml, output_path)
             return output_path
+
+    def print(self):
+        """Prints a BandSet.
+
+        Prints a BandSet bands and attributes.
+
+        Examples:
+            Print a BandSet.
+                >>> bandset = BandSet()
+                >>> # reset
+                >>> bandset.print()
+        """  # noqa: E501
+        text = []
+        nl = cfg.new_line
+        sep = '│ '
+        text.append('name: %s %s' % (str(self.name), nl))
+        text.append('date: %s %s' % (str(self.date), nl))
+        text.append('root directory: %s %s'
+                    % (str(self.root_directory), nl))
+        text.append('crs: %s %s' % (str(self.crs), nl))
+        if self.box_coordinate_list is not None:
+            text.append('box coordinate left %s %s %s'
+                        % (sep, str(self.box_coordinate_list[0]), nl))
+            text.append('box coordinate top %s %s %s'
+                        % (sep, str(self.box_coordinate_list[1]), nl))
+            text.append('box coordinate right %s %s %s'
+                        % (sep, str(self.box_coordinate_list[2]), nl))
+            text.append('box coordinate bottom %s %s %s'
+                        % (sep, str(self.box_coordinate_list[3]), nl))
+        if self.bands is not None:
+            max_widths = {}
+            for attribute in self.bands.dtype.names:
+                max_widths[attribute] = len(attribute)
+                for band in self.bands:
+                    max_widths[attribute] = max(
+                        max_widths[attribute], len(str(band[attribute])))
+            attributes = []
+            for band in self.bands:
+                attributes.append('│ ')
+                for attribute in self.bands.dtype.names:
+                    attributes.append(
+                        '%s %s'
+                        % (str(band[attribute]).ljust(
+                            max_widths[attribute]), sep)
+                    )
+                attributes.append(nl)
+            # field names
+            names = ['│ ']
+            first_line = ['┌']
+            lines = ['├']
+            last_line = ['└']
+            for attribute in self.bands.dtype.names:
+                names.append('%s %s'
+                             % (attribute.ljust(max_widths[attribute]), sep))
+                first_line.append('%s%s'
+                                  % ('─' * (max_widths[attribute] + 2), '┬'))
+                lines.append('%s%s'
+                             % ('─' * (max_widths[attribute] + 2), '┼'))
+                last_line.append('%s%s'
+                                 % ('─' * (max_widths[attribute] + 2), '┴'))
+            names.append(nl)
+            first_line[-1] = first_line[-1][:-1]
+            first_line.append('%s %s' % ('┐', nl))
+            lines[-1] = lines[-1][:-1]
+            lines.append('%s %s' % ('┤', nl))
+            last_line[-1] = last_line[-1][:-1]
+            last_line.append('%s %s' % ('┘', nl))
+            text.append(''.join(first_line))
+            text.append(''.join(names))
+            text.append(''.join(lines))
+            text.append(''.join(attributes))
+            text.append(''.join(last_line))
+        cfg.logger.log.debug('print bandset')
+        print(''.join(text))
 
     def import_as_xml(self, xml_path):
         """Imports a BandSet as xml.
@@ -738,6 +816,7 @@ class BandSet(object):
             crs = bands_list[0]['crs'][0]
         else:
             crs = None
+            bands_list = None
         cfg.logger.log.info('end; file list: %s' % file_list)
         return cls(
             bands_list=bands_list, name=name, date=date,
@@ -2183,6 +2262,23 @@ class BandSetCatalog(object):
         # sort
         self.bandsets_table.sort(order='bandset_number')
 
+    def sort_bandsets_by_date(self):
+        """Sort BandSets by BandSet date.
+
+         This function sorts BandSets in the BandSet Catalog based on the date.
+
+         Examples:
+            Sort BandSets.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.sort_bandsets_by_date()
+         """  # noqa: E501
+        cfg.logger.log.debug('sort_bandsets_by_date')
+        bandset_numbers = deepcopy(self.bandsets_table['bandset_number'])
+        # sort
+        self.bandsets_table.sort(order='date')
+        self.bandsets_table['bandset_number'] = bandset_numbers
+        self.bandsets_table.sort(order='bandset_number')
+
     def remove_bandset(self, bandset_number: int):
         """Removes a BandSet.
 
@@ -2246,11 +2342,21 @@ class BandSetCatalog(object):
         )
         cfg.logger.log.debug('empty bandset')
 
-    def clear_bandset(self, bandset_number):
+    def clear_bandset(self, bandset_number=None):
         """Function to clear a BandSet."""
+        if bandset_number is None:
+            bandset_number = self.current_bandset
         bandset = self.get_bandset(bandset_number)
         bandset.reset()
         cfg.logger.log.debug('clear bandset')
+
+    def print_bandset(self, bandset_number=None):
+        """Function to print a BandSet bands and attributes."""
+        cfg.logger.log.debug('print bandset')
+        if bandset_number is None:
+            bandset_number = self.current_bandset
+        bandset = self.get_bandset(bandset_number)
+        bandset.print()
 
     def export_bandset_as_xml(self, bandset_number, output_path=None):
         """Function to export a BandSet as xml."""
@@ -2441,9 +2547,9 @@ class BandSetCatalog(object):
         if bandset_number is None:
             bandset_number = self.current_bandset
         self.get_bandset(bandset_number).root_directory = root_directory
-        self.bandsets_table['root_directory'][self.bandsets_table[
-                                                  'bandset_number'] ==
-                                              bandset_number] = root_directory
+        self.bandsets_table['root_directory'][
+            self.bandsets_table[
+                'bandset_number'] == bandset_number] = root_directory
 
     def set_date(self, date: str, bandset_number: Optional[int] = None):
         """Sets BandSet date.
@@ -2462,6 +2568,8 @@ class BandSetCatalog(object):
         if bandset_number is None:
             bandset_number = self.current_bandset
         self.get_bandset(bandset_number).date = date
+        self.bandsets_table['date'][
+            self.bandsets_table['bandset_number'] == bandset_number] = date
 
     def set_name(self, name: str, bandset_number: int = None):
         """Sets BandSet name.
@@ -2480,6 +2588,68 @@ class BandSetCatalog(object):
         if bandset_number is None:
             bandset_number = self.current_bandset
         self.get_bandset(bandset_number).name = name
+        self.bandsets_table['bandset_name'][
+            self.bandsets_table['bandset_number'] == bandset_number] = name
+
+    def set_crs(self, crs: str, bandset_number: Optional[int] = None):
+        """Sets BandSet crs.
+
+        Sets BandSet crs from Bandset information.
+
+        Args:
+            crs: crs string.
+            bandset_number: number of BandSet; if None, current BandSet is used.
+
+        Examples:
+            Set BandSet 1 crs.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.set_crs(bandset_number=1, crs='PROJCS["WGS 84 / UTM zone 33N"...')
+        """  # noqa: E501
+        if bandset_number is None:
+            bandset_number = self.current_bandset
+        self.get_bandset(bandset_number).crs = crs
+        self.bandsets_table['crs'][
+            self.bandsets_table['bandset_number'] == bandset_number] = crs
+
+    def update_crs(self, bandset_number: Optional[int] = None):
+        """Updates BandSet crs.
+
+        Updates BandSet crs from Bandset first band.
+
+        Args:
+            bandset_number: number of BandSet; if None, current BandSet is used.
+
+        Examples:
+            Update BandSet 1 crs.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.update_crs(bandset_number=1)
+        """  # noqa: E501
+        if bandset_number is None:
+            bandset_number = self.current_bandset
+        crs = self.get_bandset(bandset_number).get_band_attributes('crs')
+        if crs is not None:
+            crs = crs[0]
+        self.get_bandset(bandset_number).crs = crs
+        self.bandsets_table['crs'][
+            self.bandsets_table['bandset_number'] == bandset_number] = crs
+
+    def get_crs(self, bandset_number: Optional[int] = None):
+        """Gets BandSet crs.
+
+        Gets BandSet crs from Bandset information.
+
+        Args:
+            bandset_number: number of BandSet; if None, current BandSet is used.
+
+        Examples:
+            Get BandSet 1 crs.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.get_crs(bandset_number=1)
+        """  # noqa: E501
+        if bandset_number is None:
+            bandset_number = self.current_bandset
+        crs = self.get_bandset(bandset_number).crs
+        return crs
 
     def set_box_coordinate_list(
             self, box_coordinate_list: list,
@@ -2505,6 +2675,18 @@ class BandSetCatalog(object):
         self.get_bandset(
             bandset_number
         ).box_coordinate_list = box_coordinate_list
+        self.bandsets_table['box_coordinate_left'][
+            self.bandsets_table[
+                'bandset_number'] == bandset_number] = box_coordinate_list[0]
+        self.bandsets_table['box_coordinate_top'][
+            self.bandsets_table[
+                'bandset_number'] == bandset_number] = box_coordinate_list[1]
+        self.bandsets_table['box_coordinate_right'][
+            self.bandsets_table[
+                'bandset_number'] == bandset_number] = box_coordinate_list[2]
+        self.bandsets_table['box_coordinate_bottom'][
+            self.bandsets_table[
+                'bandset_number'] == bandset_number] = box_coordinate_list[3]
 
     def get_root_directory(self, bandset_number: Optional[int] = None) -> str:
         """Gets BandSet root directory.
@@ -2543,7 +2725,7 @@ class BandSetCatalog(object):
             Get BandSet 1 date.
                 >>> catalog = BandSetCatalog()
                 >>> catalog.get_date(1)
-        """  # noqa: E501
+        """  # noqa: E501get_
         if bandset_number is None:
             bandset_number = self.current_bandset
         return str(

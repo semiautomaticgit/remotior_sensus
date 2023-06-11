@@ -1138,9 +1138,9 @@ def create_band_table(
         ('y_size', 'float32'), ('top', 'float32'), ('left', 'float32'),
         ('bottom', 'float32'), ('right', 'float32'), ('x_count', 'int64'),
         ('y_count', 'int64'), ('nodata', 'int64'), ('data_type', 'U16'),
-        ('crs', 'U1024'), ('root_directory', 'U1024'),
-        ('number_of_bands', 'int16'), ('x_block_size', 'int64'),
-        ('y_block_size', 'int64'), ('scale', 'int64'), ('offset', 'int64')
+        ('root_directory', 'U1024'), ('number_of_bands', 'int16'),
+        ('x_block_size', 'int64'), ('y_block_size', 'int64'),
+        ('scale', 'int64'), ('offset', 'int64'), ('crs', 'U1024')
     ]
     if nodata is None:
         nodata = cfg.nodata_val_Int64
@@ -1161,14 +1161,16 @@ def create_band_table(
             [(band_number, raster_band, path, absolute_path, name,
               wavelength, wavelength_unit, additive_factor,
               multiplicative_factor, date, x_size, y_size, top, left, bottom,
-              right, x_count, y_count, nodata, data_type, crs, root_directory,
-              number_of_bands, x_block_size, y_block_size, scale, offset)],
+              right, x_count, y_count, nodata, data_type, root_directory,
+              number_of_bands, x_block_size, y_block_size, scale, offset,
+              crs)],
             dtype=dtype_list
         )
         cfg.logger.log.debug('rec_array.shape: %s' % rec_array.shape)
     except Exception as err:
         cfg.logger.log.error(str(err))
-        rec_array = None
+        # create empty table
+        rec_array = np.rec.fromrecords(np.zeros((0,)), dtype=dtype_list)
     return rec_array
 
 
