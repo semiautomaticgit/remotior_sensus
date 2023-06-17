@@ -420,6 +420,7 @@ class BandSet(object):
                 >>> bandset.export_as_xml()
         """  # noqa: E501
         root = cElementTree.Element('bandset')
+        root.set('version', str(cfg.version))
         root.set('name', str(self.name))
         root.set('date', str(self.date))
         root.set('root_directory', str(self.root_directory))
@@ -520,6 +521,7 @@ class BandSet(object):
             text.append(''.join(attributes))
             text.append(''.join(last_line))
         cfg.logger.log.debug('print bandset')
+        # print output
         print(''.join(text))
 
     def import_as_xml(self, xml_path):
@@ -534,68 +536,76 @@ class BandSet(object):
                 >>> bandset.import_as_xml('xml_path')
         """  # noqa: E501
 
+        cfg.logger.log.debug('import bandset: %s' % xml_path)
         tree = cElementTree.parse(xml_path)
         root = tree.getroot()
-        name = root.get('name')
-        date = root.get('date')
-        root_directory = root.get('root_directory')
-        crs = root.get('crs')
-        box_coordinate_left = root.get('box_coordinate_left')
-        box_coordinate_top = root.get('box_coordinate_top')
-        box_coordinate_right = root.get('box_coordinate_right')
-        box_coordinate_bottom = root.get('box_coordinate_bottom')
-        if box_coordinate_left is None:
-            box_coordinate_list = None
+        version = root.get('version')
+        if version is None:
+            cfg.logger.log.error('failed importing bandset: %s' % xml_path)
+            cfg.messages.error('failed importing bandset: %s' % xml_path)
         else:
-            box_coordinate_list = [
-                float(box_coordinate_left), float(box_coordinate_top),
-                float(box_coordinate_right), float(box_coordinate_bottom)
-            ]
-        bands_list = []
-        for child in root:
-            band_number = child.get('band_number')
-            attributes = {}
-            for attribute in self.bands.dtype.names:
-                if attribute != 'band_number':
-                    element = child.find(attribute).text
-                    if element == 'None':
-                        element = None
-                    attributes[attribute] = element
-            new_band = tm.create_band_table(
-                band_number=band_number, raster_band=attributes['raster_band'],
-                path=attributes['path'],
-                absolute_path=attributes['absolute_path'],
-                name=attributes['name'], wavelength=attributes['wavelength'],
-                wavelength_unit=attributes['wavelength_unit'],
-                additive_factor=attributes['additive_factor'],
-                multiplicative_factor=attributes['multiplicative_factor'],
-                date=attributes['date'], x_size=attributes['x_size'],
-                y_size=attributes['y_size'], top=attributes['top'],
-                left=attributes['left'], bottom=attributes['bottom'],
-                right=attributes['right'], x_count=attributes['x_count'],
-                y_count=attributes['y_count'], nodata=attributes['nodata'],
-                data_type=attributes['data_type'], crs=attributes['crs'],
-                number_of_bands=attributes['number_of_bands'],
-                x_block_size=attributes['x_block_size'],
-                y_block_size=attributes['y_block_size'],
-                scale=attributes['scale'], offset=attributes['offset']
-            )
-            bands_list.append(new_band)
-        self.bands = tm.create_bandset_table(bands_list)
-        if date is None:
-            date = 'NaT'
-        self.date = np.array(date, dtype='datetime64[D]')
-        if root_directory == 'None':
-            root_directory = None
-        self.root_directory = root_directory
-        if crs == 'None':
-            crs = None
-        self.crs = crs
-        if name == 'None':
-            name = None
-        self.name = name
-        self.box_coordinate_list = box_coordinate_list
-        cfg.logger.log.debug('import bandset: %s' % xml_path)
+            name = root.get('name')
+            date = root.get('date')
+            root_directory = root.get('root_directory')
+            crs = root.get('crs')
+            box_coordinate_left = root.get('box_coordinate_left')
+            box_coordinate_top = root.get('box_coordinate_top')
+            box_coordinate_right = root.get('box_coordinate_right')
+            box_coordinate_bottom = root.get('box_coordinate_bottom')
+            if box_coordinate_left is None:
+                box_coordinate_list = None
+            else:
+                box_coordinate_list = [
+                    float(box_coordinate_left), float(box_coordinate_top),
+                    float(box_coordinate_right), float(box_coordinate_bottom)
+                ]
+            bands_list = []
+            for child in root:
+                band_number = child.get('band_number')
+                attributes = {}
+                for attribute in self.bands.dtype.names:
+                    if attribute != 'band_number':
+                        element = child.find(attribute).text
+                        if element == 'None':
+                            element = None
+                        attributes[attribute] = element
+                new_band = tm.create_band_table(
+                    band_number=band_number,
+                    raster_band=attributes['raster_band'],
+                    path=attributes['path'],
+                    absolute_path=attributes['absolute_path'],
+                    name=attributes['name'],
+                    wavelength=attributes['wavelength'],
+                    wavelength_unit=attributes['wavelength_unit'],
+                    additive_factor=attributes['additive_factor'],
+                    multiplicative_factor=attributes['multiplicative_factor'],
+                    date=attributes['date'], x_size=attributes['x_size'],
+                    y_size=attributes['y_size'], top=attributes['top'],
+                    left=attributes['left'], bottom=attributes['bottom'],
+                    right=attributes['right'], x_count=attributes['x_count'],
+                    y_count=attributes['y_count'], nodata=attributes['nodata'],
+                    data_type=attributes['data_type'], crs=attributes['crs'],
+                    number_of_bands=attributes['number_of_bands'],
+                    x_block_size=attributes['x_block_size'],
+                    y_block_size=attributes['y_block_size'],
+                    scale=attributes['scale'], offset=attributes['offset']
+                )
+                bands_list.append(new_band)
+            self.bands = tm.create_bandset_table(bands_list)
+            if date is None:
+                date = 'NaT'
+            self.date = np.array(date, dtype='datetime64[D]')
+            if root_directory == 'None':
+                root_directory = None
+            self.root_directory = root_directory
+            if crs == 'None':
+                crs = None
+            self.crs = crs
+            if name == 'None':
+                name = None
+            self.name = name
+            self.box_coordinate_list = box_coordinate_list
+            cfg.logger.log.debug('import bandset: %s' % xml_path)
 
     @classmethod
     def create(
@@ -998,6 +1008,15 @@ class BandSet(object):
         self.bands.sort(order='wavelength')
         order_list = list(range(1, self.bands.shape[0] + 1))
         self.bands['band_number'] = np.array(order_list)
+
+    def sort_bands_by_name(self, keep_wavelength_order=True):
+        """Sorts band order by name"""
+        bandset_wavelength = deepcopy(self.bands['wavelength'])
+        self.bands.sort(order='name')
+        order_list = list(range(1, self.bands.shape[0] + 1))
+        self.bands['band_number'] = np.array(order_list)
+        if keep_wavelength_order:
+            self.bands['wavelength'] = bandset_wavelength
 
     def find_values_in_list(
             self, attribute, value_list, output_attribute=None
@@ -2044,11 +2063,11 @@ class BandSetCatalog(object):
         bandset.bands = bandset.bands[
             bandset.bands['band_number'] != band_number]
         # reorder other band numbers
-        if band_number < bandset.get_band_count():
+        if band_number <= bandset.get_band_count():
             bandset.bands['band_number'][
-                bandset.bands['band_number'] > band_number] = \
+                bandset.bands['band_number'] >= band_number] = \
                 bandset.bands['band_number'][
-                    bandset.bands['band_number'] > band_number] - 1
+                    bandset.bands['band_number'] >= band_number] - 1
         cfg.logger.log.debug('end')
 
     def add_band_to_bandset(
@@ -2115,6 +2134,27 @@ class BandSetCatalog(object):
         if bandset_number is None:
             bandset_number = self.current_bandset
         self.get_bandset(bandset_number).sort_bands_by_wavelength()
+
+    def sort_bands_by_name(self, bandset_number: Optional[int] = None,
+                           keep_wavelength_order: Optional[bool] = True):
+        """Sorts bands by name.
+
+         This function numerically sorts bands in a BandSet by name.
+
+         Args:
+            bandset_number: number of BandSet; if None, current BandSet is used.
+            keep_wavelength_order: if True, keep wavelength_order.
+
+         Examples:
+            Sort bands in BandSet 1.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.sort_bands_by_name(bandset_number=1)
+         """  # noqa: E501
+        cfg.logger.log.debug('bandset_number: %s' % bandset_number)
+        if bandset_number is None:
+            bandset_number = self.current_bandset
+        self.get_bandset(bandset_number).sort_bands_by_name(
+            keep_wavelength_order=keep_wavelength_order)
 
     def add_bandset(
             self, bandset: BandSet, bandset_number: Optional[int] = None,
@@ -2356,6 +2396,7 @@ class BandSetCatalog(object):
         if bandset_number is None:
             bandset_number = self.current_bandset
         bandset = self.get_bandset(bandset_number)
+        # print bandset
         bandset.print()
 
     def export_bandset_as_xml(self, bandset_number, output_path=None):
@@ -2838,3 +2879,73 @@ class BandSetCatalog(object):
         )
         string_2 = np.char.add(string_1, cfg.variable_band_quotes)
         return string_2.tolist()
+
+    def create_virtual_raster(
+            self, bandset_number: int = None, output_path: str = None,
+            nodata_value: int = None, intersection: bool = False
+    ) -> str:
+        """Creates the virtual raster of a bandset.
+
+        Creates the virtual raster of a bandset.
+
+        Args:
+            output_path: output path of the virtual raster; if None, use temporary path.
+            bandset_number: number of BandSet; if None, current BandSet is used.
+            nodata_value: nodata value.
+            intersection: if True get minimum extent from input intersection, if False get maximum extent from union.
+            
+        Returns:
+            Path of the output virtual raster.
+            
+        Examples:
+            Create BandSet 1 virtual raster.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.create_virtual_raster(1)
+         """  # noqa: E501
+        bandset = self.get(bandset_number)
+        if output_path is None:
+            output_path = cfg.temp.temporary_file_path(
+                name_suffix=cfg.vrt_suffix)
+        raster_vector.create_virtual_raster(
+            output=output_path, nodata_value=nodata_value,
+            intersection=intersection, bandset=bandset
+        )
+        cfg.logger.log.debug('output_path: %s' % str(output_path))
+        return output_path
+
+    def create_bandset_stack(
+            self, bandset_number: int = None, output_path: str = None,
+            nodata_value: int = None, intersection: bool = False
+    ) -> str:
+        """Creates a raster stack of a bandset.
+
+        Stacks the raster bands of a bandset in a multiband raster.
+
+        Args:
+            output_path: output path of the raster; if None, use temporary path.
+            bandset_number: number of BandSet; if None, current BandSet is used.
+            nodata_value: nodata value.
+            intersection: if True get minimum extent from input intersection, if False get maximum extent from union.
+
+        Returns:
+            Path of the output raster.
+
+        Examples:
+            Create BandSet 1 raster.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.create_bandset_stack(1)
+         """  # noqa: E501
+        bandset = self.get(bandset_number)
+        if output_path is None:
+            output_path = cfg.temp.temporary_file_path(
+                name_suffix=cfg.tif_suffix
+            )
+        virtual_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
+        raster_vector.create_virtual_raster(
+            output=virtual_path, nodata_value=nodata_value,
+            intersection=intersection, bandset=bandset
+        )
+        raster_vector.gdal_copy_raster(input_raster=virtual_path,
+                                       output=output_path)
+        cfg.logger.log.debug('output_path: %s' % str(output_path))
+        return output_path

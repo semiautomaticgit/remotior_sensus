@@ -508,7 +508,8 @@ def create_virtual_raster(
     :param grid_reference: optional path of a raster used as reference grid
     :param relative_extent_list: list of xOff, yOff, xSize, ySize for source
         and destination
-    :param bandset: optional BandSet
+    :param bandset: optional, use BandSet for input_raster_list,
+        box_coordinate_list, scale_offset_list
 
     """
 
@@ -2003,6 +2004,24 @@ def get_polygon_from_vector(vector_path, attribute_filter=None):
     _v_layer = None
     _d_s = None
     return temp
+
+
+# gdal copy raster
+def gdal_copy_raster(input_raster, output, output_format='GTiff'):
+    out_dir = files_directories.parent_directory(output)
+    files_directories.create_directory(out_dir)
+    raster_driver = gdal.GetDriverByName(output_format)
+    _r_d = gdal.Open(input_raster, gdal.GA_ReadOnly)
+    # geo transformation
+    r_gt = _r_d.GetGeoTransform()
+    r_p = _r_d.GetProjection()
+    _out_raster = raster_driver.CreateCopy(output, _r_d)
+    # set raster projection from reference
+    _out_raster.SetGeoTransform(r_gt)
+    _out_raster.SetProjection(r_p)
+    _r_d = None
+    _out_raster = None
+    return output
 
 
 # gdal warp

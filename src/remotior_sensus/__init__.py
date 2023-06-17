@@ -16,5 +16,8 @@
 # along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
 
 from remotior_sensus.core.session import Session
+from remotior_sensus.core import configurations
 
-__version__ = '0.0.37'
+__version__ = '0.0.38'
+
+configurations.version = __version__

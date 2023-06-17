@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from remotior_sensus.core.multiprocess_manager import Multiprocess
 
 root_name = 'remotior_sensus'
+version = None
 # type hint for Multiprocess
 multiprocess: Multiprocess
 # shared classes

@@ -297,12 +297,18 @@ class TestBandSetCatalog(TestCase):
         catalog.get(2).date = '2022-01-01'
         catalog.sort_bandsets_by_date()
         self.assertEqual(catalog.get_date(3), '2022-01-01')
+        catalog.sort_bands_by_name(bandset_number=1)
         # print bandset 1
         catalog.print_bandset(1)
         # update crs
         catalog.get(1).crs = None
         catalog.update_crs(bandset_number=1)
         self.assertTrue(catalog.get(1).crs is not None)
+        # create virtual raster
+        virtual = catalog.create_virtual_raster(bandset_number=1)
+        self.assertTrue(files_directories.is_file(virtual))
+        stack = catalog.create_bandset_stack(bandset_number=1)
+        self.assertTrue(files_directories.is_file(stack))
 
         # clear temporary directory
         rs.close()
