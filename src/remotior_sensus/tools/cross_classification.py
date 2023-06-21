@@ -5,16 +5,16 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
 # along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
-"""Cros classification.
+"""Cross classification.
 
 This tool performs the cross classification which is similar 
 to band combination, but it is executed between two files only.
@@ -41,7 +41,7 @@ from typing import Optional
 import numpy as np
 
 from remotior_sensus.core import (
-    configurations as cfg, messages, table_manager as tm
+    configurations as cfg, table_manager as tm
 )
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.tools.band_combination import band_combination
@@ -91,7 +91,7 @@ def cross_classification(
     Examples:
         Perform the cross classification between two files
             >>> cross = cross_classification(classification_path='file1.tif',reference_path='file2.tif',output_path='output.tif')
-            
+
         Perform the cross classification between two files and calculate the error matrix
             >>> cross = cross_classification(classification_path='file1.tif',reference_path='file2.tif',output_path='output.tif',error_matrix=True)
     """  # noqa: E501
@@ -101,8 +101,10 @@ def cross_classification(
         start=True
     )
     # check output path
-    out_path, vrt_r = files_directories.raster_output_path(output_path,
-                                                           overwrite=overwrite)
+    out_path, vrt_r = files_directories.raster_output_path(
+        output_path,
+        overwrite=overwrite
+        )
     vector, raster, reference_crs = raster_vector.raster_or_vector_input(
         reference_path
     )
@@ -138,7 +140,7 @@ def cross_classification(
             reference_raster = cfg.multiprocess.create_warped_vrt(
                 raster_path=reference_path, output_path=t_pmd,
                 output_wkt=str(classification_crs)
-                )
+            )
         else:
             reference_raster = reference_path
     # if reference is vector
@@ -179,7 +181,7 @@ def cross_classification(
         output_path=out_path, nodata_value=nodata_value,
         n_processes=n_processes, available_ram=available_ram,
         output_table=False, progress_message=False
-        )
+    )
     vrt_check = combination.paths[0]
     rec_combinations_array = combination.extra['combinations']
     sum_val = combination.extra['sums']
@@ -195,7 +197,7 @@ def cross_classification(
         join_type='left', progress_message=False
     )
     # create table
-    table, slope, intercept = _cross_table(
+    table, slope, intercept, unique_values = _cross_table(
         table=joined_table[joined_table['sum'] != cfg.nodata_val_Int64],
         crs_unit=un, pixel_size_x=p_x, pixel_size_y=p_y,
         regression_raster=regression_raster, cross_matrix=cross_matrix,
@@ -242,7 +244,9 @@ def cross_classification(
         'end; cross classification: %s; table: %s'
         % (str(out_path), str(tbl_out))
     )
-    return OutputManager(paths=[out_path, tbl_out])
+    return OutputManager(
+        paths=[out_path, tbl_out], extra={'unique_values': unique_values}
+        )
 
 
 # create text for table
@@ -254,6 +258,7 @@ def _cross_table(
 ):
     slope = ''
     intercept = ''
+    columns = []
     text = []
     cv = cfg.comma_delimiter
     nl = cfg.new_line
@@ -598,4 +603,4 @@ def _cross_table(
         text.append('Variance B1%s%s' % (cfg.tab_delimiter, str(var_slope)))
         text.append(nl)
     joined_text = ''.join(text)
-    return joined_text, slope, intercept
+    return joined_text, slope, intercept, columns
