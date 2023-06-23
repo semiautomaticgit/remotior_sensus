@@ -14,7 +14,7 @@
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
 # along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
-"""Cross classification.
+"""Cros classification.
 
 This tool performs the cross classification which is similar 
 to band combination, but it is executed between two files only.
@@ -41,7 +41,7 @@ from typing import Optional
 import numpy as np
 
 from remotior_sensus.core import (
-    configurations as cfg, table_manager as tm
+    configurations as cfg, messages, table_manager as tm
 )
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.tools.band_combination import band_combination
@@ -210,6 +210,8 @@ def cross_classification(
         )
     ).replace('\\', '/')
     read_write_files.write_file(table, tbl_out)
+    out_raster_b0 = None
+    out_raster_b1 = None
     # regression raster
     if regression_raster:
         cfg.progress.update(message='regression raster', step=98)
@@ -245,8 +247,13 @@ def cross_classification(
         % (str(out_path), str(tbl_out))
     )
     return OutputManager(
-        paths=[out_path, tbl_out], extra={'unique_values': unique_values}
-        )
+        paths=[out_path, tbl_out],
+        extra={
+            'unique_values': unique_values,
+            'regression_raster_b0': out_raster_b0,
+            'regression_raster_b1': out_raster_b1
+        }
+    )
 
 
 # create text for table
@@ -258,7 +265,6 @@ def _cross_table(
 ):
     slope = ''
     intercept = ''
-    columns = []
     text = []
     cv = cfg.comma_delimiter
     nl = cfg.new_line
@@ -292,6 +298,9 @@ def _cross_table(
     text.append(nl)
     text.append(matrix_value.replace('.00', ''))
     text.append(nl)
+    columns = np.unique(
+        np.append(cross_class['f0'], cross_class['f1'])
+    ).tolist()
     # cross matrix
     if cross_matrix:
         if 'degree' not in crs_unit:
@@ -347,9 +356,6 @@ def _cross_table(
             column_function_list=[['sum', 'sum']], cross_matrix=True,
             progress_message=False
         )
-        columns = np.unique(
-            np.append(cross_class['f0'], cross_class['f1'])
-        ).tolist()
         # regular error matrix
         err_matrix = np.zeros((len(columns) + 1, len(columns) + 2))
         # area based error matrix
