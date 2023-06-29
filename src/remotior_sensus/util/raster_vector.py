@@ -420,6 +420,26 @@ def open_raster(raster_path, access=None):
     return raster
 
 
+# open vector
+def open_vector(vector_path):
+    vector = ogr.Open(vector_path)
+    return vector
+
+
+# get unique values from vector field
+def get_vector_values(vector_path, field_name):
+    vector = ogr.Open(vector_path)
+    i_layer = vector.GetLayer()
+    i_layer_name = i_layer.GetName()
+    # get unique values
+    sql = 'SELECT DISTINCT "%s" FROM "%s"' % (field_name, i_layer_name)
+    unique_values = vector.ExecuteSQL(sql, dialect='SQLITE')
+    values = []
+    for i, f in enumerate(unique_values):
+        values.append(f.GetField(0))
+    return values
+
+
 # write raster
 def write_raster(
         raster_path, x, y, data_array, nodata_value=None, scale=None,

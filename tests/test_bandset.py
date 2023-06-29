@@ -174,7 +174,7 @@ class TestBandSet(TestCase):
             if str(bandset.bands[0][i]) != 'NaT':
                 self.assertEqual(bandset.bands[0][i], bandset2.bands[0][i])
 
-        """
+        """ commented because time consuming
         cfg.logger.log.debug('>>> test tools')
         expression = (
                 cfg.variable_band_quotes + cfg.variable_ndvi_name

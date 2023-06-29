@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
 
+import os
 from contextlib import redirect_stdout
 
 import numpy as np
@@ -1250,6 +1251,73 @@ def score_classifier_stratified(
             )
             score = np.array(scores)
             results.append([d['classifier'], score.mean(), score.std()])
+            if progress_queue is not None:
+                progress_queue.put([n, len(argument_list)], False)
+        except Exception as err:
+            errors = str(err)
+    return [results, errors, str(process)]
+
+
+# clip_raster
+def clip_raster(
+        process, progress_queue, argument_list, logger
+):
+    cfg.logger = logger
+    results = []
+    n = 0
+    errors = False
+    for d in argument_list:
+        n += 1
+        gdal_path = d['gdal_path']
+        cfg.logger.log.debug('start')
+        if gdal_path is not None:
+            for path in gdal_path.split(';'):
+                try:
+                    os.add_dll_directory(path)
+                    cfg.gdal_path = path
+                except Exception as err:
+                    str(err)
+        from osgeo import gdal, ogr, osr
+        # GDAL config
+        try:
+            gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+            gdal.SetConfigOption('GDAL_CACHEMAX', str(d['available_ram']))
+            gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+            gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        except Exception as err:
+            str(err)
+        try:
+            _r_d = gdal.Open(d['input_raster'], gdal.GA_ReadOnly)
+            sr = osr.SpatialReference()
+            sr.ImportFromWkt(_r_d.GetProjectionRef())
+            if d['extent_list'] is not None:
+                # copy raster band
+                op = ' -co BIGTIFF=YES -co COMPRESS=%s' % d['compress_format']
+                op += ' -of %s' % 'GTiff'
+                to = gdal.WarpOptions(gdal.ParseCommandLine(op))
+            else:
+                _vector = ogr.Open(d['vector_path'])
+                _v_layer = _vector.GetLayer()
+                v_sr = _v_layer.GetSpatialRef()
+                if sr.IsSame(v_sr) == 1:
+                    pass
+                else:
+                    c_t = osr.CoordinateTransformation(v_sr, sr)
+                    _v_layer.Transform(c_t)
+                extent = _v_layer.GetExtent()
+                crop = True
+                op = ' -co BIGTIFF=YES -co COMPRESS=%s' % d['compress_format']
+                # op += ' -wo CUTLINE_ALL_TOUCHED = TRUE'
+                to = gdal.WarpOptions(
+                    gdal.ParseCommandLine(op),
+                    format='GTiff', outputBounds=extent,
+                    dstSRS=sr.ExportToWkt(), cutlineDSName=d['vector_path'],
+                    cropToCutline=crop, cutlineWhere=d['where']
+                    )
+            gdal.Warp(d['output'], d['input_raster'], options=to)
+            _vector = None
+            _r_d = None
+            results.append([d['output']])
             if progress_queue is not None:
                 progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
