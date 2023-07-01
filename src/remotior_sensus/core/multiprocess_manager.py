@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -24,7 +24,7 @@ from typing import Union
 import numpy as np
 from numpy.lib import recfunctions as rfn
 
-from remotior_sensus.core import configurations as cfg, messages, processor
+from remotior_sensus.core import configurations as cfg, processor
 from remotior_sensus.util import files_directories, raster_vector
 
 try:
@@ -82,7 +82,8 @@ class Multiprocess(object):
             classification=False, classification_confidence=False,
             signature_raster=False, virtual_raster=False,
             multi_add_factors=None, separate_bands=False,
-            progress_message=None, device=None,
+            progress_message=None, device=None, multiple_block=None,
+            specific_output=None,
             min_progress=None, max_progress=None
     ):
         """
@@ -119,10 +120,12 @@ class Multiprocess(object):
         :param function_argument: arguments of function
         :param n_processes: number of parallel processes.
         :param function: function name
+        :param specific_output: dictionary of values for specific output raster
         :param classification: if True, settings are defined for a classification output
         :param use_value_as_nodata: integer value as nodata in calculation
         :param separate_bands: if True, calculate a section for each raster range
         :param progress_message: progress message
+        :param multiple_block: allows for setting block size as a multiple of the pixel count here defined
         :param min_progress: minimum progress value
         :param max_progress: maximum progress value
         """  # noqa: E501
@@ -179,7 +182,7 @@ class Multiprocess(object):
         # calculate block size
         block_size = _calculate_block_size(
             raster_path, n_processes, memory_unit, dummy_bands,
-            available_ram=available_ram
+            available_ram=available_ram, multiple=multiple_block
         )
         if block_size is not False:
             (raster_x_size, raster_y_size, block_size_x, block_size_y,
@@ -193,7 +196,8 @@ class Multiprocess(object):
         pieces = _compute_raster_pieces(
             raster_x_size, raster_y_size, block_size_x, block_size_y,
             list_range_y, n_processes, separate_bands=separate_bands,
-            boundary_size=boundary_size, unique_section=unique_section
+            boundary_size=boundary_size, unique_section=unique_section,
+            specific_output=specific_output
         )
         # progress queue
         p_mq = self.manager.Queue()
@@ -205,7 +209,7 @@ class Multiprocess(object):
                                 pieces[p], [scale], [offset],
                                 [use_value_as_nodata], None,
                                 input_nodata_as_value, multi_add_factors,
-                                dummy_bands]
+                                dummy_bands, specific_output]
             output_parameters = [[output_raster_path], [output_data_type],
                                  compress, compress_format, any_nodata_mask,
                                  [output_nodata_value], [output_band_number],
@@ -418,7 +422,7 @@ class Multiprocess(object):
                                 boundary_size, None, scl, offs,
                                 use_value_as_nodata[ranges[p - 1]: ranges[p]],
                                 None, input_nodata_as_value, multi_add_factors,
-                                dummy_bands]
+                                dummy_bands, None]
             output_parameters = [output_list,
                                  output_data_type[ranges[p - 1]: ranges[p]],
                                  compress, compress_format, any_nodata_mask,
@@ -1499,8 +1503,8 @@ class Multiprocess(object):
             output_path=None, reference_raster_path=None,
             output_format=None, nodata_value=None,
             background_value=None, burn_values=None, minimum_extent=None,
-            x_y_size=None, all_touched=None, area_based=None,
-            area_precision=None, compress=None, compress_format=None,
+            x_y_size=None, all_touched=None,
+            compress=None, compress_format=None,
             available_ram: int = None, min_progress=0, max_progress=100
     ):
         cfg.logger.log.debug('start')
@@ -1520,8 +1524,7 @@ class Multiprocess(object):
                               available_ram]
         input_parameters = [vector_path, field_name, reference_raster_path,
                             nodata_value, background_value, burn_values,
-                            x_y_size, all_touched, area_based,
-                            area_precision, minimum_extent]
+                            x_y_size, all_touched, minimum_extent]
         output_parameters = [output_path, output_format, compress,
                              compress_format]
         c = self.pool.apply_async(
@@ -2022,7 +2025,7 @@ class Multiprocess(object):
 # calculate block size and pixel ranges
 def _calculate_block_size(
         raster_path, n_processes, memory_unit, dummy_bands,
-        available_ram: int = None
+        available_ram: int = None, multiple: int = None
 ):
     cfg.logger.log.debug('start')
     info = raster_vector.raster_info(raster_path)
@@ -2039,6 +2042,14 @@ def _calculate_block_size(
     y_block = block_size[1]
     if y_block == r_y:
         y_block = block_size[0]
+    if multiple is not None:
+        multiple_block = (y_block // multiple) * multiple
+        if multiple_block > 0:
+            y_block = int(multiple_block)
+        else:
+            y_block = int(multiple)
+    if y_block > r_y:
+        y_block = r_y
     single_block_size = r_x * y_block * memory_unit * (
             number_of_bands + dummy_bands)
     if available_ram is None:
@@ -2074,7 +2085,7 @@ def _calculate_block_size(
 def _compute_raster_pieces(
         raster_x_size, raster_y_size, block_size_x, block_size_y, list_range_y,
         n_processes, separate_bands=False, boundary_size=None,
-        unique_section=False
+        unique_section=False, specific_output=None
 ):
     """
     :param raster_x_size: number of raster columns
@@ -2090,6 +2101,8 @@ def _compute_raster_pieces(
     """
     # list of pieces (one per process) where each range is based on sections
     pieces = []
+    if specific_output is not None:
+        specific_output['pieces'] = []
     if unique_section:
         sections = [processor.RasterSection(
             x_min=0, y_min=0, x_max=raster_x_size, y_max=raster_y_size,
@@ -2127,6 +2140,10 @@ def _compute_raster_pieces(
             y_size_boundary_bottom_range = None
             # list of Sections per process
             sections_list = []
+            if specific_output is not None:
+                specific_output_sections = []
+            else:
+                specific_output_sections = None
             # iterate over process y pieces
             for process_y_range in range(
                     y_range_index_list[y_range_index - 1],
@@ -2149,11 +2166,35 @@ def _compute_raster_pieces(
                                 y_max=y_max, x_size=block_size_x, y_size=y_size
                             )
                         )
+                        if specific_output is not None:
+                            specific_output_sections.append(
+                                processor.RasterSection(
+                                    x_min=0,
+                                    y_min=int(
+                                        y * specific_output['resize_factor']),
+                                    x_max=int(
+                                        block_size_x
+                                        * specific_output['resize_factor']),
+                                    y_max=int(
+                                        y_max
+                                        * specific_output['resize_factor']),
+                                    x_size=int(
+                                        block_size_x
+                                        * specific_output['resize_factor']),
+                                    y_size=(int(
+                                        y_max
+                                        * specific_output['resize_factor'])
+                                            - int(y * specific_output[
+                                                'resize_factor'])),
+                                )
+                            )
                         # range variables
                         y_size_range += y_size
                         y_size_no_boundary_range = y_size_range
                         y_min_no_boundary_range_list.append(y)
                         y_max_no_boundary_range_list.append(y_max)
+                        # keep the last one
+                        y_max_range = y_max
                     # with y boundary
                     else:
                         y_min_no_boundary = y
@@ -2194,6 +2235,42 @@ def _compute_raster_pieces(
                                 y_size_no_boundary=y_size_no_boundary
                             )
                         )
+                        if specific_output is not None:
+                            specific_output_sections.append(
+                                processor.RasterSection(
+                                    x_min=0,
+                                    y_min=int(
+                                        y_min * specific_output[
+                                            'resize_factor']),
+                                    x_max=int(
+                                        block_size_x * specific_output[
+                                            'resize_factor']),
+                                    y_max=int(y_max * specific_output[
+                                        'resize_factor']),
+                                    x_size=int(block_size_x * specific_output[
+                                        'resize_factor']),
+                                    y_size=(int(y_max * specific_output[
+                                        'resize_factor'])
+                                            - int(y_min * specific_output[
+                                                'resize_factor'])),
+                                    y_min_no_boundary=int(
+                                        y_min_no_boundary * specific_output[
+                                            'resize_factor']),
+                                    y_max_no_boundary=int(
+                                        y_max_no_boundary * specific_output[
+                                            'resize_factor']),
+                                    y_size_boundary_top=int(
+                                        y_size_boundary_top * specific_output[
+                                            'resize_factor']),
+                                    y_size_boundary_bottom=int(
+                                        y_size_boundary_bottom
+                                        * specific_output['resize_factor']),
+                                    y_size_no_boundary=int(
+                                        y_size_no_boundary
+                                        * specific_output['resize_factor'])
+                                )
+                            )
+
                         # range variables
                         y_size_range += y_size
                         y_size_no_boundary_range += y_size_no_boundary
@@ -2239,6 +2316,47 @@ def _compute_raster_pieces(
                         y_size_boundary_bottom=y_size_boundary_bottom_range
                     )
                 )
+                if specific_output is not None:
+                    if y_size_boundary_top_range is None:
+                        y_size_boundary_top_range_s = None
+                    else:
+                        y_size_boundary_top_range_s = int(
+                            y_size_boundary_top_range
+                            * specific_output['resize_factor'])
+                    if y_size_boundary_bottom_range is None:
+                        y_size_boundary_bottom_range_s = None
+                    else:
+                        y_size_boundary_bottom_range_s = int(
+                            y_size_boundary_bottom_range
+                            * specific_output['resize_factor'])
+                    specific_output['pieces'].append(
+                        processor.RasterPiece(
+                            section_list=specific_output_sections, x_min=0,
+                            y_min=int(y_min_range
+                                      * specific_output['resize_factor']),
+                            x_max=int(block_size_x
+                                      * specific_output['resize_factor']),
+                            y_max=int(y_max_range
+                                      * specific_output['resize_factor']),
+                            x_size=int(block_size_x
+                                       * specific_output['resize_factor']),
+                            y_size=int(y_size_range
+                                       * specific_output['resize_factor']),
+                            y_min_no_boundary=int(
+                                min(y_min_no_boundary_range_list)
+                                * specific_output['resize_factor']),
+                            y_max_no_boundary=int(
+                                max(y_max_no_boundary_range_list)
+                                * specific_output['resize_factor']),
+                            y_size_boundary_top=y_size_boundary_top_range_s,
+                            y_size_no_boundary=int(
+                                y_size_no_boundary_range
+                                * specific_output['resize_factor']),
+                            y_size_boundary_bottom=(
+                                y_size_boundary_bottom_range_s
+                            )
+                        )
+                    )
     cfg.logger.log.debug('len(pieces): %s' % str(len(pieces)))
     return pieces
 

@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -70,6 +70,11 @@ def function_initiator(
     input_nodata_as_value = input_parameters[8]
     multi_add_factors = input_parameters[9]
     dummy_bands = input_parameters[10]
+    specific_output = input_parameters[11]
+    if specific_output is not None:
+        specific_output_piece = specific_output['pieces'][int(process_id)]
+    else:
+        specific_output_piece = None
     # get output parameters
     (output_raster_list, output_data_type, compress, compress_format,
      any_nodata_mask, output_no_data, output_band_number, keep_output_array,
@@ -189,6 +194,8 @@ def function_initiator(
         output_argument = None
         # generic output raster
         out_generic = None
+        # specific output raster
+        out_specific = None
         # output data type
         if output_data_type:
             out_data_type = output_data_type[raster_count]
@@ -268,6 +275,35 @@ def function_initiator(
                     'output_classification_raster_list: %s'
                     % str(output_classification_raster_list)
                 )
+            # specific output
+            elif specific_output is not None:
+                x_min_piece_s = specific_output_piece.x_min
+                y_min_piece_s = specific_output_piece.y_min
+                x_size_piece_s = specific_output_piece.x_size
+                y_size_piece_s = specific_output_piece.y_size
+                # output geo transform
+                upper_left_x_range = (specific_output['geo_transform'][0]
+                                      + x_min_piece_s
+                                      * specific_output['geo_transform'][1])
+                upper_left_y_range = (specific_output['geo_transform'][3]
+                                      + y_min_piece_s
+                                      * specific_output['geo_transform'][5])
+                geo_transform = (upper_left_x_range,
+                                 specific_output['geo_transform'][1],
+                                 specific_output['geo_transform'][2],
+                                 upper_left_y_range,
+                                 specific_output['geo_transform'][4],
+                                 specific_output['geo_transform'][5])
+                out_specific = cfg.temp.temporary_raster_path(
+                    name_suffix=process_id, name_prefix=process_id
+                )
+                file_output = raster_vector.create_raster_from_reference(
+                    raster, 1, [out_specific], out_no_data, 'GTiff',
+                    out_data_type, compress, compress_format,
+                    geo_transform=geo_transform, x_size=x_size_piece_s,
+                    y_size=y_size_piece_s
+                )
+                cfg.logger.log.debug('specific_output: %s' % file_output)
             # generic output
             else:
                 out_generic = cfg.temp.temporary_raster_path(
@@ -551,33 +587,78 @@ def function_initiator(
             # write output array
             if (classification is not True
                     and output_raster_list[0] is not None):
-                try:
+                if specific_output is not None:
+
                     output_array[np.isnan(output_array)] = out_no_data
+
+                    y_min_piece_s = specific_output_piece.y_min
                     if boundary_size is None:
                         # output minimum y (section of piece)
-                        out_y_min = sec.y_min - y_min_piece
+                        out_y_min = (specific_output_piece.sections[
+                                        count_section_progress - 1].y_min
+                                     - y_min_piece_s)
                     else:
                         # output minimum y (section of piece)
-                        out_y_min = sec.y_min_no_boundary - y_min_piece
+                        out_y_min = (
+                                specific_output_piece.sections[
+                                    count_section_progress
+                                    - 1].y_min_no_boundary - y_min_piece_s)
                         # reduce array size without boundary
                         output_array = output_array[
-                                       sec.y_size_boundary_top:(
-                                               sec.y_size_boundary_top
-                                               + sec.y_size_no_boundary),
-                                       0:sec.x_max]
-                    cfg.logger.log.debug('out_generic: %s' % out_generic)
-                    write_out = raster_vector.write_raster(
-                        out_generic, 0, out_y_min, output_array, out_no_data,
-                        scl, offs
-                    )
-                    if write_out == out_generic:
-                        if run_separate_process:
-                            pass
+                                       specific_output_piece.sections[
+                                           count_section_progress
+                                           - 1].y_size_boundary_top:(
+                                               specific_output_piece.sections[
+                                                   count_section_progress
+                                                   - 1].y_size_boundary_top +
+                                               specific_output_piece.sections[
+                                                   count_section_progress
+                                                   - 1].y_size_no_boundary),
+                                       0:specific_output_piece.sections[
+                                           count_section_progress - 1].x_max]
+                    try:
+                        write_out = raster_vector.write_raster(
+                            out_specific, 0, out_y_min, output_array,
+                            out_no_data, scl, offs
+                        )
+                        if write_out == out_specific:
+                            if run_separate_process:
+                                pass
+                            else:
+                                out_files.append([out_specific,
+                                                  output_argument])
+                    except Exception as err:
+                        proc_error = 'error output'
+                        cfg.logger.log.error(str(err))
+                else:
+                    try:
+                        output_array[np.isnan(output_array)] = out_no_data
+                        if boundary_size is None:
+                            # output minimum y (section of piece)
+                            out_y_min = sec.y_min - y_min_piece
                         else:
-                            out_files.append([out_generic, output_argument])
-                except Exception as err:
-                    proc_error = 'error output'
-                    cfg.logger.log.error(str(err))
+                            # output minimum y (section of piece)
+                            out_y_min = sec.y_min_no_boundary - y_min_piece
+                            # reduce array size without boundary
+                            output_array = output_array[
+                                           sec.y_size_boundary_top:(
+                                                   sec.y_size_boundary_top
+                                                   + sec.y_size_no_boundary),
+                                           0:sec.x_max]
+                        cfg.logger.log.debug('out_generic: %s' % out_generic)
+                        write_out = raster_vector.write_raster(
+                            out_generic, 0, out_y_min, output_array,
+                            out_no_data, scl, offs
+                        )
+                        if write_out == out_generic:
+                            if run_separate_process:
+                                pass
+                            else:
+                                out_files.append([out_generic,
+                                                  output_argument])
+                    except Exception as err:
+                        proc_error = 'error output'
+                        cfg.logger.log.error(str(err))
             # progress
             now_time = datetime.datetime.now()
             elapsed_time = (now_time - start_time).total_seconds()
@@ -1152,9 +1233,7 @@ def vector_to_raster(
     burn_values = input_parameters[5]
     x_y_size = input_parameters[6]
     all_touched = input_parameters[7]
-    area_based = input_parameters[8]
-    area_precision = input_parameters[9]
-    minimum_extent = input_parameters[10]
+    minimum_extent = input_parameters[8]
     # output parameters
     output_path = output_parameters[0]
     output_format = output_parameters[1]
@@ -1216,9 +1295,6 @@ def vector_to_raster(
     else:
         x_size = gt[1]
         y_size = abs(gt[5])
-    if area_based is True:
-        x_size = x_size / area_precision
-        y_size = y_size / area_precision
     cfg.logger.log.debug('x_size, y_size: %s,%s' % (x_size, y_size))
     # number of x pixels
     grid_columns = int(round(xy_count[0] * gt[1] / x_size))
@@ -1248,12 +1324,12 @@ def vector_to_raster(
     # create raster _grid
     _grid = driver.Create(
         temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Float32,
-        options=['COMPRESS=LZW']
+        options=['COMPRESS=LZW', 'BIGTIFF=YES']
     )
     if _grid is None:
         _grid = driver.Create(
             temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Int16,
-            options=['COMPRESS=LZW']
+            options=['COMPRESS=LZW', 'BIGTIFF=YES']
         )
     if _grid is None:
         cfg.logger.log.error('error output raster')
@@ -1287,15 +1363,19 @@ def vector_to_raster(
     )
     # convert reference layer to raster
     _output_raster = gdal.Open(out_file, gdal.GA_Update)
-    if all_touched is False:
+    if all_touched is False or all_touched is None:
         if burn_values is None:
             _o_c = gdal.RasterizeLayer(
                 _output_raster, [1], _v_layer, options=[
-                    'ATTRIBUTE=%s' % str(field_name)], callback=progress_gdal
+                    'ATTRIBUTE=%s' % str(field_name), 'COMPRESS=DEFLATE',
+                    'PREDICTOR=2', 'ZLEVEL=1'],
+                callback=progress_gdal
             )
+
         else:
             _o_c = gdal.RasterizeLayer(
                 _output_raster, [1], _v_layer, burn_values=[burn_values],
+                options=['COMPRESS=DEFLATE', 'PREDICTOR=2', 'ZLEVEL=1'],
                 callback=progress_gdal
             )
     else:
@@ -1303,12 +1383,14 @@ def vector_to_raster(
             _o_c = gdal.RasterizeLayer(
                 _output_raster, [1], _v_layer,
                 options=['ATTRIBUTE=%s' % str(field_name),
-                         'all_touched=TRUE'], callback=progress_gdal
+                         'all_touched=TRUE', 'COMPRESS=DEFLATE',
+                         'PREDICTOR=2', 'ZLEVEL=1'], callback=progress_gdal
             )
         else:
             _o_c = gdal.RasterizeLayer(
                 _output_raster, [1], _v_layer, burn_values=[burn_values],
-                options=['all_touched=TRUE'], callback=progress_gdal
+                options=['all_touched=TRUE', 'COMPRESS=DEFLATE',
+                         'PREDICTOR=2', 'ZLEVEL=1'], callback=progress_gdal
             )
     _output_raster = None
     if os.path.isfile(out_file):
@@ -1363,6 +1445,17 @@ class RasterPiece(object):
         # buffer size
         self.y_size_boundary_top = y_size_boundary_top
         self.y_size_boundary_bottom = y_size_boundary_bottom
+
+    # return piece y details as string
+    def y_details(self):
+        return ('y_min: %s; y_max: %s; y_size: %s; y_min_no_boundary: %s; '
+                'y_max_no_boundary: %s; y_size_no_boundary: '
+                '%s; y_size_boundary_top: %s; y_size_boundary_bottom: %s'
+                % (str(self.y_min), str(self.y_max), str(self.y_size),
+                   str(self.y_min_no_boundary),
+                   str(self.y_max_no_boundary), str(self.y_size_no_boundary),
+                   str(self.y_size_boundary_top),
+                   str(self.y_size_boundary_bottom)))
 
 
 # class to create raster sections

@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -313,17 +313,18 @@ def create_raster_from_reference(
         else:
             r = y_size
         if not compress:
-            out_raster = t_d.Create(o, c, r, band_number, gdal_format)
+            out_raster = t_d.Create(o, c, r, band_number, gdal_format,
+                                    options=['BIGTIFF=YES'])
         elif compress_format == 'DEFLATE21':
             out_raster = t_d.Create(
                 o, c, r, band_number, gdal_format,
                 options=['COMPRESS=DEFLATE', 'PREDICTOR=2',
-                         'ZLEVEL=1']
+                         'ZLEVEL=1', 'BIGTIFF=YES']
             )
         else:
             out_raster = t_d.Create(
                 o, c, r, band_number, gdal_format,
-                ['COMPRESS=%s' % compress_format]
+                options=['COMPRESS=%s' % compress_format, 'BIGTIFF=YES']
             )
         if out_raster is None:
             if cfg.logger is not None:
@@ -1723,6 +1724,7 @@ def vector_to_raster(
 
 
 # merge all layers to new layer
+# noinspection PyArgumentList
 def merge_all_layers(
         input_layers_list, target_layer, min_progress=0, max_progress=100,
         dissolve_output=None
@@ -1819,6 +1821,7 @@ def create_virtual_layer(input_layer_list, target_layer=None):
 
 
 # merge dissolve layer to new layer
+# noinspection PyArgumentList
 def merge_dissolve_layer(
         input_layer, target_layer, column, y_list_coordinates, min_progress=0,
         max_progress=100

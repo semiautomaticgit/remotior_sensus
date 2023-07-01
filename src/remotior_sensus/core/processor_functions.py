@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -19,6 +19,7 @@ import os
 from contextlib import redirect_stdout
 
 import numpy as np
+from numpy.lib import stride_tricks
 
 from remotior_sensus.core import configurations as cfg
 from remotior_sensus.util import raster_vector
@@ -33,6 +34,7 @@ except Exception as error:
     str(error)
 try:
     from scipy import signal
+    from scipy.stats import mode as scipy_mode
 except Exception as error:
     str(error)
 try:
@@ -52,6 +54,7 @@ except Exception as error:
 
 
 # band calculation
+# noinspection PyShadowingBuiltins
 def band_calculation(*argv):
     # expose numpy functions
     log = np.log
@@ -975,6 +978,43 @@ def raster_erosion(*argv):
     a[::, ::][nodata_mask == output_no_data] = np.nan
     cfg.logger.log.debug('end')
     return [a, None]
+
+
+# calculate raster resample
+def raster_resample(*argv):
+    cfg.logger.log.debug('start')
+    output_no_data = argv[0][2]
+    raster_array_band = argv[1]
+    x_y_size = argv[7]
+    function_variable_list = argv[8]
+    resize_factor_x = x_y_size[0] // function_variable_list[0]
+    resize_factor_y = x_y_size[1] // function_variable_list[1]
+    _a = np.nan_to_num(raster_array_band[:, :, 0])
+    stride_shape_x = _a.shape[1] // resize_factor_x
+    stride_shape_y = _a.shape[0] // resize_factor_y
+    # pad raster
+    if stride_shape_y < _a.shape[0] // resize_factor_y:
+        pad_y = int(round((stride_shape_y + 1) * resize_factor_y))
+        pad_shape = [(0, pad_y - _a.shape[0]), (0, 0)]
+        _a = np.pad(_a, pad_width=pad_shape, mode='constant',
+                    constant_values=output_no_data)
+    # get strides
+    stride_shape = (int(stride_shape_y), int(stride_shape_x),
+                    int(resize_factor_y), int(resize_factor_x))
+    sub_array_strides = (_a.strides[0] * int(resize_factor_y),
+                         _a.strides[1] * int(resize_factor_x), *_a.strides)
+    sub_arrays = stride_tricks.as_strided(
+        _a, shape=stride_shape, strides=sub_array_strides)
+    reshaped = sub_arrays.reshape(int(stride_shape_y * stride_shape_x),
+                                  int(resize_factor_y * resize_factor_x))
+    # calculate mode
+    # noinspection PyRedundantParentheses,PyUnresolvedReferences
+    subarray_modes = scipy_mode(reshaped, axis=(1), nan_policy='omit',
+                                keepdims=True).mode
+    _a = None
+    o = subarray_modes.reshape(int(stride_shape_y), int(stride_shape_x))
+    cfg.logger.log.debug('end')
+    return [o, None]
 
 
 # calculate raster neighbor
