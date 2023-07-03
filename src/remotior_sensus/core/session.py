@@ -47,7 +47,7 @@ from remotior_sensus.core.spectral_signatures import SpectralSignaturesCatalog
 from remotior_sensus.core.temporary import Temporary
 from remotior_sensus.tools import (
     band_calc, band_classification, band_clip, band_combination, band_dilation,
-    band_erosion, band_neighbor_pixels, band_pca, band_sieve,
+    band_erosion, band_neighbor_pixels, band_pca, band_sieve, band_resample,
     cross_classification, download_products, mosaic, preprocess_products,
     raster_reclassification, raster_report, raster_to_vector, vector_to_raster
 )
@@ -210,6 +210,7 @@ class Session(object):
             self.band_clip = band_clip.band_clip
             self.configurations.band_pca = band_pca.band_pca
             self.band_sieve = band_sieve.band_sieve
+            self.band_resample = band_resample.band_resample
             self.configurations.band_sieve = band_sieve.band_sieve
             self.cross_classification = \
                 cross_classification.cross_classification

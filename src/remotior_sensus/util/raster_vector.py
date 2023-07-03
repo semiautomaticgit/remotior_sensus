@@ -132,6 +132,19 @@ def get_crs(path):
     return crs
 
 
+# set EPSG of raster
+def auto_set_epsg(path):
+    (gt, r_p, unit, xy_count, nd, number_of_bands, block_size,
+     scale_offset, dt) = raster_info(str(path))
+    # check projections
+    if r_p is None:
+        return None
+    else:
+        r_epsg = osr.SpatialReference(wkt=r_p)
+        r_epsg.AutoIdentifyEPSG()
+        return r_epsg
+
+
 # get CRS of a vector layer
 def get_layer_crs(layer):
     # check projection
