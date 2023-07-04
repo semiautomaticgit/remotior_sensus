@@ -137,7 +137,8 @@ def band_resample(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
-        multiple_output=True, virtual_output=virtual_output
+        multiple_output=True, multiple_input=True,
+        virtual_output=virtual_output
     )
     if x_y_resolution is not list:
         x_y_resolution = [x_y_resolution, x_y_resolution]
@@ -178,7 +179,8 @@ def band_resample(
     if compress_format == 'DEFLATE21':
         compress_format = 'DEFLATE -co PREDICTOR=2 -co ZLEVEL=1'
     min_progress = 1
-    max_progress = int((99 - 1) / len(input_raster_list))
+    one_progress = int((99 - 1) / len(input_raster_list))
+    max_progress = one_progress
     for band in range(0, len(input_raster_list)):
         # raster extent and pixel size
         (left_input, top_input, right_input, bottom_input, p_x_input,
@@ -323,6 +325,8 @@ def band_resample(
             n_processes=n_processes,
             min_progress=min_progress, max_progress=max_progress
         )
+        min_progress = max_progress
+        max_progress += one_progress
     cfg.progress.update(end=True)
     cfg.logger.log.info('end; band resample: %s' % str(output_list))
     return OutputManager(paths=output_list)

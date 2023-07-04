@@ -111,7 +111,8 @@ def band_neighbor_pixels(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
-        multiple_output=True, virtual_output=virtual_output
+        multiple_output=True, multiple_input=True,
+        virtual_output=virtual_output
     )
     stat_numpy = None
     for i in cfg.statistics_list:

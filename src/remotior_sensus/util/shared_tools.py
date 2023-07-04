@@ -89,6 +89,7 @@ def prepare_process_files(
         n_processes: Optional[int] = None, overwrite=False,
         bandset_catalog: Optional[BandSetCatalog] = None,
         temporary_virtual_raster=True, prefix=None, multiple_output=False,
+        multiple_input=False,
         virtual_output=None, box_coordinate_list: Optional[list] = None
 ):
     cfg.logger.log.debug('input_bands: %s' % str(input_bands))
@@ -159,7 +160,7 @@ def prepare_process_files(
         )
     # create virtual raster of input
     if temporary_virtual_raster or box_coordinate_list is not None:
-        if multiple_output:
+        if multiple_input:
             temp_list = []
             for r in input_raster_list:
                 temporary_virtual_raster = \
@@ -216,6 +217,20 @@ def open_structure(structure):
                 str(err)
                 c = i
     return c
+
+
+# convert data type from string to numpy
+def data_type_conversion(data_type):
+    data_types = {
+        cfg.float64_dt: np.float64, cfg.float32_dt: np.float32,
+        cfg.int32_dt: np.int32, cfg.uint32_dt: np.uint32,
+        cfg.int16_dt: np.int16, cfg.uint16_dt: np.uint16,
+        cfg.byte_dt: np.byte,
+    }
+    if data_type in data_types:
+        return data_types[data_type]
+    else:
+        return None
 
 
 # expand list of lists

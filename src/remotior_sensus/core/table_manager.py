@@ -1168,7 +1168,8 @@ def create_band_table(
         )
         cfg.logger.log.debug('rec_array.shape: %s' % rec_array.shape)
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        if 'empty' not in str(err):
+            cfg.logger.log.error(str(err))
         # create empty table
         rec_array = np.rec.fromrecords(np.zeros((0,)), dtype=dtype_list)
     return rec_array

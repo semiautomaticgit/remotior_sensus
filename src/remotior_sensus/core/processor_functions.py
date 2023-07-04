@@ -113,6 +113,10 @@ def band_calculation(*argv):
                )
         )
         _array_function_placeholder = ArrayLike(_array_function_placeholder)
+    cfg.logger.log.debug(
+        '_array_function_placeholder.shape: %s'
+        % str(_array_function_placeholder.shape)
+    )
     # perform operation
     try:
         _o = eval(function_argument)

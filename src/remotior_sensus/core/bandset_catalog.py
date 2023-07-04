@@ -167,9 +167,10 @@ class BandSet(object):
     @name.setter
     def name(self, name):
         self._name = name
-        if self.catalog.bandsets_table is not None:
-            self.catalog.bandsets_table['bandset_name'][
-                self.catalog.bandsets_table['uid'] == self.uid] = name
+        if self.catalog is not None:
+            if self.catalog.bandsets_table is not None:
+                self.catalog.bandsets_table['bandset_name'][
+                    self.catalog.bandsets_table['uid'] == self.uid] = name
 
     @property
     def crs(self):
@@ -179,9 +180,10 @@ class BandSet(object):
     @crs.setter
     def crs(self, crs):
         self._crs = crs
-        if self.catalog.bandsets_table is not None:
-            self.catalog.bandsets_table['crs'][
-                self.catalog.bandsets_table['uid'] == self.uid] = crs
+        if self.catalog is not None:
+            if self.catalog.bandsets_table is not None:
+                self.catalog.bandsets_table['crs'][
+                    self.catalog.bandsets_table['uid'] == self.uid] = crs
 
     @property
     def date(self):
@@ -193,9 +195,10 @@ class BandSet(object):
         if date is None:
             date = 'NaT'
         self._date = np.array(date, dtype='datetime64[D]')
-        if self.catalog.bandsets_table is not None:
-            self.catalog.bandsets_table['date'][
-                self.catalog.bandsets_table['uid'] == self.uid] = date
+        if self.catalog is not None:
+            if self.catalog.bandsets_table is not None:
+                self.catalog.bandsets_table['date'][
+                    self.catalog.bandsets_table['uid'] == self.uid] = date
 
     @property
     def root_directory(self):
@@ -205,10 +208,11 @@ class BandSet(object):
     @root_directory.setter
     def root_directory(self, root_directory):
         self._root_directory = root_directory
-        if self.catalog.bandsets_table is not None:
-            self.catalog.bandsets_table['root_directory'][
-                self.catalog.bandsets_table[
-                    'uid'] == self.uid] = root_directory
+        if self.catalog is not None:
+            if self.catalog.bandsets_table is not None:
+                self.catalog.bandsets_table['root_directory'][
+                    self.catalog.bandsets_table[
+                        'uid'] == self.uid] = root_directory
 
     @property
     def box_coordinate_list(self):
@@ -228,19 +232,20 @@ class BandSet(object):
         else:
             box_coordinate_left = box_coordinate_top = box_coordinate_right \
                 = box_coordinate_bottom = None
-        if self.catalog.bandsets_table is not None:
-            self.catalog.bandsets_table['box_coordinate_left'][
-                self.catalog.bandsets_table[
-                    'uid'] == self.uid] = box_coordinate_left
-            self.catalog.bandsets_table['box_coordinate_top'][
-                self.catalog.bandsets_table[
-                    'uid'] == self.uid] = box_coordinate_top
-            self.catalog.bandsets_table['box_coordinate_right'][
-                self.catalog.bandsets_table[
-                    'uid'] == self.uid] = box_coordinate_right
-            self.catalog.bandsets_table['box_coordinate_bottom'][
-                self.catalog.bandsets_table[
-                    'uid'] == self.uid] = box_coordinate_bottom
+        if self.catalog is not None:
+            if self.catalog.bandsets_table is not None:
+                self.catalog.bandsets_table['box_coordinate_left'][
+                    self.catalog.bandsets_table[
+                        'uid'] == self.uid] = box_coordinate_left
+                self.catalog.bandsets_table['box_coordinate_top'][
+                    self.catalog.bandsets_table[
+                        'uid'] == self.uid] = box_coordinate_top
+                self.catalog.bandsets_table['box_coordinate_right'][
+                    self.catalog.bandsets_table[
+                        'uid'] == self.uid] = box_coordinate_right
+                self.catalog.bandsets_table['box_coordinate_bottom'][
+                    self.catalog.bandsets_table[
+                        'uid'] == self.uid] = box_coordinate_bottom
 
     def get_band_count(self) -> int:
         """Gets the count of bands."""

@@ -88,7 +88,8 @@ def band_sieve(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
         box_coordinate_list=extent_list,
-        prefix=prefix, multiple_output=True, virtual_output=virtual_output
+        prefix=prefix, multiple_output=True, multiple_input=True,
+        virtual_output=virtual_output
     )
     # 4 connected pixels
     if connected:

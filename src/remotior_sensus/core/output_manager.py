@@ -83,6 +83,8 @@ class OutputManager(object):
         if path is None:
             if paths is None:
                 self.path = None
+            elif len(paths) == 0:
+                self.path = None
             else:
                 self.path = paths[0]
         else:

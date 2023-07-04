@@ -117,7 +117,8 @@ def cross_classification(
                 input_bands=[classification_path, reference_path],
                 output_path=output_path,
                 overwrite=overwrite, n_processes=n_processes,
-                box_coordinate_list=extent_list, multiple_output=True
+                box_coordinate_list=extent_list,
+                multiple_output=True, multiple_input=True
             )
             classification_path, reference_path = input_raster_list
         else:
@@ -127,7 +128,8 @@ def cross_classification(
              output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
                 input_bands=[classification_path], output_path=output_path,
                 overwrite=overwrite, n_processes=n_processes,
-                box_coordinate_list=extent_list, multiple_output=True
+                box_coordinate_list=extent_list,
+                multiple_output=True, multiple_input=True
             )
             classification_path = input_raster_list[0]
     classification_crs = raster_vector.get_crs(classification_path)

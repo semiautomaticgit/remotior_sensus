@@ -92,7 +92,8 @@ def band_dilation(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
-        multiple_output=True, virtual_output=virtual_output
+        multiple_output=True, multiple_input=True,
+        virtual_output=virtual_output
     )
     if not circular_structure:
         structure = shared_tools.create_base_structure(size * 2 + 1)
