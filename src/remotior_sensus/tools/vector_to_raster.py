@@ -100,13 +100,12 @@ def vector_to_raster(
         input_bands = align_raster
     cfg.logger.log.debug('input_bands: %s' % str(input_bands))
     # prepare process files
-    (input_raster_list, raster_info, nodata_list, name_list, warped,
-     out_path_x, vrt_rx, reference_path, n_processes_x,
-     output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+    prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path,
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog
     )
+    reference_path = prepared['temporary_virtual_raster']
     # prepare output
     temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
     if n_processes is None:

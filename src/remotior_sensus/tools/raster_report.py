@@ -80,13 +80,12 @@ def raster_report(
     raster_path = files_directories.input_path(raster_path)
     if extent_list is not None:
         # prepare process files
-        (input_raster_list, raster_info, nodata_list, name_list, warped,
-         out_path_x, vrt_rx, vrt_pathx, n_processes_x,
-         output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+        prepared = shared_tools.prepare_process_files(
             input_bands=[raster_path], output_path=output_path,
             n_processes=n_processes, box_coordinate_list=extent_list
         )
-        raster_path = vrt_pathx
+        n_processes = prepared['n_processes']
+        raster_path = prepared['temporary_virtual_raster']
     if output_path is None:
         output_path = cfg.temp.temporary_file_path(name_suffix=cfg.csv_suffix)
     output_path = files_directories.output_path(output_path, cfg.csv_suffix)

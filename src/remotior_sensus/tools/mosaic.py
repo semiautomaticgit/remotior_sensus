@@ -35,7 +35,7 @@ Typical usage example:
 
 from typing import Union, Optional
 
-from remotior_sensus.core import configurations as cfg, messages
+from remotior_sensus.core import configurations as cfg
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
@@ -156,10 +156,13 @@ def mosaic(
             percentage=n / len(band_list_list)
         )
         # list of inputs
-        (input_raster_list, raster_info, nodata_list, name_list,
-         warped) = shared_tools.prepare_input_list(
-                mosaic_list, reference_raster_crs, n_processes=n_processes
-            )
+        prepared = shared_tools.prepare_input_list(
+            mosaic_list, reference_raster_crs, n_processes=n_processes
+        )
+        input_raster_list = prepared['input_list']
+        raster_info = prepared['information_list']
+        nodata_list = prepared['nodata_list']
+        warped = prepared['warped']
         try:
             output_data_type = raster_info[0][8]
         except Exception as err:

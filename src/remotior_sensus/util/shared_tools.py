@@ -80,7 +80,10 @@ def prepare_input_list(
         )
         nodata_list.append(nd)
     cfg.logger.log.debug('end; input_list: %s' % str(input_list))
-    return input_list, information_list, nodata_list, name_list, warped
+    prepared = {'input_list': input_list, 'information_list': information_list,
+                'nodata_list': nodata_list, 'name_list': name_list,
+                'warped': warped}
+    return prepared
 
 
 # prepare process files
@@ -110,8 +113,12 @@ def prepare_process_files(
         if coord_list is not None:
             box_coordinate_list = coord_list
     # list of inputs
-    (input_raster_list, raster_info, nodata_list, name_list,
-     warped) = prepare_input_list(band_list, n_processes=n_processes)
+    prepared_input = prepare_input_list(band_list, n_processes=n_processes)
+    input_raster_list = prepared_input['input_list']
+    raster_info = prepared_input['information_list']
+    nodata_list = prepared_input['nodata_list']
+    name_list = prepared_input['name_list']
+    warped = prepared_input['warped']
     # single output path
     out_path = None
     # multiple output path list
@@ -177,9 +184,15 @@ def prepare_process_files(
                     input_raster_list=input_raster_list,
                     box_coordinate_list=box_coordinate_list
                 )
-    return [input_raster_list, raster_info, nodata_list, name_list, warped,
-            out_path, virtual_output, temporary_virtual_raster, n_processes,
-            output_list, vrt_list]
+    prepared = {
+        'input_raster_list': input_raster_list, 'raster_info': raster_info,
+        'nodata_list': nodata_list, 'name_list': name_list, 'warped': warped,
+        'output_path': out_path, 'virtual_output': virtual_output,
+        'temporary_virtual_raster': temporary_virtual_raster,
+        'n_processes': n_processes, 'output_list': output_list,
+        'vrt_list': vrt_list
+    }
+    return prepared
 
 
 # create base structure

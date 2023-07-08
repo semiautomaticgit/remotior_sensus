@@ -76,13 +76,13 @@ def band_stack(
         start=True
     )
     # prepare process files
-    (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
-     vrt_r, vrt_path, n_processes,
-     output_list, vrt_list) = shared_tools.prepare_process_files(
+    prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
         box_coordinate_list=extent_list, virtual_output=virtual_output
     )
+    input_raster_list = prepared['input_raster_list']
+    out_path = prepared['output_path']
     if input_bands is BandSet:
         bandset_x = input_bands
     elif input_bands is int:

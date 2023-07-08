@@ -36,8 +36,7 @@ from typing import Union, Optional
 
 import numpy as np
 
-from remotior_sensus.core import configurations as cfg, messages, \
-    table_manager as tm
+from remotior_sensus.core import configurations as cfg, table_manager as tm
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
     raster_unique_values_with_sum, reclassify_raster
@@ -104,14 +103,13 @@ def raster_reclassification(
     raster_path = files_directories.input_path(raster_path)
     if extent_list is not None:
         # prepare process files
-        (input_raster_list, raster_info, nodata_list, name_list, warped,
-         out_path_x, vrt_rx, vrt_pathx, n_processes_x,
-         output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+        prepared = shared_tools.prepare_process_files(
             input_bands=[raster_path], output_path=output_path,
             overwrite=overwrite, n_processes=n_processes,
             box_coordinate_list=extent_list
         )
-        raster_path = vrt_pathx
+        n_processes = prepared['n_processes']
+        raster_path = prepared['temporary_virtual_raster']
     (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_vector.raster_info(raster_path)
     if output_data_type is None:

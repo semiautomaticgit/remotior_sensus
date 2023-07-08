@@ -126,13 +126,17 @@ def band_combination(
             message='starting', start=True
         )
     # prepare process files
-    (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
-     vrt_r, vrt_path, n_processes,
-     output_list, vrt_list) = shared_tools.prepare_process_files(
+    prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
         box_coordinate_list=extent_list
     )
+    input_raster_list = prepared['input_raster_list']
+    name_list = prepared['name_list']
+    out_path = prepared['output_path']
+    vrt_r = prepared['virtual_output']
+    vrt_path = prepared['temporary_virtual_raster']
+    n_processes = prepared['n_processes']
     # dummy bands for memory calculation as the number of input raster
     dummy_bands = len(input_raster_list) + 1
     cfg.multiprocess.run(

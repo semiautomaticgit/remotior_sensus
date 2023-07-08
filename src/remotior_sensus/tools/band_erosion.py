@@ -86,15 +86,19 @@ def band_erosion(
         start=True
     )
     # prepare process files
-    (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
-     vrt_r, vrt_path, n_processes, output_list,
-     vrt_list) = shared_tools.prepare_process_files(
+    prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
         prefix=prefix, box_coordinate_list=extent_list,
         multiple_output=True,  multiple_input=True,
         virtual_output=virtual_output
     )
+    input_raster_list = prepared['input_raster_list']
+    raster_info = prepared['raster_info']
+    n_processes = prepared['n_processes']
+    nodata_list = prepared['nodata_list']
+    output_list = prepared['output_list']
+    vrt_list = prepared['vrt_list']
     if not circular_structure:
         structure = shared_tools.create_base_structure(3)
     else:

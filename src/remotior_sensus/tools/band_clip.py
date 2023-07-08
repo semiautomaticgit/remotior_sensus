@@ -94,15 +94,15 @@ def band_clip(
         available_ram = cfg.available_ram
     ram = int(available_ram / n_processes)
     # prepare process files
-    (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
-     vrt_r, vrt_path, n_processes, output_list,
-     vrt_list) = shared_tools.prepare_process_files(
+    prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
         box_coordinate_list=extent_list,
         prefix=prefix, multiple_output=True, multiple_input=True,
         virtual_output=virtual_output
     )
+    input_raster_list = prepared['input_raster_list']
+    output_list = prepared['output_list']
     # build function argument list of dictionaries
     argument_list = []
     function_list = []

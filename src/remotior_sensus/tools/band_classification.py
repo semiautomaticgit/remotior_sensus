@@ -44,7 +44,7 @@ from typing import Union, Optional
 
 import numpy as np
 
-from remotior_sensus.core import configurations as cfg, messages
+from remotior_sensus.core import configurations as cfg
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
@@ -330,6 +330,7 @@ class Classifier(object):
             normalization_values=normalization_values
         )
 
+    # noinspection PyTypeChecker
     @classmethod
     def train(
             cls, spectral_signatures=None, algorithm_name=None,
@@ -1180,12 +1181,14 @@ def band_classification(
     cfg.progress.update(message='starting the classifier', step=1)
     cfg.logger.log.debug('algorithm_name: %s' % str(algorithm_name))
     # prepare process files
-    (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
-     vrt_r, vrt_path, n_processes, output_list,
-     vrt_list) = shared_tools.prepare_process_files(
+    prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog
     )
+    input_raster_list = prepared['input_raster_list']
+    out_path = prepared['output_path']
+    vrt_r = prepared['virtual_output']
+    n_processes = prepared['n_processes']
     if load_classifier is not None:
         loaded_classifier = _load_model(load_classifier)
         if loaded_classifier.check:

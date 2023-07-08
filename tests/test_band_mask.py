@@ -29,4 +29,4 @@ class TestBandMask(TestCase):
         self.assertTrue(files_directories.is_file(output.paths[0]))
 
         # clear temporary directory
-        #rs.close()
+        rs.close()

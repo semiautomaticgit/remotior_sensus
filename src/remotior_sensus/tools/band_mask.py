@@ -95,15 +95,18 @@ def band_mask(
         start=True
     )
     # prepare process files
-    (input_raster_list, raster_info, nodata_list, name_list, warped, out_path,
-     vrt_r, vrt_path, n_processes,
-     output_list, vrt_list) = shared_tools.prepare_process_files(
+    prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
         temporary_virtual_raster=True,
         multiple_output=True, virtual_output=virtual_output
     )
+    input_raster_list = prepared['input_raster_list']
+    raster_info = prepared['raster_info']
+    n_processes = prepared['n_processes']
+    nodata_list = prepared['nodata_list']
+    output_list = prepared['output_list']
     # if vector convert to raster
     vector, raster, mask_crs = raster_vector.raster_or_vector_input(
         input_mask
@@ -140,6 +143,7 @@ def band_mask(
         reference_raster = cfg.temp.temporary_raster_path(
             extension=cfg.tif_suffix
         )
+        print('reference_raster', reference_raster)
         mask_values = [1]
         # perform conversion
         cfg.multiprocess.multiprocess_vector_to_raster(
@@ -191,23 +195,19 @@ def band_mask(
     cfg.logger.log.debug('reference_raster: %s' % reference_raster)
     cfg.logger.log.debug('input_raster_list: %s' % input_raster_list)
     # prepare process files with reference
-    (input_raster_list_x, raster_info_x, nodata_list_x, name_list_x, warped_x, out_path_x,
-     vrt_r_x, vrt_path_x, n_processes_x,
-     output_list_x, vrt_list_x) = shared_tools.prepare_process_files(
+    prepared = shared_tools.prepare_process_files(
         input_bands=input_raster_list, output_path=output_path,
         overwrite=overwrite, n_processes=n_processes, prefix=prefix,
         temporary_virtual_raster=True,
         multiple_output=True, virtual_output=virtual_output
     )
+    vrt_path_x = prepared['temporary_virtual_raster']
     # dummy bands for memory calculation
     dummy_bands = 2
     min_progress = 1
     one_progress = int((99 - 1) / (len(input_raster_list) - 1))
     max_progress = one_progress
     for band in range(len(input_raster_list) - 1):
-        print('output_list', output_list)
-        print('band', band)
-        print('vrt_path', vrt_path_x)
         # run calculation
         cfg.multiprocess.run(
             raster_path=vrt_path_x, function=band_calculation,

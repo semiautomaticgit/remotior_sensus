@@ -38,7 +38,7 @@ from typing import Optional
 
 import numpy as np
 
-from remotior_sensus.core import configurations as cfg, messages
+from remotior_sensus.core import configurations as cfg
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
@@ -309,11 +309,11 @@ def _run_expression(
         cfg.messages.error(str(err))
         return False, False
     # get input files
-    input_raster_list, raster_info, nodata_list, name_list, warped = \
-        shared_tools.prepare_input_list(
-            list(input_rasters.values()), reference_raster_crs=extent_raster,
-            n_processes=n_processes
-            )
+    prepared = shared_tools.prepare_input_list(
+        list(input_rasters.values()), reference_raster_crs=extent_raster,
+        n_processes=n_processes
+    )
+    input_raster_list = prepared['input_list']
     # get extent and resolution
     xy_resolution = xy_resolution_list
     p_x, p_y = None, None
