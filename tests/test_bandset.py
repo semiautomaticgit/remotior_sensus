@@ -52,7 +52,7 @@ class TestBandSet(TestCase):
         self.assertEqual(bs_count, 11)
         # BandSet absolute paths
         bs_apaths = bandset.get_absolute_paths()
-        self.assertEqual(bs_apaths, bs('absolute_path'))
+        self.assertEqual(bs_apaths, bs('path'))
         # BandSet relative paths
         bs_paths = bandset.get_paths()
         self.assertEqual(bs_paths, file_list)
@@ -87,7 +87,7 @@ class TestBandSet(TestCase):
             blue_band['wavelength_unit'], bandset.get_wavelength_units()[0]
         )
         self.assertGreater(len(red_band['crs']), 0)
-        self.assertGreater(len(nir_band['absolute_path']), 0)
+        self.assertGreater(len(nir_band['path']), 0)
         cfg.logger.log.debug('>>> test methods')
         # get band by nearest wavelength
         band_x = bandset.get_band_by_wavelength(
@@ -130,7 +130,7 @@ class TestBandSet(TestCase):
         b_wl = band(1)['wavelength']
         self.assertEqual(b_wl, cfg.satellites[cfg.satSentinel2][0][0])
         # band absolute path
-        b_apath = str(band(1)['absolute_path'])
+        b_apath = bandset.get_absolute_path(band_number=1)
         self.assertEqual(
             files_directories.file_name(b_apath),
             files_directories.file_name(file_list[0], False)

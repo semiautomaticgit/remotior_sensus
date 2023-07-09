@@ -15,7 +15,18 @@
 # You should have received a copy of the GNU General Public License
 # along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
 
+
+import os
+import sys
 import datetime
+import ssl
+import smtplib
+
+# sound for Windows OS
+try:
+    import winsound
+except Exception as error:
+    str(error)
 
 from remotior_sensus.core import configurations as cfg
 
@@ -65,6 +76,8 @@ class Progress(object):
         self.elapsed_time = None
         self.previous_step_time = None
         self.previous_step = 0
+        finish_sound()
+        send_smtp_message(subject=self.process, message='finished')
 
     # get progress
     def get(self):
@@ -275,3 +288,47 @@ class Progress(object):
             except Exception as err:
                 str(err)
                 print(str(process))
+
+
+# beep sound
+def beeps(frequency: int, duration: float):
+    if sys.platform.startswith('win'):
+        winsound.Beep(frequency, int(duration * 1000))
+    elif sys.platform.startswith('linux'):
+        os.system(
+            'play --no-show-progress --null --channels 1 synth %s sine %s'
+            % (str(duration), str(frequency))
+            )
+
+
+# finish sound
+def finish_sound():
+    if cfg.sound_notification is True:
+        try:
+            beeps(800, 0.2)
+            beeps(600, 0.3)
+            beeps(700, 0.5)
+        except Exception as err:
+            str(err)
+
+
+# send SMTP message
+def send_smtp_message(subject: str = None, message: str = None):
+    if cfg.smtp_notification is True:
+        try:
+            if len(cfg.smtp_server) > 0:
+                server = smtplib.SMTP(cfg.smtp_server, 587)
+                context = ssl.create_default_context()
+                server.starttls(context=context)
+                server.login(cfg.smtp_user, cfg.smtp_password)
+                tolist = cfg.smtp_recipients.split(',')
+                if subject is None:
+                    subject = 'completed process'
+                if message is None:
+                    message = 'completed process'
+                msg = 'From: %s\nTo: \nSubject: %s\n\n%s' % (
+                    cfg.smtp_user, subject, message)
+                server.sendmail(cfg.smtp_user, tolist, msg)
+                server.quit()
+        except Exception as err:
+            str(err)

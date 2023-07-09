@@ -133,7 +133,8 @@ class TestBandSetCatalog(TestCase):
         self.assertEqual(type(catalog.get_bandset(1).bands), np.recarray)
         # BandSet absolute paths
         self.assertEqual(
-            bs(2).get_absolute_paths(), catalog.get_bandset(2, 'absolute_path')
+            bs(2).get_absolute_paths()[0],
+            catalog.get_bandset(2).get_absolute_path(band_number=1)
         )
         # BandSet relative paths
         self.assertEqual(bs(2).get_paths(), bs(2, 'path'))
@@ -195,8 +196,7 @@ class TestBandSetCatalog(TestCase):
         bandset_1_count = catalog.get_bandset(1).get_band_count()
         catalog.add_band_to_bandset(
             path='./data/S2_2020-01-01/S2_B02.tif', bandset_number=1,
-            band_number=1,
-            raster_band=1
+            band_number=1, raster_band=1
         )
         self.assertGreater(
             catalog.get_bandset(1).get_band_count(), bandset_1_count

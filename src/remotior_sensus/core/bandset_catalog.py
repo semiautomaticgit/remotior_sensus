@@ -256,15 +256,46 @@ class BandSet(object):
 
     def get_paths(self) -> list:
         """Gets the list of bands."""
-        return self.bands['path'].tolist()
+        if self.bands is not None:
+            return self.bands['path'].tolist()
+        else:
+            return []
 
     def get_absolute_paths(self) -> list:
         """Gets the list of absolute paths."""
-        paths = []
+        absolute_paths = []
         if self.bands is not None:
-            paths = self.bands['absolute_path'].tolist()
-        cfg.logger.log.debug('absolute_paths: %s' % str(paths))
-        return paths
+            paths = self.bands['path'].tolist()
+            for path in paths:
+                absolute_path = files_directories.relative_to_absolute_path(
+                    path, self.root_directory
+                )
+                absolute_paths.append(absolute_path)
+        cfg.logger.log.debug('absolute_paths: %s' % str(absolute_paths))
+        return absolute_paths
+
+    def get_path(self, band_number) -> Union[str, None]:
+        """Gets the absolute path of band."""
+        if self.bands is not None:
+            return self.bands[self.bands['band_number'] == band_number]['path']
+        else:
+            return None
+
+    def get_absolute_path(self, band_number) -> str:
+        """Gets the absolute path of band."""
+        absolute_path = None
+        if self.bands is not None:
+            path = self.bands[self.bands['band_number'] == band_number]['path']
+            if path is not None:
+                if len(path) > 0:
+                    absolute_path = (
+                        files_directories.relative_to_absolute_path(
+                            path[0], self.root_directory
+                        )
+                    )
+        cfg.logger.log.debug('absolute_path: %s%s'
+                             % (str(absolute_path), str(band_number)))
+        return absolute_path
 
     def get_wavelengths(self) -> list:
         """Gets the list of center wavelength."""
@@ -578,7 +609,6 @@ class BandSet(object):
                     band_number=band_number,
                     raster_band=attributes['raster_band'],
                     path=attributes['path'],
-                    absolute_path=attributes['absolute_path'],
                     name=attributes['name'],
                     wavelength=attributes['wavelength'],
                     wavelength_unit=attributes['wavelength_unit'],
@@ -593,6 +623,7 @@ class BandSet(object):
                     number_of_bands=attributes['number_of_bands'],
                     x_block_size=attributes['x_block_size'],
                     y_block_size=attributes['y_block_size'],
+                    root_directory=root_directory,
                     scale=attributes['scale'], offset=attributes['offset']
                 )
                 bands_list.append(new_band)
@@ -837,7 +868,7 @@ class BandSet(object):
             bands_list=bands_list, name=name, date=date,
             bandset_uid=bandset_uid, crs=crs,
             box_coordinate_list=box_coordinate_list,
-            catalog=catalog
+            catalog=catalog, root_directory=root_directory
         )
 
     def get_band_by_wavelength(
@@ -1370,7 +1401,7 @@ def _create_table_of_bands(
     right = gt[0] + gt[1] * xy_count[0] + gt[2] * xy_count[1]
     table = tm.create_band_table(
         band_number=band_number, raster_band=raster_band, path=path,
-        absolute_path=absolute_path, name=name, wavelength=wavelength,
+        root_directory=root_directory, name=name, wavelength=wavelength,
         wavelength_unit=wavelength_unit, additive_factor=additive_factor,
         multiplicative_factor=multiplicative_factor, date=date, x_size=x_size,
         y_size=y_size, top=top, left=left, bottom=bottom, right=right,

@@ -116,7 +116,10 @@ class Session(object):
             temporary_directory: str = None,
             directory_prefix: str = None, log_level: int = 20,
             log_time: bool = True, progress_callback=None,
-            multiprocess_module=None, messages_callback=None
+            multiprocess_module=None, messages_callback=None,
+            smtp_server=None, smtp_user=None,  smtp_password=None,
+            smtp_recipients=None, smtp_notification=None,
+            sound_notification=None
     ):
         """Starts a session.
 
@@ -147,6 +150,12 @@ class Session(object):
             progress_callback: function for progress callback.
             multiprocess_module: multiprocess module, useful if Remotior Sensus' session is started from another Python module.
             messages_callback: message module, useful if Remotior Sensus' session is started from another Python module.
+            smtp_server: optional server for SMTP notification.
+            smtp_user: user for SMTP authentication.
+            smtp_password: password for SMTP authentication.
+            smtp_recipients: string of one or more email addresses separated by comma for SMTP notification.
+            smtp_notification: optional, if True send SMTP notification.
+            sound_notification: optional, if True play sound notification.
 
         Examples:
             Start a session
@@ -155,6 +164,15 @@ class Session(object):
         """  # noqa: E501
         configurations.n_processes = n_processes
         configurations.available_ram = available_ram
+        if sound_notification is not None:
+            configurations.sound_notification = sound_notification
+        if smtp_notification is not None:
+            configurations.smtp_notification = smtp_notification
+        if smtp_server is not None:
+            configurations.smtp_server = smtp_server
+            configurations.smtp_user = smtp_user
+            configurations.smtp_password = smtp_password
+            configurations.smtp_recipients = smtp_recipients
         # create temporary directory
         temp = Temporary()
         if directory_prefix is None:
@@ -270,7 +288,10 @@ class Session(object):
             self, n_processes: int = None, available_ram: int = None,
             temporary_directory: str = None,
             directory_prefix: str = None, log_level: int = None,
-            log_time: bool = None, progress_callback: FunctionType = None
+            log_time: bool = None, progress_callback: FunctionType = None,
+            smtp_server=None, smtp_user=None, smtp_password=None,
+            smtp_recipients=None, sound_notification=None,
+            smtp_notification=None
     ):
         """Sets or changes the parameters of an existing Session.
 
@@ -285,7 +306,13 @@ class Session(object):
             log_level: level of logging (10 for DEBUG, 20 for INFO).
             log_time: if True, logging includes the time.
             progress_callback: function for progress callback.
-
+            smtp_server: optional server for SMTP notification.
+            smtp_user: user for SMTP authentication.
+            smtp_password: password for SMTP authentication.
+            smtp_recipients: string of one or more email addresses separated by comma for SMTP notification.
+            smtp_notification: optional, if True send SMTP notification.
+            sound_notification: optional, if True play sound notification.
+            
         Examples:
             Given that a session was previously started
                 >>> import remotior_sensus
@@ -296,7 +323,7 @@ class Session(object):
 
             Stop a session saving also the log to a file
                 >>> rs.close(log_path='file.txt')
-        """
+        """  # noqa: E501
         if n_processes:
             self.configurations.n_processes = n_processes
             check = _check_dependencies(self.configurations)
@@ -332,6 +359,18 @@ class Session(object):
                 directory=self.configurations.temp.dir, level=self.log_level,
                 time=log_time
             )
+        if sound_notification:
+            self.configurations.sound_notification = sound_notification
+        if smtp_notification:
+            self.configurations.smtp_notification = smtp_notification
+        if smtp_server:
+            self.configurations.smtp_server = smtp_server
+        if smtp_user:
+            self.configurations.smtp_user = smtp_user
+        if smtp_password:
+            self.configurations.smtp_password = smtp_password
+        if smtp_recipients:
+            self.configurations.smtp_recipients = smtp_recipients
         if progress_callback:
             # start progress
             self.configurations.progress = Progress(callback=progress_callback)

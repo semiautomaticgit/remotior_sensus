@@ -253,6 +253,25 @@ class TestBandCalc(TestCase):
             + cfg.variable_band_name + '1' + cfg.variable_band_quotes
         )
         self.assertFalse(error_message)
+        # band output name
+        expression = (
+                cfg.variable_band_quotes + cfg.variable_bandset_name
+                + cfg.variable_current_bandset
+                + cfg.variable_band_name + '1' + cfg.variable_band_quotes + ' '
+                + cfg.variable_output_separator + 'test_1' + cfg.new_line
+                + cfg.variable_band_quotes + 'test_1'
+                + cfg.variable_band_quotes + ' '
+                + cfg.variable_output_separator + 'test_2')
+        out_exp, out_name_list, error_message = band_calc._check_expression(
+            expression_string=expression, raster_variables=band_names,
+            bandset_catalog=catalog
+        )
+        self.assertEqual(
+            out_exp[0][0].split(cfg.variable_output_separator)[0].strip(),
+            cfg.variable_band_quotes + cfg.variable_bandset_name + '1'
+            + cfg.variable_band_name + '1' + cfg.variable_band_quotes
+        )
+        self.assertFalse(error_message)
         # iterate bands and output name
         expression = (
                 cfg.forbandsinbandset + '[1,2]S ' + cfg.new_line +
@@ -440,6 +459,21 @@ class TestBandCalc(TestCase):
         )
         self.assertTrue(output.check)
         self.assertTrue(files_directories.is_file(output.paths[0]))
+        expression = (
+                cfg.variable_band_quotes + cfg.variable_bandset_name
+                + cfg.variable_current_bandset
+                + cfg.variable_band_name + '1' + cfg.variable_band_quotes + ' '
+                + cfg.variable_output_separator + 'test_1' + cfg.new_line
+                + cfg.variable_band_quotes + 'test_1'
+                + cfg.variable_band_quotes + ' '
+                + cfg.variable_output_separator + 'test_2')
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        output = rs.band_calc(
+            output_path=temp, expression_string=expression,
+            bandset_catalog=catalog
+        )
+        self.assertTrue(output.check)
+        self.assertTrue(files_directories.is_file(output.paths[0]))
         # direct expression
         bandset = catalog.get_bandset(1)
         expression = (
@@ -461,11 +495,13 @@ class TestBandCalc(TestCase):
                 + cfg.variable_band_quotes + ' + ' + cfg.variable_band_quotes
                 + cfg.variable_red_name + cfg.variable_band_quotes + ')'
         )
+        cfg.logger.log.debug('>>> test bandset calculation with alias')
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
         calc = bandset.execute(rs.band_calc, output_path=temp,
                                expression_string=expression)
         self.assertTrue(calc.check)
         self.assertTrue(files_directories.is_file(calc.paths[0]))
+        cfg.logger.log.debug('>>> test bandset calculation with ndvi')
         expression = (
                 cfg.variable_band_quotes + cfg.variable_ndvi_name
                 + cfg.variable_band_quotes

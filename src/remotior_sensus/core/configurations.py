@@ -45,6 +45,13 @@ refresh_time = 1.0
 sys_64bit = None
 file_sys_encoding = None
 sys_name = None
+# notification options
+sound_notification = None
+smtp_notification = None
+smtp_server = ''
+smtp_user = ''
+smtp_password = ''
+smtp_recipients = ''
 # optional GDAL path
 gdal_path = None
 # variables used in BandSet class

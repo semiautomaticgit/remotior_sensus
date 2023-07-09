@@ -163,7 +163,8 @@ def band_calc(
             use_value_as_nodata=use_value_as_nodata,
             output_nodata=output_nodata, output_datatype=output_datatype,
             use_scale=use_scale, use_offset=use_offset,
-            calc_datatype=calc_datatype, any_nodata_mask=any_nodata_mask)
+            calc_datatype=calc_datatype, any_nodata_mask=any_nodata_mask
+        )
         return output
     else:
         cfg.logger.log.info('start')
@@ -182,7 +183,7 @@ def band_calc(
         # check expression
         exp_list, all_out_name_list, output_message = _check_expression(
             expression_string, raster_variables, bandset_catalog,
-            bandset_number
+            bandset_number, output_path
         )
         if output_message is not None:
             cfg.logger.log.error('expression error: %s', output_message)
@@ -490,12 +491,14 @@ def _band_names_alias(
                         cfg.variable_band_quotes, cfg.variable_bandset_name,
                         cfg.variable_current_bandset, bands[b],
                         cfg.variable_band_quotes)] = apaths[b]
+    cfg.logger.log.debug('band_names: %s' % (str(band_names)))
     return band_names
 
 
 def _check_expression(
         expression_string, raster_variables=None,
-        bandset_catalog: BandSetCatalog = None, bandset_number=None
+        bandset_catalog: BandSetCatalog = None, bandset_number=None,
+        output_dir_path=None
 ):
     """Checks expression.
 
@@ -505,6 +508,7 @@ def _check_expression(
         expression_string: string of expressions
         raster_variables: raster output_name variable dictionary
         bandset_number: optional number of BandSet as current one
+        output_dir_path: optional path of output directory to use as variables
     """
     cfg.logger.log.debug('start')
     raster_variables_dict = raster_variables.copy()
@@ -712,10 +716,9 @@ def _check_expression(
                                                         calculation,
                                                         spectral_band[0],
                                                         '%s%s%s%s' % (
-                                                            bsn, str(
-                                                                bandset_x),
-                                                            bn,
-                                                            str(
+                                                            bsn,
+                                                            str(bandset_x),
+                                                            bn, str(
                                                                 spectral_band[
                                                                     1]
                                                             )
@@ -730,7 +733,8 @@ def _check_expression(
                                 if '%s%s%s' % (bsn, cb, bn) in calculation:
                                     calculation = shared_tools.replace(
                                         calculation, '%s%s' % (bsn, cb),
-                                        '%s%s' % (bsn, str(bandset_x))
+                                                     '%s%s' % (
+                                                         bsn, str(bandset_x))
                                     )
                                 # new line creation
                                 new_line = None
@@ -828,6 +832,7 @@ def _check_expression(
                 output_name = None
                 out_path = None
                 bs_number = None
+                virtual = False
                 # output path and output name after variable_output_separator
                 line_split = line.split(at)
                 if len(line_split) == 3:
@@ -842,6 +847,32 @@ def _check_expression(
                 elif len(line_split) == 2:
                     try:
                         output_name = line_split[1].strip()
+
+                        output_ext = files_directories.file_extension(
+                            output_name.lower()
+                        )
+                        # check extension
+                        if output_ext == cfg.tif_suffix:
+                            extension = None
+                        elif output_ext == cfg.vrt_suffix:
+                            extension = None
+                            virtual = True
+                        else:
+                            extension = cfg.vrt_suffix
+                            virtual = True
+                        if output_dir_path is not None:
+                            if files_directories.is_directory(output_dir_path):
+                                out_path = '%s/%s%s' % (
+                                    output_dir_path, output_name, extension
+                                ).replace('//', '/')
+                            else:
+                                out_path = str('%s/%s%s' % (
+                                    cfg.temp.dir, output_name, extension
+                                )).replace('//', '/')
+                        else:
+                            out_path = str('%s/%s%s' % (
+                                cfg.temp.dir, output_name, extension
+                            )).replace('//', '/')
                     except Exception as err:
                         cfg.logger.log.error(str(err))
                         output_message = '%s: %s' % (str(counter), str(line))
@@ -876,7 +907,6 @@ def _check_expression(
                         exp_list = False
                         break
                 # check output names
-                virtual = False
                 output_number += 1
                 if output_name is not None:
                     try:
@@ -886,7 +916,8 @@ def _check_expression(
                         str(err)
                     # virtual
                     output_ext = files_directories.file_extension(
-                        output_name.lower())
+                        output_name.lower()
+                    )
                     if output_ext == cfg.vrt_suffix:
                         virtual = True
                     # tif
@@ -914,7 +945,7 @@ def _check_expression(
                 cfg.logger.log.debug(
                     'output_name: %s; expr: %s'
                     % (str(output_name), str(expr))
-                    )
+                )
                 if errors is not None:
                     cfg.logger.log.error(str(errors))
                     output_message = '%s: %s' % (str(counter), str(line))
@@ -970,8 +1001,10 @@ def _bandsets_iterator(expression, bandset_catalog):
     """
     if cfg.forbandsets in expression or cfg.forbandsinbandset in expression:
         expression = shared_tools.replace(expression, cfg.forbandsets, '')
-        expression = shared_tools.replace(expression, cfg.forbandsinbandset,
-                                          '')
+        expression = shared_tools.replace(
+            expression, cfg.forbandsinbandset,
+            ''
+        )
         date_list = []
         date_range_list = []
         bandset_list = []
@@ -1645,6 +1678,7 @@ def _bandset_names_alias(bandset: BandSet) -> dict:
             )] = spectral_band[1].absolute_path
         except Exception as err:
             str(err)
+    cfg.logger.log.debug('band_names: %s' % (str(band_names)))
     return band_names
 
 
@@ -1762,6 +1796,34 @@ def _check_expression_bandset(
                         cfg.variable_band_quotes, ex_alias[0],
                         cfg.variable_band_quotes), ex_alias[1]
                 )
+            # spectral bands alias
+            if (cfg.variable_blue_name in new_line
+                    or cfg.variable_green_name in new_line
+                    or cfg.variable_red_name in new_line
+                    or cfg.variable_nir_name in new_line
+                    or cfg.variable_swir1_name in new_line
+                    or cfg.variable_swir2_name in new_line):
+                (blue_band, green_band, red_band, nir_band,
+                 swir_1_band, swir_2_band) = bandset.spectral_range_bands()
+                spectral_bands = [
+                    [cfg.variable_blue_name, blue_band],
+                    [cfg.variable_green_name, green_band],
+                    [cfg.variable_red_name, red_band],
+                    [cfg.variable_nir_name, nir_band],
+                    [cfg.variable_swir1_name, swir_1_band],
+                    [cfg.variable_swir2_name, swir_2_band]]
+                for spectral_band in spectral_bands:
+                    if spectral_band[0] in new_line:
+                        try:
+                            new_line = shared_tools.replace(
+                                new_line, spectral_band[0],
+                                '%s%s' % (cfg.variable_band_name,
+                                          str(spectral_band[1])
+                                          )
+                            )
+                        except Exception as err:
+                            cfg.logger.log.error(str(err))
+                            output_message = '%s' % str(spectral_band[0])
             output_name = out_path = bs_number = None
             # output path and output name after variable_output_separator
             line_split = new_line.split(at)
@@ -1780,7 +1842,7 @@ def _check_expression_bandset(
                     cfg.logger.log.error(str(err))
                     output_message = '%s' % (str(new_line))
                     exp_list = False
-            # variable output output name current bandset
+            # variable output name current bandset
             if (output_name is not None
                     and cfg.variable_output_name_bandset in output_name):
                 try:
@@ -1815,7 +1877,8 @@ def _check_expression_bandset(
                     str(err)
                 # virtual
                 output_ext = files_directories.file_extension(
-                    output_name.lower())
+                    output_name.lower()
+                )
                 if output_ext == cfg.vrt_suffix:
                     virtual = True
                 # tif

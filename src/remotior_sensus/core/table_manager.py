@@ -1121,7 +1121,7 @@ def create_spectral_signature_table(
 
 # create band table
 def create_band_table(
-        band_number=0, raster_band=None, path=None, absolute_path=None,
+        band_number=0, raster_band=None, path=None,
         name=None, wavelength=0, wavelength_unit=None, additive_factor=0,
         multiplicative_factor=1, date='1900-01-01', x_size=0,
         y_size=0, top=0, left=0, bottom=0, right=0, x_count=0, y_count=0,
@@ -1130,15 +1130,17 @@ def create_band_table(
         offset=None
 ):
     dtype_list = [
-        ('band_number', 'int16'), ('raster_band', 'int16'), ('path', 'U1024'),
-        ('absolute_path', 'U1024'), ('name', 'U256'),
+        ('band_number', 'int16'), ('raster_band', 'int16'),
+        ('path', 'U1024'), ('root_directory', 'U1024'), ('name', 'U256'),
         ('wavelength', 'float64'), ('wavelength_unit', 'U32'),
         ('additive_factor', 'float32'), ('multiplicative_factor', 'float32'),
-        ('date', 'datetime64[D]'), ('x_size', 'float32'),
-        ('y_size', 'float32'), ('top', 'float32'), ('left', 'float32'),
-        ('bottom', 'float32'), ('right', 'float32'), ('x_count', 'int64'),
-        ('y_count', 'int64'), ('nodata', 'int64'), ('data_type', 'U16'),
-        ('root_directory', 'U1024'), ('number_of_bands', 'int16'),
+        ('date', 'datetime64[D]'),
+        ('x_size', 'float32'), ('y_size', 'float32'),
+        ('top', 'float32'), ('left', 'float32'),
+        ('bottom', 'float32'), ('right', 'float32'),
+        ('x_count', 'int64'), ('y_count', 'int64'),
+        ('nodata', 'int64'), ('data_type', 'U16'),
+        ('number_of_bands', 'int16'),
         ('x_block_size', 'int64'), ('y_block_size', 'int64'),
         ('scale', 'int64'), ('offset', 'int64'), ('crs', 'U1024')
     ]
@@ -1158,10 +1160,10 @@ def create_band_table(
         offset = 0
     try:
         rec_array = np.rec.fromrecords(
-            [(band_number, raster_band, path, absolute_path, name,
+            [(band_number, raster_band, path, root_directory, name,
               wavelength, wavelength_unit, additive_factor,
               multiplicative_factor, date, x_size, y_size, top, left, bottom,
-              right, x_count, y_count, nodata, data_type, root_directory,
+              right, x_count, y_count, nodata, data_type,
               number_of_bands, x_block_size, y_block_size, scale, offset,
               crs)],
             dtype=dtype_list
