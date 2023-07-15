@@ -143,7 +143,7 @@ def band_resample(
     n_processes = prepared['n_processes']
     nodata_list = prepared['nodata_list']
     output_list = prepared['output_list']
-    if x_y_resolution is not list:
+    if type(x_y_resolution) is not list:
         x_y_resolution = [x_y_resolution, x_y_resolution]
     if resample_pixel_factor is None:
         resample_pixel_factor = 1

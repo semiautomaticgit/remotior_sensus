@@ -27,7 +27,7 @@ class TestBandResample(TestCase):
             prefix='reproj_', epsg_code='32632', align_raster=None,
             resampling='nearest_neighbour', nodata_value=None,
             x_y_resolution=[20.0, 20.0], resample_pixel_factor=None,
-            output_data_type=None, same_extent=None, virtual_output=False,
+            output_data_type=None, same_extent=False, virtual_output=False,
             compress=True, compress_format='LZW'
             )
         self.assertTrue(files_directories.is_file(reproject.paths[0]))
