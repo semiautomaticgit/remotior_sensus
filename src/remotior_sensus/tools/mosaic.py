@@ -131,7 +131,11 @@ def mosaic(
             else:
                 raster_list.append(i)
         if len(raster_list) > 0:
-            band_list_list.append(raster_list)
+            print('raster_list', raster_list)
+            if type(raster_list[0]) is list:
+                band_list_list = raster_list
+            else:
+                band_list_list.append(raster_list)
         elif len(combination_band_list) > 0:
             # combine corresponding bands
             try:

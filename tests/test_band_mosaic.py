@@ -52,5 +52,23 @@ class TestMosaicBands(TestCase):
         self.assertTrue(files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
 
+        band_list_1 = ['./data/S2_2020-01-01/S2_B02.tif',
+                       './data/S2_2020-01-02/S2_B02.tif',
+                       './data/S2_2020-01-02/S2_B02.tif']
+        band_list_2 = ['./data/S2_2020-01-01/S2_B03.tif',
+                       './data/S2_2020-01-02/S2_B03.tif',
+                       './data/S2_2020-01-02/S2_B03.tif'
+                       ]
+        band_list_3 = ['./data/S2_2020-01-01/S2_B04.tif',
+                       './data/S2_2020-01-02/S2_B04.tif',
+                       './data/S2_2020-01-02/S2_B04.tif']
+        band_list = [band_list_1, band_list_2, band_list_3]
+        mosaic = rs.mosaic(
+            band_list, output_path=temp, bandset_catalog=catalog,
+            prefix='prefix', output_name='output_name'
+            )
+        self.assertTrue(files_directories.is_file(mosaic.paths[0]))
+        self.assertTrue(mosaic.check)
+
         # clear temporary directory
         rs.close()
