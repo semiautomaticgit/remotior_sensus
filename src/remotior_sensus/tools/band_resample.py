@@ -306,7 +306,7 @@ def band_resample(
             if epsg is False:
                 epsg_output = proj_input
             else:
-                epsg_output = 'epsg: %s' % str(epsg)
+                epsg_output = 'epsg:%s' % str(epsg)
         else:
             epsg_output = None
         if nodata_value is None:

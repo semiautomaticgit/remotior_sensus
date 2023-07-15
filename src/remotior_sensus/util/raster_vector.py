@@ -2118,7 +2118,6 @@ def gdal_warping(
             maximum=max_progress, step=100 if int(percentage * 100) > 100
             else int(percentage * 100)
         ))
-
         to = gdal.WarpOptions(
             gdal.ParseCommandLine(option_string), callback=progress_gdal
         )
