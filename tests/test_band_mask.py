@@ -28,5 +28,16 @@ class TestBandMask(TestCase):
         self.assertTrue(output.check)
         self.assertTrue(files_directories.is_file(output.paths[0]))
 
+        files = ['./data/S2_2020-01-01/S2_B02.tif',
+                 './data/S2_2020-01-01/S2_B03.tif',
+                 './data/S2_2020-01-01/S2_B04.tif']
+        output = rs.band_mask(input_bands=files,
+                              input_mask='./data/S2_2020-01-01/S2_B02.tif',
+                              prefix="mask_", buffer=1, mask_values=[1, 425],
+                              nodata_value=-32768, virtual_output=True,
+                              output_path=cfg.temp.dir)
+        self.assertTrue(output.check)
+        self.assertTrue(files_directories.is_file(output.paths[0]))
+
         # clear temporary directory
         rs.close()

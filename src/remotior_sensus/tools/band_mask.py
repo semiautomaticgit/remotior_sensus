@@ -143,7 +143,6 @@ def band_mask(
         reference_raster = cfg.temp.temporary_raster_path(
             extension=cfg.tif_suffix
         )
-        print('reference_raster', reference_raster)
         mask_values = [1]
         # perform conversion
         cfg.multiprocess.multiprocess_vector_to_raster(
@@ -156,8 +155,10 @@ def band_mask(
     if buffer is not None:
         size = int(buffer)
         vrt_file = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
-        band_dilation(input_bands=[reference_raster], value_list=[1],
-                      size=size, output_path=vrt_file, circular_structure=True)
+        band_dilation(
+            input_bands=[reference_raster], value_list=[1], size=size,
+            output_path=[vrt_file], circular_structure=True
+        )
         reference_raster = vrt_file
     cfg.logger.log.debug('reference_raster: %s' % reference_raster)
     argument_list = []
