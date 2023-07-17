@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -25,7 +25,7 @@ import time
 import urllib.request
 from http.cookiejar import CookieJar
 
-from remotior_sensus.core import configurations as cfg, messages
+from remotior_sensus.core import configurations as cfg
 from remotior_sensus.util import read_write_files, files_directories
 
 
@@ -92,7 +92,7 @@ def download_file(
         url, output_path, authentication_uri=None, user=None, password=None,
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
         progress=True, message=None, min_progress=0, max_progress=100,
-        retried=False
+        retried=False, timeout=20
 ):
     cfg.logger.log.debug('url: %s' % url)
     if authentication_uri is None:
@@ -120,7 +120,7 @@ def download_file(
         opener = urllib.request.build_opener(cookie_proc)
     urllib.request.install_opener(opener)
     try:
-        url_request = urllib.request.urlopen(url)
+        url_request = urllib.request.urlopen(url, timeout=timeout)
         try:
             file_size = int(url_request.headers['Content-Length'])
             # size megabyte
@@ -172,13 +172,14 @@ def download_file(
                         )
                         cfg.progress.update(
                             message=message, step=step, percentage=percentage,
-                            ping = True
+                            ping=True
                         )
                     # write file
                     file.write(block_read)
         return True, output_path
     except Exception as err:
-        if '429' in str(err) and retried is False:
+        if retried is False and '403' not in str(err):
+            cfg.logger.log.debug('retry url: %s' % url)
             time.sleep(2)
             download_file(
                 url=url, output_path=output_path,
@@ -188,7 +189,7 @@ def download_file(
                 proxy_user=proxy_user,
                 proxy_password=proxy_password,
                 progress=progress, message=message, min_progress=min_progress,
-                max_progress=max_progress, retried=True
+                max_progress=max_progress, retried=True, timeout=timeout*2
             )
         else:
             cfg.logger.log.error('%s; url: %s' % (err, url))

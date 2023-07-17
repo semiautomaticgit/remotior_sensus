@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -28,7 +28,8 @@ from remotior_sensus.core import configurations as cfg, table_manager as tm
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.util import (
     download_tools, raster_vector, files_directories, dates_times,
-    read_write_files)
+    read_write_files
+)
 
 
 def search(
@@ -37,7 +38,7 @@ def search(
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
 ) -> OutputManager:
     """Perform the query of image databases.
-    
+
     It allows for the search of image products, currently Landsat and Sentinel-2.
     """  # noqa: E501
     result = OutputManager(check=False)
@@ -175,7 +176,7 @@ def query_sentinel_2_database(
     json_file = cfg.temp.temporary_file_path(name_suffix='.json')
     check = download_tools.download_file(
         url=url, output_path=json_file, message='submitting request',
-        min_progress=0, max_progress=1
+        min_progress=0, max_progress=1, timeout=10
     )
     if check:
         try:
@@ -251,7 +252,7 @@ def query_sentinel_2_database(
         json_file = cfg.temp.temporary_file_path(name_suffix='.json')
         check = download_tools.download_file(
             url=url, output_path=json_file, message='submitting request',
-            progress=False
+            progress=False, timeout=10
         )
         # cfg.progress.update(start=True)
         if check:
@@ -286,7 +287,8 @@ def query_sentinel_2_database(
                         break
                 # generally available depending on version
                 footprint_coord = entry['Footprint'].split('((')[1].replace(
-                    ')', '').replace("'", '')
+                    ')', ''
+                ).replace("'", '')
                 x_list = []
                 y_list = []
                 for pair in footprint_coord.split(','):
@@ -313,7 +315,7 @@ def query_sentinel_2_database(
                 # download metadata xml
                 xml_file = cfg.temp.temporary_file_path(name_suffix='.xml')
                 check_2 = download_tools.download_file(
-                    url=url_2, output_path=xml_file, progress=False
+                    url=url_2, output_path=xml_file, progress=False, timeout=1
                 )
                 if check_2:
                     try:
@@ -682,9 +684,9 @@ def _check_sentinel_2_bands(
         min_progress=0, max_progress=100
 ):
     """Checks and download Sentinel-2 bands.
-    
+
     Checks and download Sentinel-2 bands using the service https://storage.googleapis.com/gcp-public-data-sentinel-2 .
-    
+
         Args:
         extent_coordinate_list: list of coordinates for defining a subset region [left, top, right, bottom]
     """  # noqa: E501
