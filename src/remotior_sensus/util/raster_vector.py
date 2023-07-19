@@ -1549,20 +1549,27 @@ def reproject_vector(
     # iterate input features
     i_feature = i_layer.GetNextFeature()
     while i_feature:
-        # get geometry
-        geom = i_feature.GetGeometryRef()
-        # project feature
-        geom.Transform(c_t)
-        o_feature = ogr.Feature(o_layer_definition)
-        o_feature.SetGeometry(geom)
-        for i in range(o_field_count):
-            field_name = o_layer_definition.GetFieldDefn(i).GetNameRef()
-            field_value = i_feature.GetField(i)
-            o_feature.SetField(field_name, field_value)
-        o_layer.CreateFeature(o_feature)
-        o_feature.Destroy()
-        i_feature.Destroy()
-        i_feature = i_layer.GetNextFeature()
+        if cfg.action is True:
+            # get geometry
+            geom = i_feature.GetGeometryRef()
+            # project feature
+            geom.Transform(c_t)
+            o_feature = ogr.Feature(o_layer_definition)
+            o_feature.SetGeometry(geom)
+            for i in range(o_field_count):
+                field_name = o_layer_definition.GetFieldDefn(i).GetNameRef()
+                field_value = i_feature.GetField(i)
+                o_feature.SetField(field_name, field_value)
+            o_layer.CreateFeature(o_feature)
+            o_feature.Destroy()
+            i_feature.Destroy()
+            i_feature = i_layer.GetNextFeature()
+        else:
+            cfg.logger.log.error('cancel')
+            # close files
+            i_vector.Destroy()
+            o_source.Destroy()
+            return None
     # close files
     i_vector.Destroy()
     o_source.Destroy()
@@ -1755,25 +1762,25 @@ def merge_all_layers(
     # create output
     output_source = i_d.CreateDataSource(target_layer)
     output_name = files_directories.file_name(target_layer)
-    output_layer = output_source.CreateLayer(
+    _output_layer = output_source.CreateLayer(
         str(output_name), i_sr, ogr.wkbPolygon
     )
     # fields
     field_names = []
     for f in range(input_field_count):
         f_def = input_layer_def.GetFieldDefn(f)
-        output_layer.CreateField(f_def)
+        _output_layer.CreateField(f_def)
         field_names.append(f_def.GetNameRef())
     if not dissolve_output:
         # add area field
         area_field_def = ogr.FieldDefn(cfg.area_field_name, ogr.OFTReal)
         area_field_def.SetWidth(30)
         area_field_def.SetPrecision(2)
-        output_layer.CreateField(area_field_def)
-    output_layer_def = output_layer.GetLayerDefn()
+        _output_layer.CreateField(area_field_def)
+    output_layer_def = _output_layer.GetLayerDefn()
     # start copy
     layer_count = input_source.GetLayerCount()
-    output_layer.StartTransaction()
+    _output_layer.StartTransaction()
     q = 0
     for i in input_source:
         q += 1
@@ -1786,23 +1793,28 @@ def merge_all_layers(
         i_layer = input_source.GetLayer(i_name)
         i_feature = i_layer.GetNextFeature()
         while i_feature:
-            geometry = i_feature.GetGeometryRef()
-            o_feature = ogr.Feature(output_layer_def)
-            o_feature.SetGeometry(geometry)
-            if not dissolve_output:
-                # set area
-                area = geometry.GetArea()
-                o_feature.SetField(cfg.area_field_name, area)
-            for c in range(input_field_count):
-                try:
-                    field_name = field_names[c]
-                    field = i_feature.GetField(c)
-                    o_feature.SetField(field_name, field)
-                except Exception as err:
-                    cfg.logger.log.error(err)
-            output_layer.CreateFeature(o_feature)
-            i_feature = i_layer.GetNextFeature()
-    output_layer.CommitTransaction()
+            if cfg.action is True:
+                geometry = i_feature.GetGeometryRef()
+                o_feature = ogr.Feature(output_layer_def)
+                o_feature.SetGeometry(geometry)
+                if not dissolve_output:
+                    # set area
+                    area = geometry.GetArea()
+                    o_feature.SetField(cfg.area_field_name, area)
+                for c in range(input_field_count):
+                    try:
+                        field_name = field_names[c]
+                        field = i_feature.GetField(c)
+                        o_feature.SetField(field_name, field)
+                    except Exception as err:
+                        cfg.logger.log.error(err)
+                _output_layer.CreateFeature(o_feature)
+                i_feature = i_layer.GetNextFeature()
+            else:
+                cfg.logger.log.error('cancel')
+                _output_layer = None
+                return None
+    _output_layer.CommitTransaction()
     cfg.logger.log.debug('target_layer: %s' % target_layer)
     return target_layer
 
@@ -1973,23 +1985,27 @@ def merge_dissolve_layer(
     i_feature = i_layer.GetNextFeature()
     c = 0
     while i_feature:
-        c += 1
-        cfg.progress.update(
-            step=c, steps=feature_count, minimum=min_p + max_p * n,
-            maximum=max_progress, percentage=int(c / feature_count * 100)
-        )
-        i_fid = str(i_feature.GetFID())
-        v_field = i_feature.GetField(column)
-        if str(i_fid) not in id_list:
-            i_geom = i_feature.GetGeometryRef()
-            o_feature = ogr.Feature(o_layer_def)
-            o_feature.SetGeometry(i_geom)
-            o_feature.SetField(column, v_field)
-            # set area
-            area = i_geom.GetArea()
-            o_feature.SetField(cfg.area_field_name, area)
-            o_layer.CreateFeature(o_feature)
-        i_feature = i_layer.GetNextFeature()
+        if cfg.action is True:
+            c += 1
+            cfg.progress.update(
+                step=c, steps=feature_count, minimum=min_p + max_p * n,
+                maximum=max_progress, percentage=int(c / feature_count * 100)
+            )
+            i_fid = str(i_feature.GetFID())
+            v_field = i_feature.GetField(column)
+            if str(i_fid) not in id_list:
+                i_geom = i_feature.GetGeometryRef()
+                o_feature = ogr.Feature(o_layer_def)
+                o_feature.SetGeometry(i_geom)
+                o_feature.SetField(column, v_field)
+                # set area
+                area = i_geom.GetArea()
+                o_feature.SetField(cfg.area_field_name, area)
+                o_layer.CreateFeature(o_feature)
+            i_feature = i_layer.GetNextFeature()
+        else:
+            cfg.logger.log.error('cancel')
+            return None
     cfg.logger.log.debug('end')
     return target_layer
 

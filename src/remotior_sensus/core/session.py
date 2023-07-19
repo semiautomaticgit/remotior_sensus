@@ -52,7 +52,8 @@ from remotior_sensus.tools import (
     cross_classification, download_products, mosaic, preprocess_products,
     raster_reclassification, raster_report, raster_to_vector, vector_to_raster
 )
-from remotior_sensus.util import dates_times, system_tools, files_directories
+from remotior_sensus.util import (
+    dates_times, system_tools, files_directories, download_tools)
 
 
 class Session(object):
@@ -70,6 +71,7 @@ class Session(object):
         output_manager: access :func:`~remotior_sensus.core.output_manager.OutputManager` class 
         table_manager: access functions of :func:`~remotior_sensus.core.table_manager` module
         dates_times: access dates and times utilities
+        download_tools: access download utilities
         band_calc: tool :func:`~remotior_sensus.tools.band_calc`
         band_classification: tool :func:`~remotior_sensus.tools.band_classification`
         classifier: tool :func:`~remotior_sensus.tools.band_classification.Classifier`
@@ -251,6 +253,7 @@ class Session(object):
             self.raster_to_vector = raster_to_vector.raster_to_vector
             self.vector_to_raster = vector_to_raster.vector_to_raster
             self.dates_times = dates_times
+            self.download_tools = download_tools
         else:
             self.configurations = None
 

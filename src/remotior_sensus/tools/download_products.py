@@ -174,7 +174,7 @@ def query_sentinel_2_database(
         )
     # download json
     json_file = cfg.temp.temporary_file_path(name_suffix='.json')
-    check = download_tools.download_file(
+    check, output_download = download_tools.download_file(
         url=url, output_path=json_file, message='submitting request',
         min_progress=0, max_progress=1, timeout=10
     )
@@ -250,7 +250,7 @@ def query_sentinel_2_database(
             )
         # download json
         json_file = cfg.temp.temporary_file_path(name_suffix='.json')
-        check = download_tools.download_file(
+        check, output_download = download_tools.download_file(
             url=url, output_path=json_file, message='submitting request',
             progress=False, timeout=10
         )
@@ -314,7 +314,7 @@ def query_sentinel_2_database(
                     )
                 # download metadata xml
                 xml_file = cfg.temp.temporary_file_path(name_suffix='.xml')
-                check_2 = download_tools.download_file(
+                check_2, output_download = download_tools.download_file(
                     url=url_2, output_path=xml_file, progress=False, timeout=1
                 )
                 if check_2:
@@ -556,7 +556,7 @@ def download(
             output_directory_list.append(base_output_dir)
             # check connection downloading metadata xml
             temp_file = cfg.temp.temporary_file_path(name_suffix='.xml')
-            check = download_tools.download_file(
+            check, output_download = download_tools.download_file(
                 url=metadata_msi_url, output_path=temp_file,
                 proxy_host=proxy_host,
                 proxy_port=proxy_port, proxy_user=proxy_user,

@@ -86,6 +86,7 @@ class PyTorchNeuralNetwork(nn_module):
         return logits
 
 
+# noinspection PyTypeChecker,PyUnresolvedReferences
 def train_pytorch_model(
         x_matrix, y_matrix, pytorch_model=None, activation='relu',
         batch_size=None, n_processes=0, training_portion=None,
@@ -182,71 +183,77 @@ def train_pytorch_model(
     epoch = 0
     test_loss_list = []
     while True:
-        epoch += 1
-        # train
-        model.train()
-        training_size = len(training_data.dataset)
-        training_loss = 0
-        for batch, (x, y) in enumerate(training_data):
-            x, y = x.to(device), y.to(device)
-            # compute prediction loss
-            prediction = model(x)
-            loss = loss_function(prediction, y)
-            # backpropagation
-            pytorch_optimizer.zero_grad()
-            loss.backward()
-            pytorch_optimizer.step()
-            training_loss += loss.item()
-            # progress
-            count_progress = batch * len(x)
-            cfg.progress.update(
-                percentage=int(100 * count_progress / training_size)
-            )
-        training_loss /= training_size
-        # test
-        model.eval()
-        test_size = len(test_data.dataset)
-        test_loss, correct = 0, 0
-        with torch.no_grad():
-            for x, y in test_data:
+        if cfg.action is True:
+            epoch += 1
+            # train
+            model.train()
+            training_size = len(training_data.dataset)
+            training_loss = 0
+            for batch, (x, y) in enumerate(training_data):
                 x, y = x.to(device), y.to(device)
+                # compute prediction loss
                 prediction = model(x)
-                test_loss += loss_function(prediction, y).item()
-                correct += (prediction.argmax(1) == y).type(
-                    torch.float
-                ).sum().item()
-        test_loss /= test_size
-        test_loss_list.append(test_loss)
-        accuracy = correct / test_size * 100
-        # progress
-        if max_iterations is not None:
-            increment = (max_progress - min_progress) / max_iterations
-            step = int(min_progress + epoch * increment)
-        else:
-            step = None
-        cfg.progress.update(
-            message=f'epoch: {epoch}, training loss: {training_loss:>8f}, '
-                    f'test loss: {test_loss:>8f}, '
-                    f'accuracy: {accuracy :>0.1f}%', step=step
-        )
-        cfg.logger.log.debug(
-            f'epoch: {epoch}, training loss: {training_loss:>8f}, '
-            f'test loss: {test_loss:>8f}, '
-            f'accuracy: {accuracy :>0.1f}%'
-        )
-        # check optimization tolerance
-        if epoch > optimization_n_iter_no_change:
-            loss_difference = []
-            for o in range(1, optimization_n_iter_no_change + 1):
-                diff = test_loss_list[-1 * o] - test_loss_list[-1 * (o + 1)]
-                loss_difference.append(diff ** 2 < optimization_tol ** 2)
-            if all(loss_difference):
-                cfg.logger.log.debug(
-                    'optimization_tol: %s' % str(optimization_tol)
+                loss = loss_function(prediction, y)
+                # backpropagation
+                pytorch_optimizer.zero_grad()
+                loss.backward()
+                pytorch_optimizer.step()
+                training_loss += loss.item()
+                # progress
+                count_progress = batch * len(x)
+                cfg.progress.update(
+                    percentage=int(100 * count_progress / training_size)
                 )
+            training_loss /= training_size
+            # test
+            model.eval()
+            test_size = len(test_data.dataset)
+            test_loss, correct = 0, 0
+            with torch.no_grad():
+                for x, y in test_data:
+                    x, y = x.to(device), y.to(device)
+                    prediction = model(x)
+                    test_loss += loss_function(prediction, y).item()
+                    correct += (prediction.argmax(1) == y).type(
+                        torch.float
+                    ).sum().item()
+            test_loss /= test_size
+            test_loss_list.append(test_loss)
+            accuracy = correct / test_size * 100
+            # progress
+            if max_iterations is not None:
+                increment = (max_progress - min_progress) / max_iterations
+                step = int(min_progress + epoch * increment)
+            else:
+                step = None
+            cfg.progress.update(
+                message=f'epoch: {epoch}, training loss: {training_loss:>8f}, '
+                        f'test loss: {test_loss:>8f}, '
+                        f'accuracy: {accuracy :>0.1f}%', step=step
+            )
+            cfg.logger.log.debug(
+                f'epoch: {epoch}, training loss: {training_loss:>8f}, '
+                f'test loss: {test_loss:>8f}, '
+                f'accuracy: {accuracy :>0.1f}%'
+            )
+            # check optimization tolerance
+            if epoch > optimization_n_iter_no_change:
+                loss_difference = []
+                for o in range(1, optimization_n_iter_no_change + 1):
+                    diff = test_loss_list[-1 * o] - test_loss_list[
+                        -1 * (o + 1)]
+                    loss_difference.append(diff ** 2 < optimization_tol ** 2)
+                if all(loss_difference):
+                    cfg.logger.log.debug(
+                        'optimization_tol: %s' % str(optimization_tol)
+                    )
+                    break
+            if max_iterations is not None and epoch == max_iterations:
+                cfg.logger.log.debug('max_iterations: %s'
+                                     % str(max_iterations))
                 break
-        if max_iterations is not None and epoch == max_iterations:
-            cfg.logger.log.debug('max_iterations: %s' % str(max_iterations))
-            break
+        else:
+            cfg.logger.log.error('cancel')
+            return None, None, None, None
     cfg.logger.log.debug('end')
     return model, training_loss, test_loss, accuracy

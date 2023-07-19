@@ -43,6 +43,7 @@ class Multiprocess(object):
         else:
             self.pool = multiprocess_module.Pool(processes=n_processes)
             self.manager = multiprocess_module.Manager()
+        self.multiprocess_module = multiprocess_module
         self.n_processes = n_processes
         self.output = False
 
@@ -56,6 +57,7 @@ class Multiprocess(object):
         else:
             self.pool = multiprocess_module.Pool(processes=n_processes)
             self.manager = multiprocess_module.Manager()
+        self.multiprocess_module = multiprocess_module
         self.n_processes = n_processes
         self.output = False
 
@@ -153,7 +155,7 @@ class Multiprocess(object):
         if n_processes is None:
             n_processes = self.n_processes
         elif n_processes > self.n_processes:
-            self.start(n_processes)
+            self.start(self.n_processes, self.multiprocess_module)
         if compress is None:
             compress = cfg.raster_compression
         if compress_format is None:
@@ -223,27 +225,35 @@ class Multiprocess(object):
             )
             results.append([c, p])
         while True:
-            # update progress
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                p_m_qp = p_mq.get(False)
-                count_progress = int(p_m_qp[0])
-                length = int(p_m_qp[1])
-                progress = int(100 * count_progress / length)
-                cfg.progress.update(
-                    message=progress_message, step=count_progress,
-                    steps=length, minimum=min_progress,
-                    maximum=max_progress, percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                # update progress
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    count_progress = int(p_m_qp[0])
+                    length = int(p_m_qp[1])
+                    progress = int(100 * count_progress / length)
+                    cfg.progress.update(
+                        message=progress_message, step=count_progress,
+                        steps=length, minimum=min_progress,
+                        maximum=max_progress, percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         for r in results:
             res = r[0].get()
             if classification:
@@ -352,7 +362,7 @@ class Multiprocess(object):
         if n_processes is None:
             n_processes = self.n_processes
         elif n_processes > self.n_processes:
-            self.start(n_processes)
+            self.start(self.n_processes, self.multiprocess_module)
         if n_processes > len(raster_path_list):
             n_processes = len(raster_path_list)
         if min_progress is None:
@@ -444,27 +454,35 @@ class Multiprocess(object):
             )
             results.append([c, p])
         while True:
-            # update progress
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                p_m_qp = p_mq.get(False)
-                count_progress = int(p_m_qp[0])
-                length = int(p_m_qp[1])
-                progress = int(100 * count_progress / length)
-                cfg.progress.update(
-                    message=progress_message, step=count_progress,
-                    steps=length, minimum=min_progress,
-                    maximum=max_progress, percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                # update progress
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    count_progress = int(p_m_qp[0])
+                    length = int(p_m_qp[1])
+                    progress = int(100 * count_progress / length)
+                    cfg.progress.update(
+                        message=progress_message, step=count_progress,
+                        steps=length, minimum=min_progress,
+                        maximum=max_progress, percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         for r in results:
             res = r[0].get()
             process_result[r[1]] = res[0]
@@ -974,24 +992,32 @@ class Multiprocess(object):
         )
         results.append([c, p])
         while True:
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                p_m_qp = p_mq.get(False)
-                progress = int(p_m_qp)
-                cfg.progress.update(
-                    message='writing raster', step=progress, steps=100,
-                    minimum=min_progress, maximum=max_progress,
-                    percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    progress = int(p_m_qp)
+                    cfg.progress.update(
+                        message='writing raster', step=progress, steps=100,
+                        minimum=min_progress, maximum=max_progress,
+                        percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         for r in results:
             res = r[0].get()
             cfg.logger.log.debug('res[3]: %s' % str(res[3]))
@@ -1143,7 +1169,7 @@ class Multiprocess(object):
         if n_processes is None:
             n_processes = self.n_processes
         elif n_processes > self.n_processes:
-            self.start(n_processes)
+            self.start(self.n_processes, self.multiprocess_module)
         if min_progress is None:
             min_progress = 0
         if max_progress is None:
@@ -1262,27 +1288,35 @@ class Multiprocess(object):
             )
             results.append([c, p])
         while True:
-            # update progress
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                p_m_qp = p_mq.get(False)
-                count_progress = int(p_m_qp[0])
-                length = int(p_m_qp[1])
-                progress = int(100 * count_progress / length)
-                cfg.progress.update(
-                    message=progress_message, step=count_progress,
-                    steps=length, minimum=min_progress,
-                    maximum=max_progress, percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                # update progress
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    count_progress = int(p_m_qp[0])
+                    length = int(p_m_qp[1])
+                    progress = int(100 * count_progress / length)
+                    cfg.progress.update(
+                        message=progress_message, step=count_progress,
+                        steps=length, minimum=min_progress,
+                        maximum=max_progress, percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         for r in results:
             res = r[0].get()
             process_result[r[1]] = res[0]
@@ -1360,27 +1394,35 @@ class Multiprocess(object):
             )
             results.append([c, p])
         while True:
-            # update progress
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                progress = round(p_mq.get(False))
-                step = round(
-                    min_progress + progress * (
-                            max_progress_1 - min_progress) / 100
-                )
-                cfg.progress.update(
-                    message='processing to vector', step=step,
-                    percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                # update progress
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    progress = round(p_mq.get(False))
+                    step = round(
+                        min_progress + progress * (
+                                max_progress_1 - min_progress) / 100
+                    )
+                    cfg.progress.update(
+                        message='processing to vector', step=step,
+                        percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         # get results
         for r in results:
             res = r[0].get()
@@ -1464,24 +1506,32 @@ class Multiprocess(object):
         )
         results.append([c, p])
         while True:
-            # update progress
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                p_m_qp = p_mq.get(False)
-                progress = int(p_m_qp)
-                cfg.progress.update(
-                    step=progress, steps=100, minimum=min_progress,
-                    maximum=max_progress, percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                # update progress
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    progress = int(p_m_qp)
+                    cfg.progress.update(
+                        step=progress, steps=100, minimum=min_progress,
+                        maximum=max_progress, percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         for r in results:
             res = r[0].get()
             process_result[r[1]] = res[0]
@@ -1533,24 +1583,32 @@ class Multiprocess(object):
         )
         results.append([c, p])
         while True:
-            # update progress
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                p_m_qp = p_mq.get(False)
-                progress = int(p_m_qp)
-                cfg.progress.update(
-                    step=progress, steps=100, minimum=min_progress,
-                    maximum=max_progress, percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                # update progress
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    progress = int(p_m_qp)
+                    cfg.progress.update(
+                        step=progress, steps=100, minimum=min_progress,
+                        maximum=max_progress, percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         for r in results:
             res = r[0].get()
             process_result[r[1]] = res[0]
@@ -1748,7 +1806,7 @@ class Multiprocess(object):
         if n_processes is None:
             n_processes = self.n_processes
         elif n_processes > self.n_processes:
-            self.start(n_processes)
+            self.start(self.n_processes, self.multiprocess_module)
         if available_ram is None:
             available_ram = cfg.available_ram
         if min_progress is None:
@@ -1817,35 +1875,43 @@ class Multiprocess(object):
         max_progress_process = max_progress_part
         old_progress = 0
         while True:
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                # read progress from file
-                with open('%s/scikit' % cfg.temp.dir, 'r') as f:
-                    progress_line = f.readlines()[-1].split(' ')
-                    progress = round(
-                        int(progress_line[-3]) / int(
-                            progress_line[-1].replace('\\n', '')
-                        ) * 100
+            if cfg.action is True:
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    # read progress from file
+                    with open('%s/scikit' % cfg.temp.dir, 'r') as f:
+                        progress_line = f.readlines()[-1].split(' ')
+                        progress = round(
+                            int(progress_line[-3]) / int(
+                                progress_line[-1].replace('\\n', '')
+                            ) * 100
+                        )
+                    cfg.progress.update(
+                        message='fitting', step=progress, steps=100,
+                        minimum=min_progress,
+                        maximum=max_progress_process, percentage=progress
                     )
-                cfg.progress.update(
-                    message='fitting', step=progress, steps=100,
-                    minimum=min_progress,
-                    maximum=max_progress_process, percentage=progress
-                )
-                # scale progress for next process
-                if progress < old_progress:
-                    min_progress = int(max_progress_process)
-                    max_progress_process += max_progress_part
-                old_progress = int(progress)
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+                    # scale progress for next process
+                    if progress < old_progress:
+                        min_progress = int(max_progress_process)
+                        max_progress_process += max_progress_part
+                    old_progress = int(progress)
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         # get results
         process_result = []
         for r in results:
@@ -1871,7 +1937,7 @@ class Multiprocess(object):
         if n_processes is None:
             n_processes = self.n_processes
         elif n_processes > self.n_processes:
-            self.start(n_processes)
+            self.start(self.n_processes, self.multiprocess_module)
         if min_progress is None:
             min_progress = 0
         if max_progress is None:
@@ -1918,26 +1984,34 @@ class Multiprocess(object):
             )
             results.append([c, p])
         while True:
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                p_m_qp = p_mq.get(False)
-                count_progress = int(p_m_qp[0])
-                length = int(p_m_qp[1])
-                progress = int(100 * count_progress / length)
-                cfg.progress.update(
-                    message='processing', step=progress, steps=100,
-                    minimum=min_progress,
-                    maximum=max_progress, percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    count_progress = int(p_m_qp[0])
+                    length = int(p_m_qp[1])
+                    progress = int(100 * count_progress / length)
+                    cfg.progress.update(
+                        message='processing', step=progress, steps=100,
+                        minimum=min_progress,
+                        maximum=max_progress, percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         # get results
         process_result = []
         for r in results:
@@ -1990,24 +2064,32 @@ class Multiprocess(object):
         )
         results.append([c, p])
         while True:
-            p_r = []
-            for r in results:
-                p_r.append(r[0].ready())
-            if all(p_r):
-                break
-            time.sleep(cfg.refresh_time)
-            # progress message
-            try:
-                p_m_qp = p_mq.get(False)
-                progress = round(p_m_qp)
-                cfg.progress.update(
-                    message='writing raster', step=progress, steps=100,
-                    minimum=min_progress, maximum=max_progress,
-                    percentage=progress
-                )
-            except Exception as err:
-                str(err)
-                cfg.progress.update(ping=True)
+            if cfg.action is True:
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    progress = round(p_m_qp)
+                    cfg.progress.update(
+                        message='writing raster', step=progress, steps=100,
+                        minimum=min_progress, maximum=max_progress,
+                        percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
         for r in results:
             res = r[0].get()
             # log

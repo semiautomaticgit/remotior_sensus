@@ -141,41 +141,47 @@ def download_file(
             files_directories.create_parent_directory(output_path)
             with open(output_path, 'wb') as file:
                 while True:
-                    if adaptive_block_size:
-                        start_time = datetime.datetime.now()
-                    block_read = url_request.read(block_size)
-                    if not block_read:
-                        break
-                    # adapt block size
-                    if adaptive_block_size:
-                        end_time = datetime.datetime.now()
-                        time_delta = end_time - start_time
-                        new_speed = block_size / time_delta.microseconds
-                        if new_speed >= speed:
-                            block_size = block_size + 1024 * 1024
-                            start_time = end_time
-                            speed = new_speed
-                    if progress:
-                        if message is None:
-                            message = '({}/{} MB) {}'.format(
-                                downloaded_part_size, total_size, url
+                    if cfg.action is True:
+                        if adaptive_block_size:
+                            start_time = datetime.datetime.now()
+                        block_read = url_request.read(block_size)
+                        if not block_read:
+                            break
+                        # adapt block size
+                        if adaptive_block_size:
+                            end_time = datetime.datetime.now()
+                            time_delta = end_time - start_time
+                            new_speed = block_size / time_delta.microseconds
+                            if new_speed >= speed:
+                                block_size = block_size + 1024 * 1024
+                                start_time = end_time
+                                speed = new_speed
+                        if progress:
+                            if message is None:
+                                message = '({}/{} MB) {}'.format(
+                                    downloaded_part_size, total_size, url
+                                )
+                            downloaded_part_size = round(
+                                int(os.stat(output_path).st_size) / 1048576, 2
                             )
-                        downloaded_part_size = round(
-                            int(os.stat(output_path).st_size) / 1048576, 2
-                        )
-                        step = int(
-                            (max_progress - min_progress) *
-                            downloaded_part_size / total_size + min_progress
-                        )
-                        percentage = int(
-                            100 * downloaded_part_size / total_size
-                        )
-                        cfg.progress.update(
-                            message=message, step=step, percentage=percentage,
-                            ping=True
-                        )
-                    # write file
-                    file.write(block_read)
+                            step = int(
+                                (max_progress - min_progress)
+                                * downloaded_part_size / total_size
+                                + min_progress
+                            )
+                            percentage = int(
+                                100 * downloaded_part_size / total_size
+                            )
+                            cfg.progress.update(
+                                message=message, step=step,
+                                percentage=percentage, ping=True
+                            )
+                        # write file
+                        file.write(block_read)
+                    else:
+                        cfg.logger.log.error('cancel url: %s' % url)
+                        cfg.messages.error('cancel url: %s' % url)
+                        return False, 'cancel'
         return True, output_path
     except Exception as err:
         if retried is False and '403' not in str(err):

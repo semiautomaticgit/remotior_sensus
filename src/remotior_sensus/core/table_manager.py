@@ -147,18 +147,20 @@ def _open_dbf(file_path, field_name_list=None, progress_message=True):
     feature_count = i_layer.GetFeatureCount()
     i_feature = i_layer.GetNextFeature()
     while i_feature:
-        i += 1
-        progress = int(100 * i / feature_count)
-        if progress_message:
-            cfg.progress.update(message='opening file', step=progress)
-        else:
-            cfg.progress.update(message='opening file', percentage=progress)
-        row = []
-        for c in range(field_count):
-            f = i_feature.GetField(c)
-            row.append(f)
-        mat_list.append(row)
-        i_feature = i_layer.GetNextFeature()
+        if cfg.action is True:
+            i += 1
+            progress = int(100 * i / feature_count)
+            if progress_message:
+                cfg.progress.update(message='opening file', step=progress)
+            else:
+                cfg.progress.update(message='opening file',
+                                    percentage=progress)
+            row = []
+            for c in range(field_count):
+                f = i_feature.GetField(c)
+                row.append(f)
+            mat_list.append(row)
+            i_feature = i_layer.GetNextFeature()
     array_ml = np.array(mat_list)
     rec_array = np.rec.fromarrays(array_ml.T, dtype=dtype_list)
     cfg.logger.log.info('end')

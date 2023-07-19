@@ -21,7 +21,7 @@ import random
 import numpy as np
 
 from remotior_sensus.core import (
-    configurations as cfg, messages, table_manager as tm
+    configurations as cfg, table_manager as tm
 )
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.processor_functions import spectral_signature
@@ -253,55 +253,65 @@ class SpectralSignaturesCatalog(object):
             # import geometries
             i_feature = i_layer.GetNextFeature()
             while i_feature:
-                signature_id = generate_signature_id()
-                # get geometry
-                geom = i_feature.GetGeometryRef()
-                if coord_transform is not None:
-                    # project feature
-                    geom.Transform(coord_transform)
-                o_feature = ogr.Feature(catalog_layer_definition)
-                o_feature.SetGeometry(geom)
-                macroclass_value = i_feature.GetField(macroclass_field)
-                class_value = i_feature.GetField(class_field)
-                macroclass_name = i_feature.GetField(macroclass_name_field)
-                class_name = i_feature.GetField(class_name_field)
-                o_feature.SetField(cfg.macroclass_field_name, macroclass_value)
-                o_feature.SetField(cfg.class_field_name, class_value)
-                o_feature.SetField(cfg.uid_field_name, signature_id)
-                catalog_layer.CreateFeature(o_feature)
-                if calculate_signature:
-                    temp_path = cfg.temp.temporary_file_path(
-                        name_suffix=cfg.gpkg_suffix
+                if cfg.action is True:
+                    signature_id = generate_signature_id()
+                    # get geometry
+                    geom = i_feature.GetGeometryRef()
+                    if coord_transform is not None:
+                        # project feature
+                        geom.Transform(coord_transform)
+                    o_feature = ogr.Feature(catalog_layer_definition)
+                    o_feature.SetGeometry(geom)
+                    macroclass_value = i_feature.GetField(macroclass_field)
+                    class_value = i_feature.GetField(class_field)
+                    macroclass_name = i_feature.GetField(macroclass_name_field)
+                    class_name = i_feature.GetField(class_name_field)
+                    o_feature.SetField(cfg.macroclass_field_name,
+                                       macroclass_value)
+                    o_feature.SetField(cfg.class_field_name, class_value)
+                    o_feature.SetField(cfg.uid_field_name, signature_id)
+                    catalog_layer.CreateFeature(o_feature)
+                    if calculate_signature:
+                        temp_path = cfg.temp.temporary_file_path(
+                            name_suffix=cfg.gpkg_suffix
+                            )
+                        raster_vector.create_geometry_vector(
+                            output_path=temp_path, crs_wkt=self.bandset.crs,
+                            macroclass_field_name=self.macroclass_field,
+                            class_field_name=self.class_field
                         )
-                    raster_vector.create_geometry_vector(
-                        output_path=temp_path, crs_wkt=self.bandset.crs,
-                        macroclass_field_name=self.macroclass_field,
-                        class_field_name=self.class_field
-                    )
-                    temp_vector = ogr.Open(temp_path, 1)
-                    temp_layer = temp_vector.GetLayer()
-                    temp_layer.CreateFeature(o_feature)
-                    temp_vector.Destroy()
-                    value_list, standard_deviation_list = \
-                        self.calculate_signature(
-                            temp_path
+                        temp_vector = ogr.Open(temp_path, 1)
+                        temp_layer = temp_vector.GetLayer()
+                        temp_layer.CreateFeature(o_feature)
+                        temp_vector.Destroy()
+                        (value_list,
+                         standard_deviation_list) = self.calculate_signature(
+                            temp_path)
+                        self.add_spectral_signature(
+                            value_list=value_list,
+                            macroclass_id=macroclass_value,
+                            class_id=class_value,
+                            macroclass_name=macroclass_name,
+                            class_name=class_name,
+                            standard_deviation_list=standard_deviation_list,
+                            signature_id=signature_id
                         )
-                    self.add_spectral_signature(
-                        value_list=value_list, macroclass_id=macroclass_value,
-                        class_id=class_value,
-                        macroclass_name=macroclass_name, class_name=class_name,
-                        standard_deviation_list=standard_deviation_list,
-                        signature_id=signature_id
-                    )
+                    else:
+                        self.signature_to_catalog(
+                            signature_id=signature_id,
+                            macroclass_id=macroclass_value,
+                            class_id=class_value,
+                            macroclass_name=macroclass_name,
+                            class_name=class_name
+                        )
+                    o_feature.Destroy()
+                    i_feature.Destroy()
+                    i_feature = i_layer.GetNextFeature()
                 else:
-                    self.signature_to_catalog(
-                        signature_id=signature_id,
-                        macroclass_id=macroclass_value, class_id=class_value,
-                        macroclass_name=macroclass_name, class_name=class_name
-                    )
-                o_feature.Destroy()
-                i_feature.Destroy()
-                i_feature = i_layer.GetNextFeature()
+                    # close files
+                    i_vector.Destroy()
+                    catalog_vector.Destroy()
+                    cfg.logger.log.error('cancel')
             # close files
             i_vector.Destroy()
             catalog_vector.Destroy()

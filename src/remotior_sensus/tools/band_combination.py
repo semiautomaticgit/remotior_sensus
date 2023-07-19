@@ -177,59 +177,63 @@ def band_combination(
     t = 0
     method = 1
     while t < 5000:
-        t += 1
-        rnd_var_list = []
-        expression_comb = []
-        for y in range(len(input_raster_list)):
-            if method == 1:
-                exp_r = int(np.random.random() * 10) + 1
-                if exp_r > max_dig:
-                    exp_r = max_dig
-                const_v = int(10 ** exp_r)
-                method += 1
-            elif method == 2:
-                const_v = int(10 ** max_dig)
-                method += 1
-            else:
-                exp_r = int(np.random.random() * 10) + 1
-                if exp_r > 8:
-                    exp_r = 8
-                const_v = int(10 ** exp_r)
-                method = 1
-            if const_v < 1:
-                const_v = 3
-            rnd_var = int(const_v * np.random.random())
-            if rnd_var == 0:
-                rnd_var = 1
-            # avoid too large numbers
-            while np.sum(
-                    rnd_var * (np.array(max_v, dtype=np.float32) + add_c)
-            ) > calc_nodata:
-                rnd_var = int(rnd_var / 2)
-            rnd_var_list.append(rnd_var)
-            # expression combination
-            expression_comb.append(
-                '("f%s" + %s) * %s' % (str(y), str(add_c), str(rnd_var))
+        if cfg.action is True:
+            t += 1
+            rnd_var_list = []
+            expression_comb = []
+            for y in range(len(input_raster_list)):
+                if method == 1:
+                    exp_r = int(np.random.random() * 10) + 1
+                    if exp_r > max_dig:
+                        exp_r = max_dig
+                    const_v = int(10 ** exp_r)
+                    method += 1
+                elif method == 2:
+                    const_v = int(10 ** max_dig)
+                    method += 1
+                else:
+                    exp_r = int(np.random.random() * 10) + 1
+                    if exp_r > 8:
+                        exp_r = 8
+                    const_v = int(10 ** exp_r)
+                    method = 1
+                if const_v < 1:
+                    const_v = 3
+                rnd_var = int(const_v * np.random.random())
+                if rnd_var == 0:
+                    rnd_var = 1
+                # avoid too large numbers
+                while np.sum(
+                        rnd_var * (np.array(max_v, dtype=np.float32) + add_c)
+                ) > calc_nodata:
+                    rnd_var = int(rnd_var / 2)
+                rnd_var_list.append(rnd_var)
+                # expression combination
+                expression_comb.append(
+                    '("f%s" + %s) * %s' % (str(y), str(add_c), str(rnd_var))
+                )
+                expression_comb.append(' + ')
+            expression_comb.pop(-1)
+            joined_expression_comb = ''.join(expression_comb)
+            rec_combinations_array = tm.calculate(
+                matrix=cmb_arr, expression_string=joined_expression_comb,
+                output_field_name='id', progress_message=False
             )
-            expression_comb.append(' + ')
-        expression_comb.pop(-1)
-        joined_expression_comb = ''.join(expression_comb)
-        rec_combinations_array = tm.calculate(
-            matrix=cmb_arr, expression_string=joined_expression_comb,
-            output_field_name='id', progress_message=False
-        )
-        new_val = list(range(1, rec_combinations_array.shape[0] + 1))
-        rec_combinations_array = tm.sort_table_by_field(
-            rec_combinations_array, 'id'
-        )
-        rec_combinations_array = tm.append_field(
-            rec_combinations_array, 'new_val', new_val, 'int64'
-        )
-        # check if unique new values are the same number as combinations
-        uni = np.unique(rec_combinations_array.id)
-        if uni.shape == cmb_arr.shape:
-            reclassification_list = sorted(list(uni))
-            break
+            new_val = list(range(1, rec_combinations_array.shape[0] + 1))
+            rec_combinations_array = tm.sort_table_by_field(
+                rec_combinations_array, 'id'
+            )
+            rec_combinations_array = tm.append_field(
+                rec_combinations_array, 'new_val', new_val, 'int64'
+            )
+            # check if unique new values are the same number as combinations
+            uni = np.unique(rec_combinations_array.id)
+            if uni.shape == cmb_arr.shape:
+                reclassification_list = sorted(list(uni))
+                break
+        else:
+            cfg.logger.log.error('cancel')
+            return OutputManager(check=False)
     expression = []
     for r in range(len(rnd_var_list)):
         expression.append(

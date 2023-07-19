@@ -36,6 +36,8 @@ band_dilation = band_erosion = band_neighbor_pixels = band_pca = None
 band_sieve = None
 # shared Temporary class
 temp = None
+# variable to stop processes
+action = True
 # variables used in Progress class
 progress = None
 process = root_name
