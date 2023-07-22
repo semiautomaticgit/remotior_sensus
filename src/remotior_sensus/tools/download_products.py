@@ -126,81 +126,13 @@ def query_sentinel_2_database(
         ) > 10:
             cfg.logger.log.warning('search area extent beyond limits')
             cfg.messages.warning('search area extent beyond limits')
-    # get total count products
-    if coordinate_list is None:
-        # get level 2A
-        url = ''.join(
-            ['https://datahub.creodias.eu/odata/v1/Products?&',
-             '$filter=contains(Name,%27', str(final_query),
-             '%27)%20and%20(startswith(Name,%27', 'S2', '%27)%20and%20(',
-             'Attributes/OData.CSC.StringAttribute/any(att:att/Name',
-             '%20eq%20%27productType%27%20and%20att/',
-             'OData.CSC.StringAttribute/Value%20eq%20%27', 'S2MSI2A',
-             '%27)%20and%20', 'Attributes/OData.CSC.DoubleAttribute/',
-             'any(att:att/Name%20eq%20%27cloudCover%27%20and%20att/',
-             'OData.CSC.DoubleAttribute/Value%20le%20',
-             str(max_cloud_cover), ')))%20and%20ContentDate/Start%20ge%20',
-             str(date_from), 'T00:00:00.000Z%20and%20ContentDate/',
-             'Start%20lt%20', str(date_to), 'T21:42:55.721Z&$orderby=',
-             'ContentDate/Start%20asc&$expand=Attributes&$count=True&',
-             '$top=1&$skip=0'
-             ]
-        )
-    else:
-        url = ''.join(
-            ['https://datahub.creodias.eu/odata/v1/Products?&',
-             '$filter=contains(Name,%27', str(final_query),
-             '%27)%20and%20(startswith(Name,%27', 'S2', '%27)%20and%20(',
-             'Attributes/OData.CSC.StringAttribute/any(att:att/Name',
-             '%20eq%20%27instrumentShortName%27%20and%20att/',
-             'OData.CSC.StringAttribute/Value%20eq%20%27', 'MSI',
-             '%27)%20and%20', 'Attributes/OData.CSC.DoubleAttribute/',
-             'any(att:att/Name%20eq%20%27cloudCover%27%20and%20att/',
-             'OData.CSC.DoubleAttribute/Value%20le%20',
-             str(max_cloud_cover), ')))%20and%20ContentDate/Start%20ge%20',
-             str(date_from), 'T00:00:00.000Z%20and%20ContentDate/',
-             'Start%20lt%20', str(date_to), 'T21:42:55.721Z',
-             '%20and%20OData.CSC.Intersects(area=geography%27SRID=4326;',
-             'POLYGON%20((',
-             str(coordinate_list[0]), '%20', str(coordinate_list[1]), ',',
-             str(coordinate_list[0]), '%20', str(coordinate_list[3]), ',',
-             str(coordinate_list[2]), '%20', str(coordinate_list[3]), ',',
-             str(coordinate_list[2]), '%20', str(coordinate_list[1]), ',',
-             str(coordinate_list[0]), '%20', str(coordinate_list[1]),
-             '))%27)',
-             '&$orderby=ContentDate/Start%20asc&$expand=Attributes&',
-             '$count=True&$top=1&$skip=0'
-             ]
-        )
-    # download json
-    json_file = cfg.temp.temporary_file_path(name_suffix='.json')
-    check, output_download = download_tools.download_file(
-        url=url, output_path=json_file, message='submitting request',
-        min_progress=0, max_progress=1, timeout=10
-    )
-    if check:
-        try:
-            with open(json_file) as json_search:
-                doc = json.load(json_search)
-        except Exception as err:
-            cfg.logger.log.error(str(err))
-            cfg.messages.error(str(err))
-            return OutputManager(check=False)
-        product_count = doc['@odata.count']
-        cfg.logger.log.debug('product_count: %s' % str(product_count))
-    else:
-        cfg.logger.log.error('error: search failed')
-        cfg.messages.error('error: search failed')
-        return OutputManager(check=False)
     base_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
     product_table_list = []
     # loop the results
     e = 0
-    max_result_number = 1000
+    max_result_number = 50
     if max_result_number > result_number:
         max_result_number = result_number
-    if result_number > product_count:
-        result_number = product_count
     for _results in range(0, result_number, max_result_number):
         if coordinate_list is None:
             # get level 2A
@@ -264,6 +196,8 @@ def query_sentinel_2_database(
                 cfg.messages.error(str(err))
                 return OutputManager(check=False)
             entries = doc['value']
+            if len(entries) == 0:
+                break
             for entry in entries:
                 e += 1
                 cfg.progress.update(
@@ -433,7 +367,7 @@ def download(
         product_table, output_path, exporter=False, band_list=None,
         virtual_download=False, extent_coordinate_list=None, proxy_host=None,
         proxy_port=None, proxy_user=None, proxy_password=None,
-        authentication_uri=None, user=None, password=None,
+        authentication_uri=None, nasa_user=None, nasa_password=None,
         progress_message=True
 ) -> OutputManager:
     """Download products.
@@ -458,8 +392,8 @@ def download(
         proxy_user: proxy user
         proxy_password: proxy password
         authentication_uri: authentication uri
-        user: user for authentication
-        password: password for authentication
+        nasa_user: user for authentication
+        nasa_password: password for authentication
         progress_message: progress message
 
     Returns:
@@ -560,7 +494,7 @@ def download(
                 url=metadata_msi_url, output_path=temp_file,
                 proxy_host=proxy_host,
                 proxy_port=proxy_port, proxy_user=proxy_user,
-                proxy_password=proxy_password, progress=False
+                proxy_password=proxy_password, progress=False, timeout=1
             )
             if exporter:
                 output_file_list.extend(
@@ -575,14 +509,16 @@ def download(
                         url=metadata_tl_url, output_path=metadata_tl,
                         proxy_host=proxy_host,
                         proxy_port=proxy_port, proxy_user=proxy_user,
-                        proxy_password=proxy_password, progress=False
+                        proxy_password=proxy_password, progress=False,
+                        timeout=2
                     )
                     if cloud_mask_gml:
                         download_tools.download_file(
                             url=cloud_mask_gml_url, output_path=cloud_mask_gml,
                             proxy_host=proxy_host, proxy_port=proxy_port,
                             proxy_user=proxy_user,
-                            proxy_password=proxy_password, progress=False
+                            proxy_password=proxy_password, progress=False,
+                            timeout=4
                         )
             # download bands
             for band in band_list:
@@ -634,13 +570,13 @@ def download(
                     download_tools.download_file(
                         url=url, output_path=output_file,
                         authentication_uri=authentication_uri,
-                        user=user, password=password, proxy_host=proxy_host,
-                        proxy_port=proxy_port,
+                        user=nasa_user, password=nasa_password,
+                        proxy_host=proxy_host, proxy_port=proxy_port,
                         proxy_user=proxy_user, proxy_password=proxy_password,
                         progress=progress_message,
                         message='downloading band %s' % str(band),
                         min_progress=min_progress,
-                        max_progress=max_progress
+                        max_progress=max_progress, timeout=10
                     )
                     if files_directories.is_file(output_file):
                         output_file_list.append(output_file)
@@ -769,7 +705,7 @@ def _check_sentinel_2_bands(
             download_tools.download_file(
                 url=band_url, output_path=output_file, proxy_host=proxy_host,
                 proxy_port=proxy_port, proxy_user=proxy_user,
-                proxy_password=proxy_password,
+                proxy_password=proxy_password, timeout=5,
                 progress=progress, message='downloading band %s' % band_number,
                 min_progress=min_progress, max_progress=max_progress
             )
