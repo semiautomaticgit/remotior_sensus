@@ -752,7 +752,7 @@ class BandSet(object):
         # wavelength
         try:
             if wavelengths is not None and len(wavelengths) == 1:
-                for sat in cfg.satWlList:
+                for sat in cfg.sat_band_list:
                     if (wavelengths[0].lower() in sat.lower()
                             or wavelengths[0].lower().replace(' ', '')
                             in sat.lower().replace(' ', '')):
@@ -1917,11 +1917,11 @@ class BandSetCatalog(object):
         by inserting or replacing the BandSet at specific BandSet number.
         Wavelength is defined by providing a list of values for each band,
         or a string of sensors names as defined in configurations
-        satWlList such as:
+        sat_band_list such as:
          
         - Sentinel-2;
-        - Landsat8;
-        - Landsat5;
+        - Landsat 8;
+        - Landsat 5;
         - ASTER.
 
         Wavelength unit is defined by a string such as:
@@ -2764,6 +2764,84 @@ class BandSetCatalog(object):
         self.bandsets_table['box_coordinate_bottom'][
             self.bandsets_table[
                 'bandset_number'] == bandset_number] = box_coordinate_list[3]
+
+    # set satellite wavelengths
+    def set_satellite_wavelength(
+            self, satellite_name, bandset_number=None
+    ):
+        """Sets BandSet center wavelength based on satellite.
+
+        Sets BandSet center wavelength based on satellite name.
+
+        Args:
+            satellite_name: name of satellite (e.g., Landsat 8)
+            bandset_number: number of BandSet; if None, current BandSet is used.
+
+        Examples:
+            Set BandSet 1 satellite wavelengths.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.set_satellite_wavelength(
+                ... bandset_number=1, satellite_name='Sentinel-2'
+                ... )
+        """  # noqa: E501
+        if bandset_number is None:
+            bandset_number = self.current_bandset
+        bandset_x = self.get_bandset_by_number(bandset_number)
+        bands = bandset_x.bands
+        if bands is not None:
+            sat_wl = sat_unit = sat_bands = None
+            if bands.shape[0] > 0:
+                if satellite_name == cfg.no_satellite:
+                    sat_wl = cfg.no_satellite
+                else:
+                    for satellite in cfg.sat_band_list:
+                        if (satellite_name.lower() in satellite.lower()
+                                and satellite != cfg.no_satellite):
+                            (sat_wl, sat_unit,
+                             sat_bands) = cfg.satellites[satellite]
+                            break
+            if sat_wl is not None:
+                if sat_wl == cfg.no_satellite:
+                    unit = cfg.no_unit
+                    for band in bands:
+                        band_name = band['name']
+                        wl = band['band_number']
+                        # get band number from names
+                        try:
+                            # numbers in format 01, 02, ...
+                            b = band_name.lower()[-2:]
+                            wl = float(b)
+                        except Exception as err:
+                            str(err)
+                            try:
+                                # numbers in format 1, 2, ...
+                                b = band_name.lower()[-2:].lstrip('0')
+                                wl = float(b)
+                            except Exception as err:
+                                str(err)
+                        band['wavelength'] = wl
+                        band['wavelength_unit'] = unit
+                else:
+                    unit = sat_unit
+                    for band in bands:
+                        band_name = band['name']
+                        wl = sat_wl[band['band_number'] - 1]
+                        # get band number from names
+                        try:
+                            # numbers in format 01, 02, ...
+                            b = band_name.lower()[-2:]
+                            wl = float(sat_wl[sat_bands.index(b)])
+                        except Exception as err:
+                            str(err)
+                            try:
+                                # numbers in format 1, 2, ...
+                                b = band_name.lower()[-2:].lstrip('0')
+                                wl = float(sat_wl[sat_bands.index(b)])
+                            except Exception as err:
+                                str(err)
+                        band['wavelength'] = wl
+                        band['wavelength_unit'] = unit
+                bandset_x.sort_bands_by_wavelength()
 
     def get_root_directory(self, bandset_number: Optional[int] = None) -> str:
         """Gets BandSet root directory.

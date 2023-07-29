@@ -380,26 +380,27 @@ def download(
 
 
     Args:
-        product_table:
-        output_path:
-        exporter:
-        band_list:
-        virtual_download: if True create a virtual raster of the linked image
-        extent_coordinate_list: list of coordinates for defining a subset
-            region [left, top, right, bottom]
-        proxy_host: proxy host
-        proxy_port: proxy port
-        proxy_user: proxy user
-        proxy_password: proxy password
-        authentication_uri: authentication uri
-        nasa_user: user for authentication
-        nasa_password: password for authentication
-        progress_message: progress message
+        product_table: product table object.
+        output_path: string of output path.
+        exporter: if True, export download urls.
+        band_list: list of band numbers to be downloaded.
+        virtual_download: if True create a virtual raster of the linked image.
+        extent_coordinate_list: list of coordinates for defining a subset region [left, top, right, bottom] .
+        proxy_host: proxy host.
+        proxy_port: proxy port.
+        proxy_user: proxy user.
+        proxy_password: proxy password.
+        authentication_uri: authentication uri.
+        nasa_user: user for authentication.
+        nasa_password: password for authentication.
+        progress_message: progress message.
 
     Returns:
-        object OutputManger
+        object :func:`~remotior_sensus.core.output_manager.OutputManager` with
+            - paths = output file list
+            - extra={'directory_paths': list of output directory paths}
 
-    """
+    """  # noqa: E501
     cfg.logger.log.info('start')
     if progress_message:
         cfg.progress.update(
@@ -571,7 +572,7 @@ def download(
                         output_file_list.append(url)
                     else:
                         output_file = '%s/%s_B%s%s' % (
-                            output_path, product_name.replace('.', '_'),
+                            base_output_dir, product_name.replace('.', '_'),
                             str(band).zfill(2), cfg.tif_suffix)
                         download_tools.download_file(
                             url=url, output_path=output_file,

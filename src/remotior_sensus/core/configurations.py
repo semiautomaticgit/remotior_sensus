@@ -132,7 +132,7 @@ satPleiades = 'Pleiades [bands 1, 2, 3, 4]'
 satQuickBird = 'QuickBird [bands 1, 2, 3, 4]'
 satWorldView23 = 'WorldView-2 -3 Multispectral [bands 1, 2, 3, 4, 5, 6, 7, 8]'
 # satellite list used in BandSet class
-satWlList = [
+sat_band_list = [
     no_satellite, satASTER, satGeoEye1, satGOES, satLandsat8, satLandsat7,
     satLandsat45, satLandsat13, satMODIS, satMODIS2, satPleiades, satQuickBird,
     satRapidEye, satSentinel2, satSentinel3, satSPOT4, satSPOT5, satSPOT6,

@@ -350,9 +350,6 @@ def _run_expression(
     )
     # add output to BandSet
     if bs_number is not None and bandset_catalog is not None:
-        bandset_catalog.add_band_to_bandset(
-            path=output, bandset_number=int(bs_number)
-        )
         try:
             bandset_catalog.add_band_to_bandset(
                 path=output, bandset_number=int(bs_number)
@@ -847,7 +844,6 @@ def _check_expression(
                 elif len(line_split) == 2:
                     try:
                         output_name = line_split[1].strip()
-
                         output_ext = files_directories.file_extension(
                             output_name.lower()
                         )

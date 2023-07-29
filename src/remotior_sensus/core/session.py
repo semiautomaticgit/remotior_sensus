@@ -72,6 +72,7 @@ class Session(object):
         table_manager: access functions of :func:`~remotior_sensus.core.table_manager` module
         dates_times: access dates and times utilities
         download_tools: access download utilities
+        files_directories: access files directories utilities
         band_calc: tool :func:`~remotior_sensus.tools.band_calc`
         band_classification: tool :func:`~remotior_sensus.tools.band_classification`
         classifier: tool :func:`~remotior_sensus.tools.band_classification.Classifier`
@@ -254,6 +255,7 @@ class Session(object):
             self.vector_to_raster = vector_to_raster.vector_to_raster
             self.dates_times = dates_times
             self.download_tools = download_tools
+            self.files_directories = files_directories
         else:
             self.configurations = None
 

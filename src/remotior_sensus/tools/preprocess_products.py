@@ -21,10 +21,12 @@ Perform the preprocessing of products.
 
 import os
 from xml.dom import minidom
+from typing import Optional
 
 import numpy as np
 
 from remotior_sensus.core import configurations as cfg, table_manager as tm
+from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
     band_calculation, raster_unique_values_with_sum
@@ -34,32 +36,13 @@ from remotior_sensus.util import files_directories
 
 # create product table and preprocess
 def preprocess(
-        input_path, output_path, metadata_file_path=None,
+        input_path, output_path, metadata_file_path=None, add_bandset=None,
         product=None, nodata_value=None, sensor=None, acquisition_date=None,
         dos1_correction=False, output_prefix='', n_processes: int = None,
+        bandset_catalog: Optional[BandSetCatalog] = None,
         available_ram: int = None, progress_message=True
-):
-    table = create_product_table(
-        input_path=input_path, metadata_file_path=metadata_file_path,
-        product=product, nodata_value=nodata_value, sensor=sensor,
-        acquisition_date=acquisition_date
-    )
-    output = perform_preprocess(
-        product_table=table, output_path=output_path,
-        dos1_correction=dos1_correction, output_prefix=output_prefix,
-        n_processes=n_processes, available_ram=available_ram,
-        progress_message=progress_message
-        )
-    return output
-
-
-# preprocess products
-def perform_preprocess(
-        product_table, output_path, dos1_correction=False,
-        output_prefix='', n_processes: int = None, available_ram: int = None,
-        progress_message=True
 ) -> OutputManager:
-    """Preprocess products.
+    """Create table and preprocess products.
 
     Perform image conversion to reflectance of several products.
 
@@ -92,16 +75,63 @@ def perform_preprocess(
     Surface reflectance = DN / QUANTIFICATION VALUE + OFFSET
 
     Args:
-        product_table:
-        output_path:
-        dos1_correction:
-        output_prefix:
-        n_processes:
+        input_path:
+        output_path: string of output path directory.
+        metadata_file_path:
+        dos1_correction: if True, perform DOS1 correction.
+        add_bandset: if True, create a new bandset and add output bands to it; if False, add output bands to current bandset.
+        product:
+        nodata_value:
+        sensor:
+        acquisition_date:
+        output_prefix: optional string for output name prefix.
+        n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
-        progress_message:
+        bandset_catalog: BandSetCatalog object.
+        progress_message: progress message.
 
     Returns:
-        object :func:`~remotior_sensus.core.output_manager.OutputManager`
+        Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
+            - paths = output list
+    """  # noqa: E501
+    table = create_product_table(
+        input_path=input_path, metadata_file_path=metadata_file_path,
+        product=product, nodata_value=nodata_value, sensor=sensor,
+        acquisition_date=acquisition_date
+    )
+    output = perform_preprocess(
+        product_table=table, output_path=output_path, add_bandset=add_bandset,
+        dos1_correction=dos1_correction, output_prefix=output_prefix,
+        n_processes=n_processes, available_ram=available_ram,
+        progress_message=progress_message, bandset_catalog=bandset_catalog
+        )
+    return output
+
+
+# preprocess products
+def perform_preprocess(
+        product_table, output_path, dos1_correction=False, add_bandset=None,
+        output_prefix='', n_processes: int = None, available_ram: int = None,
+        bandset_catalog: Optional[BandSetCatalog] = None, progress_message=True
+) -> OutputManager:
+    """Preprocess products.
+
+    Perform preprocessing based on product table.
+
+    Args:
+        product_table: product table object.
+        output_path: string of output path directory.
+        dos1_correction: if True, perform DOS1 correction.
+        add_bandset: if True, create a new bandset and add output bands to it; if False, add output bands to current bandset.
+        output_prefix: optional string for output name prefix.
+        n_processes: number of parallel processes.
+        available_ram: number of megabytes of RAM available to processes.
+        bandset_catalog: BandSetCatalog object.
+        progress_message: progress message.
+
+    Returns:
+        Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
+            - paths = output list
     """  # noqa: E501
     if progress_message:
         cfg.logger.log.info('start')
@@ -428,6 +458,44 @@ def perform_preprocess(
                 cfg.logger.log.error('unable to process file: %s' % str(i))
                 cfg.messages.error('unable to process file: %s' % str(i))
                 return OutputManager(check=False)
+
+    # add output to BandSet
+    if add_bandset is not None and bandset_catalog is not None:
+        product = product_table.product[0]
+        # get Landsat satellite
+        if product == cfg.landsat:
+            spacecraft = product_table.spacecraft[0]
+            if '1' in spacecraft or '2' in spacecraft or '3' in spacecraft:
+                product = cfg.satLandsat13
+            elif '4' in spacecraft or '5' in spacecraft:
+                product = cfg.satLandsat45
+            elif '7' in spacecraft:
+                product = cfg.satLandsat7
+            elif '8' in spacecraft:
+                product = cfg.satLandsat8
+            elif '9' in spacecraft:
+                product = cfg.satLandsat9
+        if add_bandset is True:
+            # create bandset
+            bandset_catalog.create_bandset(
+                paths=output_raster_path_list,
+                wavelengths=[product],
+                date=str(product_table.date[0])
+            )
+        else:
+            for path in output_raster_path_list:
+                # add to current bandset
+                try:
+                    bandset_catalog.add_band_to_bandset(
+                        path=path,
+                        bandset_number=bandset_catalog.current_bandset
+                    )
+                    bandset_catalog.set_satellite_wavelength(
+                        satellite_name=product,
+                        bandset_number=bandset_catalog.current_bandset)
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    cfg.messages.error(str(err))
     cfg.progress.update(end=True)
     cfg.logger.log.info(
         'end; preprocess products: %s' % str(output_raster_path_list)
@@ -863,8 +931,7 @@ def create_product_table(
         offset_list=offset_value_list, nodata_list=nodata_value_list,
         date_list=product_date_list,
         k1_list=k1_list, k2_list=k2_list, band_number_list=band_number_list,
-        e_sun_list=e_sun_list,
-        sun_elevation_list=sun_elevation_list,
+        e_sun_list=e_sun_list, sun_elevation_list=sun_elevation_list,
         earth_sun_distance_list=earth_sun_distance_list
     )
     return product_table

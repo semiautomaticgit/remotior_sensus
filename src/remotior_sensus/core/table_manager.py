@@ -358,6 +358,7 @@ def pivot_matrix(
         matrix_1 = eval('matrix[%s]' % filter_string)
     # rows
     row_values = np.unique(matrix_1[row_field])
+    # noinspection PyTypeChecker
     row_value_list: list = row_values.tolist()
     cfg.logger.log.debug(
         'column_function_list: %s; len(row_value_list): %s' % (

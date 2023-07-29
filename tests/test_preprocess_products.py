@@ -15,7 +15,8 @@ class TestPreprocessProducts(TestCase):
         cfg.logger.log.debug('>>> test sentinel-2')
         table = rs.preprocess_products.create_product_table(
             input_path='data/S2_2020-01-01',
-            metadata_file_path='data/files/sentinel_2_metadata_test_l1c.xml'
+            metadata_file_path='data/files/sentinel_2_metadata_test_l1c.xml',
+            nodata_value=102
         )
         out_1 = rs.preprocess_products.perform_preprocess(
             product_table=table, output_path=cfg.temp.dir + '/test_1',
@@ -48,13 +49,29 @@ class TestPreprocessProducts(TestCase):
             dos1_correction=True
             )
         self.assertTrue(out_4.check)
+        # create BandSet Catalog
+        catalog = rs.bandset_catalog()
         out_5 = rs.preprocess_products.preprocess(
             input_path='data/L8_2020-01-01',
             output_path=cfg.temp.dir + '/test_5',
             metadata_file_path='data/files/landsat_5_metadata_mtl.xml',
-            dos1_correction=True
+            dos1_correction=True, add_bandset=True, bandset_catalog=catalog
             )
         self.assertTrue(out_5.check)
+        self.assertEqual(catalog.get_bandset_count(), 1)
+        self.assertEqual(catalog.get_bandset(1).get_band_count(), 4)
+
+        # create BandSet Catalog
+        catalog2 = rs.bandset_catalog()
+        out_6 = rs.preprocess_products.preprocess(
+            input_path='data/L8_2020-01-01',
+            output_path=cfg.temp.dir + '/test_5',
+            metadata_file_path='data/files/landsat_5_metadata_mtl.xml',
+            dos1_correction=True, add_bandset=False, bandset_catalog=catalog2
+            )
+        self.assertTrue(out_6.check)
+        self.assertEqual(catalog.get_bandset_count(), 1)
+        self.assertEqual(catalog.get_bandset(1).get_band_count(), 4)
 
         # clear temporary directory
         rs.close()
