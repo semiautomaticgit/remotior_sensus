@@ -17,6 +17,9 @@
 
 import os
 import random
+import zipfile
+from xml.etree import cElementTree
+from xml.dom import minidom
 
 import numpy as np
 
@@ -25,7 +28,8 @@ from remotior_sensus.core import (
 )
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.processor_functions import spectral_signature
-from remotior_sensus.util import raster_vector, dates_times, files_directories
+from remotior_sensus.util import (
+    raster_vector, dates_times, files_directories, read_write_files)
 
 try:
     if cfg.gdal_path is not None:
@@ -54,9 +58,9 @@ class SpectralSignaturesCatalog(object):
     ):
         # relative BandSet
         self.bandset = bandset
-        # spectral signatures catalog table
+        # spectral signatures catalog table (value, wavelength, and sd)
         self.table = catalog_table
-        # dictionary of spectral signature tables
+        # dictionary of spectral signature tables (macroclass, class, selected)
         self.signatures = {}
         # dictionary of names of macroclasses
         self.macroclasses = {}
@@ -204,9 +208,10 @@ class SpectralSignaturesCatalog(object):
 
     # import vector to Spectral Signatures Catalog
     def import_vector(
-            self, file_path, macroclass_field, class_field,
-            macroclass_name_field, class_name_field,
-            calculate_signature=True
+            self, file_path, macroclass_value=None, class_value=None,
+            macroclass_name=None, class_name=None, macroclass_field=None,
+            class_field=None, macroclass_name_field=None,
+            class_name_field=None, calculate_signature=True
     ):
         cfg.logger.log.debug('start')
         if files_directories.is_file(file_path):
@@ -262,13 +267,24 @@ class SpectralSignaturesCatalog(object):
                         geom.Transform(coord_transform)
                     o_feature = ogr.Feature(catalog_layer_definition)
                     o_feature.SetGeometry(geom)
-                    macroclass_value = i_feature.GetField(macroclass_field)
-                    class_value = i_feature.GetField(class_field)
-                    macroclass_name = i_feature.GetField(macroclass_name_field)
-                    class_name = i_feature.GetField(class_name_field)
-                    o_feature.SetField(cfg.macroclass_field_name,
-                                       macroclass_value)
-                    o_feature.SetField(cfg.class_field_name, class_value)
+                    if macroclass_value is None:
+                        mc_value = i_feature.GetField(macroclass_field)
+                    else:
+                        mc_value = macroclass_value
+                    if class_value is None:
+                        c_value = i_feature.GetField(class_field)
+                    else:
+                        c_value = class_value
+                    if macroclass_name is None:
+                        mc_name = i_feature.GetField(macroclass_name_field)
+                    else:
+                        mc_name = macroclass_name
+                    if class_name is None:
+                        c_name = i_feature.GetField(class_name_field)
+                    else:
+                        c_name = class_name
+                    o_feature.SetField(cfg.macroclass_field_name, mc_value)
+                    o_feature.SetField(cfg.class_field_name, c_value)
                     o_feature.SetField(cfg.uid_field_name, signature_id)
                     catalog_layer.CreateFeature(o_feature)
                     if calculate_signature:
@@ -288,21 +304,17 @@ class SpectralSignaturesCatalog(object):
                          standard_deviation_list) = self.calculate_signature(
                             temp_path)
                         self.add_spectral_signature(
-                            value_list=value_list,
-                            macroclass_id=macroclass_value,
-                            class_id=class_value,
-                            macroclass_name=macroclass_name,
-                            class_name=class_name,
+                            value_list=value_list, macroclass_id=mc_value,
+                            class_id=c_value, macroclass_name=mc_name,
+                            class_name=c_name,
                             standard_deviation_list=standard_deviation_list,
                             signature_id=signature_id
                         )
                     else:
                         self.signature_to_catalog(
-                            signature_id=signature_id,
-                            macroclass_id=macroclass_value,
-                            class_id=class_value,
-                            macroclass_name=macroclass_name,
-                            class_name=class_name
+                            signature_id=signature_id, macroclass_id=mc_value,
+                            class_id=c_value, macroclass_name=mc_name,
+                            class_name=c_name
                         )
                     o_feature.Destroy()
                     i_feature.Destroy()
@@ -351,6 +363,89 @@ class SpectralSignaturesCatalog(object):
         cfg.multiprocess.multiprocess_spectral_signature()
         value_list, standard_deviation_list = cfg.multiprocess.output
         return value_list, standard_deviation_list
+
+    # save Spectral Signatures Catalog to file
+    def save(self, output_path):
+        # file list
+        file_list = []
+        # create temporary directory
+        temp_dir = cfg.temp.create_temporary_directory()
+        # geometry file
+        if files_directories.is_file(self.geometry_file):
+            files_directories.copy_file(
+                self.geometry_file, '%s/geometry.gpkg' % temp_dir
+            )
+            file_list.append('%s/geometry.gpkg' % temp_dir)
+        # create xml file
+        root = cElementTree.Element('macroclasses')
+        root.set('version', str(cfg.version))
+        root.set('macroclass_field', str(self.macroclass_field))
+        root.set('class_field', str(self.class_field))
+        if self.macroclasses is not None:
+            for macroclass in self.macroclasses:
+                macroclass_element = cElementTree.SubElement(
+                    root, 'macroclass'
+                )
+                macroclass_element.set('id', str(macroclass))
+                macroclass_element.set('name',
+                                       str(self.macroclasses[macroclass]))
+        if self.signatures is not None:
+            for signature in self.signatures:
+                # create file inside temporary directory
+                self.signatures[signature].tofile(file='%s/%s' %
+                                                       (temp_dir, signature))
+                file_list.append('%s/%s' % (temp_dir, signature))
+        # save to file
+        pretty_xml = minidom.parseString(
+            cElementTree.tostring(root)).toprettyxml()
+        # create file inside temporary directory
+        read_write_files.write_file(pretty_xml,
+                                    '%s/macroclasses.xml' % temp_dir)
+        file_list.append('%s/macroclasses.xml' % temp_dir)
+        # create file inside temporary directory
+        self.table.tofile(file='%s/table' % temp_dir)
+        file_list.append('%s/table' % temp_dir)
+        # zip files
+        files_directories.zip_files(file_list, output_path,
+                                    compression=zipfile.ZIP_STORED)
+        cfg.logger.log.debug('export signature catalog')
+        return output_path
+
+    # load Spectral Signatures Catalog from file
+    def load(self, file_path):
+        self.table = None
+        self.signatures = {}
+        # create temporary directory
+        temp_dir = cfg.temp.create_temporary_directory()
+        file_list = files_directories.unzip_file(file_path, temp_dir)
+        for f in file_list:
+            f_name = files_directories.file_name(f, suffix=True)
+            if f_name == 'geometry.gpkg':
+                self.geometry_file = f
+            elif f_name == 'table':
+                self.table = np.core.records.fromfile(
+                    f, dtype=cfg.spectral_dtype_list)
+            elif f_name == 'macroclasses.xml':
+                tree = cElementTree.parse(f)
+                root = tree.getroot()
+                version = root.get('version')
+                if version is None:
+                    cfg.logger.log.error('failed loading signatures: %s'
+                                         % file_path)
+                    cfg.messages.error('failed loading signatures: %s'
+                                       % file_path)
+                else:
+                    self.macroclass_field = root.get('macroclass_field')
+                    self.class_field = root.get('class_field')
+                    self.macroclasses = {}
+                    for child in root:
+                        macroclass_id = child.get('id')
+                        macroclass_name = child.get('name')
+                        self.macroclasses[int(macroclass_id)] = str(
+                            macroclass_name)
+            else:
+                self.signatures[f_name] = np.core.records.fromfile(
+                    f, dtype=cfg.signature_dtype_list)
 
 
 # generate signature id

@@ -21,9 +21,22 @@ class TestSpectralSignatures(TestCase):
         )
         self.assertEqual(len(signature_catalog.signatures), 1)
         signature_catalog.add_spectral_signature(
-            value_list=value_list, wavelength_list=wavelength_list
+            value_list=value_list, wavelength_list=wavelength_list,
+            macroclass_id=2
         )
         self.assertEqual(signature_catalog.table.shape[0], 2)
+        cfg.logger.log.debug('>>> test save Spectral Signature Catalog')
+        temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
+        signature_catalog.save(output_path=temp)
+        self.assertTrue(rs.files_directories.is_file(temp))
+        signature_catalog_x = rs.spectral_signatures_catalog()
+        signature_catalog_x.load(file_path=temp)
+        self.assertEqual(signature_catalog.table.shape[0],
+                         signature_catalog_x.table.shape[0])
+        self.assertEqual(signature_catalog.table[0],
+                         signature_catalog_x.table[0])
+        self.assertEqual(len(signature_catalog.signatures),
+                         len(signature_catalog_x.signatures))
         # create BandSet
         cfg.logger.log.debug('>>> test create BandSet')
         catalog = rs.bandset_catalog()
@@ -86,8 +99,8 @@ class TestSpectralSignatures(TestCase):
         )
         self.assertEqual(
             signature_catalog_2.table[
-                signature_catalog_2.table['macroclass_id'] == 3].macroclass_id,
-            3
+                signature_catalog_2.table['macroclass_id'] == 4].macroclass_id,
+            4
         )
 
         # clear temporary directory

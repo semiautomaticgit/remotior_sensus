@@ -1086,15 +1086,11 @@ def add_spectral_signature_to_catalog_table(
         previous_catalog=None, selected=1, min_dist_thr=0, max_like_thr=0,
         spec_angle_thr=0
 ):
-    dtype_list = [('signature_id', 'U64'), ('macroclass_id', 'int16'),
-                  ('class_id', 'int16'), ('class_name', 'U512'),
-                  ('selected', 'byte'), ('min_dist_thr', 'float64'),
-                  ('max_like_thr', 'float64'), ('spec_angle_thr', 'float64')]
     rec_array = np.rec.fromrecords(
         [(signature_id, int(macroclass_id), int(class_id), str(class_name),
           selected,
           min_dist_thr, max_like_thr, spec_angle_thr)],
-        dtype=dtype_list
+        dtype=cfg.spectral_dtype_list
     )
     # add to previous bandset catalog table
     if previous_catalog is not None:
@@ -1113,12 +1109,11 @@ def add_spectral_signature_to_catalog_table(
 def create_spectral_signature_table(
         value_list, wavelength_list, standard_deviation_list=None
 ):
-    dtype_list = [('value', 'float64'), ('wavelength', 'float64'),
-                  ('standard_deviation', 'float64')]
     if standard_deviation_list is None:
         standard_deviation_list = [0] * len(value_list)
     data_list = [value_list, wavelength_list, standard_deviation_list]
-    rec_array = np.rec.fromarrays(np.array(data_list), dtype=dtype_list)
+    rec_array = np.rec.fromarrays(np.array(data_list),
+                                  dtype=cfg.signature_dtype_list)
     return rec_array
 
 

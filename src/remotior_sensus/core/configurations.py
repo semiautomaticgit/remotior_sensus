@@ -287,6 +287,15 @@ uint16_dt = 'UInt16'
 byte_dt = 'Byte'
 datatype_list = [float64_dt, float32_dt, int32_dt, uint32_dt, int16_dt,
                  uint16_dt, byte_dt]
+# spectral catalog table dtype
+spectral_dtype_list = [('signature_id', 'U64'), ('macroclass_id', 'int16'),
+                       ('class_id', 'int16'), ('class_name', 'U512'),
+                       ('selected', 'byte'), ('min_dist_thr', 'float64'),
+                       ('max_like_thr', 'float64'),
+                       ('spec_angle_thr', 'float64')]
+# spectral signature dtype
+signature_dtype_list = [('value', 'float64'), ('wavelength', 'float64'),
+                        ('standard_deviation', 'float64')]
 # variables used in spectral signatures
 uid_field_name = 'roi_id'
 macroclass_field_name = 'macroclass_id'
