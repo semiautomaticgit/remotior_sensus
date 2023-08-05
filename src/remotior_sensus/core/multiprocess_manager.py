@@ -1042,11 +1042,14 @@ class Multiprocess(object):
         if align_raster_path is not None:
             # align raster extent and pixel size
             try:
-                (left_align, top_align, right_align, bottom_align, p_x_align,
-                 p_y_align, output_wkt,
-                 unit) = raster_vector.image_geotransformation(
-                    align_raster_path
-                )
+                info = raster_vector.image_geotransformation(align_raster_path)
+                left_align = info['left']
+                top_align = info['top']
+                right_align = info['right']
+                bottom_align = info['bottom']
+                p_x_align = info['pixel_size_x']
+                p_y_align = info['pixel_size_y']
+                output_wkt = info['projection']
                 # check projections
                 align_sys_ref = raster_vector.get_spatial_reference(output_wkt)
             except Exception as err:
@@ -1054,11 +1057,12 @@ class Multiprocess(object):
                 return False
             # input_path raster extent and pixel size
             try:
-                (left_input, top_input, right_input, bottom_input, p_x_input,
-                 p_y_input, proj_input,
-                 unit_input) = raster_vector.image_geotransformation(
-                    raster_path
-                )
+                info = raster_vector.image_geotransformation(raster_path)
+                left_input = info['left']
+                top_input = info['top']
+                right_input = info['right']
+                bottom_input = info['bottom']
+                proj_input = info['projection']
                 input_sys_ref = raster_vector.get_spatial_reference(proj_input)
                 left_projected, top_projected = \
                     raster_vector.project_point_coordinates(
@@ -1753,6 +1757,25 @@ class Multiprocess(object):
                     cfg.logger.log.error(str(err))
                     return
         self.output = mean_values, std
+        cfg.logger.log.debug('end')
+
+    # region growing from output of multiprocess
+    def multiprocess_region_growing(self):
+        cfg.logger.log.debug('start')
+        multiprocess_dictionary: Union[dict, bool] = self.output
+        if not multiprocess_dictionary:
+            cfg.logger.log.error('unable to process')
+            return
+        regions = []
+        # calculate values
+        for x in sorted(multiprocess_dictionary):
+            for arr_x in multiprocess_dictionary[x]:
+                try:
+                    regions.append(arr_x[1])
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    return
+        self.output = regions
         cfg.logger.log.debug('end')
 
     # unique values from output of multiprocess

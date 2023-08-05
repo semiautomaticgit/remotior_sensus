@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -29,7 +29,8 @@ from remotior_sensus.core import (
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.processor_functions import spectral_signature
 from remotior_sensus.util import (
-    raster_vector, dates_times, files_directories, read_write_files)
+    raster_vector, dates_times, files_directories, read_write_files
+)
 
 try:
     if cfg.gdal_path is not None:
@@ -114,6 +115,7 @@ class SpectralSignaturesCatalog(object):
             object OutputManger
 
         """
+        cfg.logger.log.debug('start')
         if macroclass_id is None:
             macroclass_id = 1
         if class_id is None:
@@ -135,6 +137,7 @@ class SpectralSignaturesCatalog(object):
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
             spec_angle_thr=spec_angle_thr
         )
+        cfg.logger.log.debug('end')
 
     # add spectral signature reference to Spectral Signatures Catalog
     def signature_to_catalog(
@@ -157,6 +160,33 @@ class SpectralSignaturesCatalog(object):
         if macroclass_id not in self.macroclasses:
             self.macroclasses[macroclass_id] = '%s%s' % (
                 cfg.macroclass_default, str(len(self.macroclasses) + 1))
+
+    # remove spectral signature and geometry from Spectral Signatures Catalog
+    def remove_signature_by_id(self, signature_id):
+        cfg.logger.log.debug('start')
+        # remove signature
+        try:
+            del self.signatures[signature_id]
+        except Exception as err:
+            str(err)
+            cfg.logger.log.error('signature not found: %s' % signature_id)
+            cfg.messages.error('signature not found: %s' % signature_id)
+            return False
+        macroclass_value = self.table[
+            self.table['signature_id'] == signature_id].macroclass_id[0]
+        # remove signature from table
+        self.table = self.table[self.table['signature_id'] != signature_id]
+        if macroclass_value not in self.table.macroclass_id.tolist():
+            try:
+                del self.macroclasses[macroclass_value]
+            except Exception as err:
+                str(err)
+        # remove geometry
+        raster_vector.remove_polygon_from_vector(
+            vector_path=self.geometry_file, attribute_field=cfg.uid_field_name,
+            attribute_value=signature_id
+        )
+        cfg.logger.log.debug('end')
 
     # import spectral signature csv to Spectral Signatures Catalog
     def import_spectral_signature_csv(
@@ -403,8 +433,9 @@ class SpectralSignaturesCatalog(object):
                                     '%s/macroclasses.xml' % temp_dir)
         file_list.append('%s/macroclasses.xml' % temp_dir)
         # create file inside temporary directory
-        self.table.tofile(file='%s/table' % temp_dir)
-        file_list.append('%s/table' % temp_dir)
+        if self.table is not None:
+            self.table.tofile(file='%s/table' % temp_dir)
+            file_list.append('%s/table' % temp_dir)
         # zip files
         files_directories.zip_files(file_list, output_path,
                                     compression=zipfile.ZIP_STORED)

@@ -93,7 +93,7 @@ class TestSpectralSignatures(TestCase):
         # import vector
         cfg.logger.log.debug('>>> test import vector')
         signature_catalog_2.import_vector(
-            file_path='data/files/roi.gpkg', macroclass_field='macroclass',
+            file_path='data/files/roi.gpkg', macroclass_value=7,
             class_field='class', macroclass_name_field='macroclass',
             class_name_field='class', calculate_signature=True
         )
@@ -101,6 +101,48 @@ class TestSpectralSignatures(TestCase):
             signature_catalog_2.table[
                 signature_catalog_2.table['macroclass_id'] == 4].macroclass_id,
             4
+        )
+        # import vector
+        cfg.logger.log.debug('>>> test remove signature')
+        temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
+        signature_catalog_2.save(output_path=temp)
+        self.assertTrue(rs.files_directories.is_file(temp))
+        sig_id = signature_catalog_2.table[
+            signature_catalog_2.table['macroclass_id'] == 7].signature_id[0]
+        signature_catalog_2.remove_signature_by_id(signature_id=sig_id)
+        temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
+        signature_catalog_2.save(output_path=temp)
+        self.assertTrue(rs.files_directories.is_file(temp))
+        # region growing
+        cfg.logger.log.debug('>>> test region growing')
+        catalog_3 = rs.bandset_catalog()
+        file_list = ['S2_2020-01-04/S2_B02.tif', 'S2_2020-01-04/S2_B03.tif',
+                     'S2_2020-01-04/S2_B04.tif']
+        root_directory = 'data'
+        catalog_3.create_bandset(
+            file_list, wavelengths=['Sentinel-2'],
+            root_directory=root_directory
+            )
+        region_vector = rs.shared_tools.region_growing_polygon(
+            coordinate_x=230303, coordinate_y=4674704,
+            input_bands=1, max_width=4,
+            max_spectral_distance=0.1, minimum_size=1,
+            bandset_catalog=catalog_3
+        )
+        self.assertTrue(rs.files_directories.is_file(region_vector))
+        # set BandSet in SpectralCatalog
+        signature_catalog_3 = rs.spectral_signatures_catalog(
+            bandset=catalog_3.get(1)
+        )
+        signature_catalog_3.import_vector(
+            file_path=region_vector, macroclass_value=5,
+            class_value=11, macroclass_name='macroclass',
+            class_name='class', calculate_signature=True
+        )
+        self.assertEqual(
+            signature_catalog_3.table[
+                signature_catalog_3.table['macroclass_id'] == 5].macroclass_id,
+            5
         )
 
         # clear temporary directory

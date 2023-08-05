@@ -35,6 +35,7 @@ except Exception as error:
 try:
     from scipy import signal
     from scipy.stats import mode as scipy_mode
+    from scipy.ndimage import label
 except Exception as error:
     str(error)
 try:
@@ -1197,6 +1198,53 @@ def spectral_signature(*argv):
     std = np.nanstd(array_roi)
     cfg.logger.log.debug('end')
     return [None, [mean, std]]
+
+
+# calculate region growing from seed value
+def region_growing(*argv):
+    cfg.logger.log.debug('start')
+    output_no_data = argv[0][2]
+    array_function_placeholder = argv[1]
+    nodata_mask = argv[2]
+    # roi parameters
+    function_variable = argv[8]
+    array_roi = array_function_placeholder
+    array_roi[::, ::][nodata_mask == output_no_data] = np.nan
+    seed_x = function_variable[0]
+    seed_y = function_variable[1]
+    max_spectral_distance = function_variable[2]
+    minimum_size = function_variable[3]
+    seed_array = np.zeros(array_roi.shape)
+    seed_value = array_roi[seed_y, seed_x]
+    # if nodata
+    if np.sum(np.isnan(seed_value)) > 0:
+        return seed_array
+    seed_array.fill(seed_value)
+    difference_array = abs(array_roi - seed_array)
+    # calculate minimum difference
+    unique_difference_array = np.unique(difference_array)
+    unique_difference_distance = unique_difference_array[
+        unique_difference_array > float(max_spectral_distance)
+    ]
+    unique_difference_array = np.insert(
+        unique_difference_distance, 0, float(max_spectral_distance)
+    )
+    region = None
+    region_seed_value = None
+    region_value_mask = seed_array
+    for i in unique_difference_array:
+        region_label, num_features = label(difference_array <= i)
+        # value of ROI seed
+        region_seed_value = region_label[seed_y, seed_x]
+        region_value_mask = (region_label == region_seed_value)
+        if (region_seed_value != 0
+                and np.count_nonzero(region_value_mask) >= minimum_size):
+            region = np.copy(region_value_mask)
+            break
+    if region is None and region_seed_value != 0:
+        region = np.copy(region_value_mask)
+    cfg.logger.log.debug('end')
+    return [None, region]
 
 
 # get band arrays

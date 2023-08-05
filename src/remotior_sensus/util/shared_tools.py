@@ -25,10 +25,15 @@ from typing import Union, Optional
 
 import numpy as np
 
+try:
+    from scipy.ndimage import label
+except Exception as error:
+    str(error)
+
 from remotior_sensus.core import configurations as cfg
-from remotior_sensus.core.bandset_catalog import BandSet
-from remotior_sensus.core.bandset_catalog import BandSetCatalog
+from remotior_sensus.core.bandset_catalog import BandSet, BandSetCatalog
 from remotior_sensus.util import files_directories, raster_vector
+from remotior_sensus.core.processor_functions import region_growing
 
 
 # check input path converting to the same crs if necessary
@@ -170,20 +175,22 @@ def prepare_process_files(
         if multiple_input:
             temp_list = []
             for r in input_raster_list:
-                temporary_virtual_raster = \
+                temporary_virtual_raster = (
                     raster_vector.create_temporary_virtual_raster(
                         input_raster_list=[r],
                         box_coordinate_list=box_coordinate_list
                     )
+                )
                 temp_list.append(temporary_virtual_raster)
             input_raster_list = temp_list
             temporary_virtual_raster = True
         else:
-            temporary_virtual_raster = \
+            temporary_virtual_raster = (
                 raster_vector.create_temporary_virtual_raster(
                     input_raster_list=input_raster_list,
                     box_coordinate_list=box_coordinate_list
                 )
+            )
     prepared = {
         'input_raster_list': input_raster_list, 'raster_info': raster_info,
         'nodata_list': nodata_list, 'name_list': name_list, 'warped': warped,
@@ -267,3 +274,145 @@ def replace(input_string: str, old_value: str, new_value: str):
     ).replace(')', '\\)')
     output = re.sub(old_value, new_value, input_string, flags=re.IGNORECASE)
     return output
+
+
+# region growing polygon
+def region_growing_polygon(
+        coordinate_x, coordinate_y, input_bands: Union[list, int, BandSet],
+        output_vector=None, band_number=None, max_width=None,
+        max_spectral_distance=None, minimum_size=None, bandset_catalog=None,
+        n_processes=None
+):
+    cfg.logger.log.debug('start')
+    box_coordinate_list = tmp_vrt = None
+    if type(input_bands) is BandSet:
+        coord_list = input_bands.box_coordinate_list
+        if coord_list is not None:
+            box_coordinate_list = coord_list
+    elif type(input_bands) is int:
+        coord_list = bandset_catalog.get_bandset(
+            bandset_number=input_bands).box_coordinate_list
+        if coord_list is not None:
+            box_coordinate_list = coord_list
+    # get input list
+    band_list = BandSetCatalog.get_band_list(input_bands, bandset_catalog)
+    cfg.logger.log.debug('band_list: %s' % str(band_list))
+    # get input files
+    prepared = prepare_input_list(
+        band_list=band_list, n_processes=n_processes
+    )
+    input_raster_list = prepared['input_list']
+    temporary_virtual_raster = raster_vector.create_temporary_virtual_raster(
+        input_raster_list=input_raster_list,
+        box_coordinate_list=box_coordinate_list
+    )
+    # input_path raster extent and pixel size
+    info = raster_vector.image_geotransformation(temporary_virtual_raster)
+    left = info['left']
+    right = info['right']
+    top = info['top']
+    bottom = info['bottom']
+    p_x = info['pixel_size_x']
+    p_y = info['pixel_size_y']
+    if max_width is None:
+        max_width = 3
+    if max_spectral_distance is None:
+        max_spectral_distance = 1
+    if minimum_size is None:
+        minimum_size = 1
+    # seed pixel
+    abs_seed_x = abs(int((abs(coordinate_x) - left) / p_x))
+    seed_x_min = left + abs_seed_x * p_x
+    seed_x_max = left + (abs_seed_x + 1) * p_x
+    abs_seed_y = abs(int((top - abs(coordinate_y)) / p_y))
+    seed_y_max = top - abs_seed_y * p_y
+    seed_y_min = top - (abs_seed_y + 1) * p_y
+    region_min_x = seed_x_min - int(max_width/2) * p_x
+    if region_min_x < left:
+        region_min_x = left
+    region_max_x = seed_x_max + int(max_width/2) * p_x
+    if region_max_x > right:
+        region_max_x = right
+    region_min_y = seed_y_min - int(max_width/2) * p_y
+    if region_min_y < bottom:
+        region_min_y = bottom
+    region_max_y = seed_y_max + int(max_width/2) * p_y
+    if region_max_y > top:
+        region_max_y = top
+    seed_x = abs(int((abs(coordinate_x) - region_min_x) / p_x))
+    seed_y = abs(int((region_max_y - abs(coordinate_y)) / p_y))
+    # extract each virtual band and apply extent from max_width and coordinates
+    extent_list = [region_min_x, region_max_y, region_max_x, region_min_y]
+    function_variable = []
+    virtual_raster_list = []
+    if band_number is None:
+        band_number_list = list(range(1, len(band_list) + 1))
+        # extract virtual band
+        for i in band_number_list:
+            tmp_vrt = raster_vector.create_temporary_virtual_raster(
+                input_raster_list=[temporary_virtual_raster],
+                box_coordinate_list=extent_list,
+                band_number_list=[[i]]
+            )
+            virtual_raster_list.append(tmp_vrt)
+            function_variable.append(
+                [seed_x, seed_y, float(max_spectral_distance),
+                 int(minimum_size)]
+            )
+    else:
+        band_number_list = [[band_number]]
+        # extract virtual band
+        tmp_vrt = raster_vector.create_temporary_virtual_raster(
+            input_raster_list=[temporary_virtual_raster],
+            box_coordinate_list=extent_list, band_number_list=band_number_list
+        )
+        virtual_raster_list.append(tmp_vrt)
+        function_variable.append(
+            [seed_x, seed_y, float(max_spectral_distance), int(minimum_size)]
+        )
+    cfg.multiprocess.run_separated(
+        raster_path_list=virtual_raster_list, function=region_growing,
+        function_argument=band_number_list,
+        function_variable=function_variable, any_nodata_mask=True,
+        keep_output_argument=True, n_processes=n_processes,
+        progress_message='region growing'
+    )
+    cfg.multiprocess.multiprocess_region_growing()
+    regions = cfg.multiprocess.output
+    if len(regions) > 0:
+        region = None
+        # run segmentation
+        for region_array in regions:
+            if region is None:
+                region = region_array.astype(int)
+            else:
+                region = region * region_array.astype(int)
+        if np.count_nonzero(region) > 0:
+            try:
+                region_label, num_features = label(region)
+                region_seed_value = region_label[seed_x, seed_y]
+                new_region = (region_label == region_seed_value).astype(int)
+            except Exception as err:
+                str(err)
+                cfg.logger.log.error('region growing label')
+                return False
+        else:
+            cfg.logger.log.error('region growing empty')
+            return False
+    else:
+        new_region = regions[0]
+    # create vector from region
+    if np.count_nonzero(new_region) > 0 and new_region[seed_x, seed_y] == 1:
+        if output_vector is None:
+            output_vector = cfg.temp.temporary_file_path(
+                name_suffix=cfg.gpkg_suffix
+            )
+        raster_vector.array_to_polygon(
+            input_array=new_region, reference_raster=tmp_vrt,
+            output=output_vector
+        )
+        cfg.logger.log.debug('end; roi vector: %s' % str(output_vector))
+        return output_vector
+    else:
+        cfg.logger.log.error('region growing empty')
+        return False

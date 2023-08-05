@@ -186,11 +186,14 @@ def band_resample(
     max_progress = one_progress
     for band in range(0, len(input_raster_list)):
         # raster extent and pixel size
-        (left_input, top_input, right_input, bottom_input, p_x_input,
-         p_y_input, proj_input,
-         unit_input) = raster_vector.image_geotransformation(
-            input_raster_list[band]
-        )
+        info = raster_vector.image_geotransformation(input_raster_list[band])
+        left_input = info['left']
+        top_input = info['top']
+        right_input = info['right']
+        bottom_input = info['bottom']
+        p_x_input = info['pixel_size_x']
+        p_y_input = info['pixel_size_y']
+        proj_input = info['projection']
         if output_data_type is None:
             output_data_type = raster_info[band][8]
         # calculate minimal extent

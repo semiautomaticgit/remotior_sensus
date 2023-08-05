@@ -274,7 +274,10 @@ def image_geotransformation(path):
         '%s; un: %s'
         % (left, top, right, bottom, p_x, p_y, r_p.replace(' ', ''), un)
     )
-    return left, top, right, bottom, p_x, p_y, r_p.replace(' ', ''), un
+    info = {'left': left, 'top': top, 'right': right, 'bottom': bottom,
+            'pixel_size_x': p_x, 'pixel_size_y': p_y,
+            'projection': r_p.replace(' ', ''), 'unit': un}
+    return info
 
 
 # create raster from a reference raster
@@ -2037,6 +2040,23 @@ def create_geometry_vector(
     return output_path
 
 
+# remove polygon from vector and return vector
+def remove_polygon_from_vector(vector_path, attribute_field, attribute_value):
+    _vector = ogr.Open(vector_path, 1)
+    # get layer
+    try:
+        _v_layer = _vector.GetLayer()
+    except Exception as err:
+        cfg.logger.log.error(err)
+        return False
+    v_layer_name = _v_layer.GetName()
+    sql = "DELETE FROM %s WHERE %s = '%s'" % (
+        v_layer_name, attribute_field, attribute_value)
+    _vector.ExecuteSQL(sql)
+    _vector = None
+    return True
+
+
 # get polygon from vector and return memory layer
 def get_polygon_from_vector(vector_path, attribute_filter=None):
     # open input vector
@@ -2073,6 +2093,58 @@ def gdal_copy_raster(input_raster, output, output_format='GTiff'):
     _out_raster.SetProjection(r_p)
     _r_d = None
     _out_raster = None
+    return output
+
+
+# gdal array to polygon using reference raster
+def array_to_polygon(input_array, reference_raster, output):
+    out_dir = files_directories.parent_directory(output)
+    files_directories.create_directory(out_dir)
+    driver = ogr.GetDriverByName('GPKG')
+    _r_d = gdal.Open(reference_raster, gdal.GA_ReadOnly)
+    # create empty vector
+    _data_source = driver.CreateDataSource(output)
+    spatial_reference = osr.SpatialReference()
+    spatial_reference.ImportFromWkt(_r_d.GetProjectionRef())
+    _vector_layer = _data_source.CreateLayer(
+        'region', spatial_reference, ogr.wkbPolygon
+    )
+    field_name = 'DN'
+    field_definition = ogr.FieldDefn(field_name, ogr.OFTInteger)
+    _vector_layer.CreateField(field_definition)
+    field = _vector_layer.GetLayerDefn().GetFieldIndex(field_name)
+    # create raster from array
+    temp_raster = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    _input_band = _r_d.GetRasterBand(1)
+    data_type = _input_band.DataType
+    raster_driver = gdal.GetDriverByName('GTiff')
+    # x pixel count
+    x_count = _r_d.RasterXSize
+    # y pixel count
+    y_count = _r_d.RasterYSize
+    # geo transformation
+    gt = _r_d.GetGeoTransform()
+    input_array = input_array.reshape(
+        input_array.shape[0], input_array.shape[1]
+    )
+    _raster = raster_driver.Create(temp_raster, x_count, y_count, 1, data_type)
+    _raster.SetGeoTransform([gt[0], gt[1], 0, gt[3], 0, gt[5]])
+    raster_projection = _r_d.GetProjection()
+    _raster.SetProjection(raster_projection)
+    _raster_band = _raster.GetRasterBand(1)
+    _raster_band.SetNoDataValue(0)
+    # write array
+    _raster_band.WriteArray(input_array)
+    # raster to polygon
+    gdal.Polygonize(
+        _raster_band, _raster_band.GetMaskBand(), _vector_layer, field
+    )
+    _raster_band = None
+    _raster = None
+    _input_band = None
+    _r_d = None
+    _data_source = None
+    _vector_layer = None
     return output
 
 

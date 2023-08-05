@@ -319,11 +319,11 @@ def _run_expression(
     xy_resolution = xy_resolution_list
     p_x, p_y = None, None
     if extent_raster is not None:
-        left, top, right, bottom, p_x, p_y, output_wkt, unit = \
-            raster_vector.image_geotransformation(
-                extent_raster
-            )
-        extent_list = [left, top, right, bottom]
+        info = raster_vector.image_geotransformation(extent_raster)
+        p_x = info['pixel_size_x']
+        p_y = info['pixel_size_y']
+        extent_list = [info['left'], info['top'], info['right'],
+                       info['bottom']]
     if align_raster is not None:
         xy_resolution = [p_x, p_y]
     # create virtual raster of input
