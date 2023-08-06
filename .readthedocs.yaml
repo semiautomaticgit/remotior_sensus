@@ -13,3 +13,9 @@ conda:
 
 formats:
   - pdf
+
+python:
+  install:
+  - requirements:
+    - sphinx<7.0.0
+    - sphinx_rtd_theme
