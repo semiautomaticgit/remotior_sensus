@@ -27,7 +27,6 @@ Typical usage example:
     >>> rs = remotior_sensus.Session()
     >>> # start the process
     >>> vector = rs.raster_to_vector(raster_path='file.tif',output_path='vector.gpkg')
-)
 """  # noqa: E501
 
 from typing import Optional

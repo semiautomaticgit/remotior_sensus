@@ -86,12 +86,14 @@ class SpectralSignaturesCatalog(object):
                 class_field_name=self.class_field
             )
 
+    # TODO add geometry
     # add spectral signature to Spectral Signatures Catalog
     def add_spectral_signature(
             self, value_list, macroclass_id=None, class_id=None,
             macroclass_name=None, class_name=None, wavelength_list=None,
             standard_deviation_list=None, signature_id=None, selected=1,
-            min_dist_thr=0, max_like_thr=0, spec_angle_thr=0
+            min_dist_thr=0, max_like_thr=0, spec_angle_thr=0, geometry=0,
+            signature=0
     ):
         """Adds a spectral signature.
 
@@ -110,6 +112,8 @@ class SpectralSignaturesCatalog(object):
             min_dist_thr:
             max_like_thr:
             spec_angle_thr:
+            geometry:
+            signature:
 
         Returns:
             object OutputManger
@@ -135,7 +139,8 @@ class SpectralSignaturesCatalog(object):
             class_id=class_id, macroclass_name=macroclass_name,
             class_name=class_name, selected=selected,
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
-            spec_angle_thr=spec_angle_thr
+            spec_angle_thr=spec_angle_thr, geometry=geometry,
+            signature=signature
         )
         cfg.logger.log.debug('end')
 
@@ -143,7 +148,7 @@ class SpectralSignaturesCatalog(object):
     def signature_to_catalog(
             self, signature_id, macroclass_id, class_id, macroclass_name=None,
             class_name=None, selected=1, min_dist_thr=0, max_like_thr=0,
-            spec_angle_thr=0
+            spec_angle_thr=0, geometry=0, signature=0
     ):
         # add signature to catalog
         self.table = tm.add_spectral_signature_to_catalog_table(
@@ -151,7 +156,8 @@ class SpectralSignaturesCatalog(object):
             class_id=class_id, class_name=class_name,
             previous_catalog=self.table, selected=selected,
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
-            spec_angle_thr=spec_angle_thr
+            spec_angle_thr=spec_angle_thr, geometry=geometry,
+            signature=signature
         )
         # add or update macroclass name
         if macroclass_name is not None:
@@ -162,18 +168,23 @@ class SpectralSignaturesCatalog(object):
                 cfg.macroclass_default, str(len(self.macroclasses) + 1))
 
     # remove spectral signature and geometry from Spectral Signatures Catalog
-    def remove_signature_by_id(self, signature_id):
+    def remove_signature_by_id(self, signature_id: str):
         cfg.logger.log.debug('start')
         # remove signature
         try:
             del self.signatures[signature_id]
         except Exception as err:
             str(err)
+        try:
+            geometry = self.table[
+                self.table['signature_id'] == signature_id].geometry[0]
+            macroclass_value = self.table[
+                self.table['signature_id'] == signature_id].macroclass_id[0]
+        except Exception as err:
+            str(err)
             cfg.logger.log.error('signature not found: %s' % signature_id)
             cfg.messages.error('signature not found: %s' % signature_id)
             return False
-        macroclass_value = self.table[
-            self.table['signature_id'] == signature_id].macroclass_id[0]
         # remove signature from table
         self.table = self.table[self.table['signature_id'] != signature_id]
         if macroclass_value not in self.table.macroclass_id.tolist():
@@ -181,11 +192,133 @@ class SpectralSignaturesCatalog(object):
                 del self.macroclasses[macroclass_value]
             except Exception as err:
                 str(err)
-        # remove geometry
-        raster_vector.remove_polygon_from_vector(
-            vector_path=self.geometry_file, attribute_field=cfg.uid_field_name,
-            attribute_value=signature_id
-        )
+        if geometry == 1:
+            # remove geometry
+            raster_vector.remove_polygon_from_vector(
+                vector_path=self.geometry_file,
+                attribute_field=cfg.uid_field_name,
+                attribute_value=signature_id
+            )
+        cfg.logger.log.debug('end')
+
+    # merge spectral signatures and geometry from Spectral Signatures Catalog
+    def merge_signatures_by_id(
+            self, signature_id_list, calculate_signature=True,
+            macroclass_id=None, class_id=None, macroclass_name=None,
+            class_name=None
+    ):
+        cfg.logger.log.debug('start')
+        geometry_check = True
+        macroclass_value = 0
+        class_value = 0
+        geometry_ids = []
+        signature_ids = []
+        # get signatures
+        count = 0
+        for signature_id in signature_id_list:
+            count += 1
+            try:
+                geometry = self.table[
+                    self.table['signature_id'] == signature_id].geometry[0]
+                # not geometry
+                if geometry == 0:
+                    geometry_check = False
+                    signature_ids.append(signature_id)
+                # geometry
+                elif geometry == 1:
+                    geometry_ids.append(signature_id)
+                    signature_check = self.table[
+                        self.table['signature_id'] == signature_id
+                    ].signature[0]
+                    # calculate signature
+                    if calculate_signature is True and signature_check == 0:
+                        vector = raster_vector.get_polygon_from_vector(
+                            vector_path=self.geometry_file,
+                            attribute_filter="%s = '%s'" % (
+                                cfg.uid_field_name, signature_id)
+                        )
+                        (value_list,
+                         standard_deviation_list) = self.calculate_signature(
+                            vector)
+                        mc_value = self.table[
+                            self.table['signature_id'] == signature_id
+                        ].macroclass_id[0]
+                        c_value = self.table[
+                            self.table['signature_id'] == signature_id
+                        ].class_id[0]
+                        c_name = self.table[
+                            self.table['signature_id'] == signature_id
+                        ].class_name[0]
+                        mc_name = self.macroclasses[mc_value]
+                        self.add_spectral_signature(
+                            value_list=value_list, macroclass_id=mc_value,
+                            class_id=c_value, macroclass_name=mc_name,
+                            class_name=c_name,
+                            standard_deviation_list=standard_deviation_list,
+                            signature_id=signature_id, geometry=1, signature=1
+                        )
+                    signature_ids.append(signature_id)
+                # get first element class and macroclass
+                if count == 1:
+                    macroclass_value = self.table[
+                        self.table['signature_id'] == signature_id
+                    ].macroclass_id[0]
+                    class_value = self.table[
+                        self.table['signature_id'] == signature_id
+                    ].class_id[0]
+            except Exception as err:
+                str(err)
+        if macroclass_id is not None:
+            macroclass_value = macroclass_value
+        if macroclass_name is None:
+            macroclass_name = self.macroclasses[macroclass_value]
+        if class_id is not None:
+            class_value = class_id
+        if class_name is None:
+            class_name = 'merged'
+        # merge geometries if geometry == 1 for whole signature_id_list
+        if geometry_check is True:
+            temp_path = cfg.temp.temporary_file_path(
+                name_suffix=cfg.gpkg_suffix
+            )
+            merged = raster_vector.merge_polygons(
+                input_layer=self.geometry_file,
+                value_list=signature_id_list,
+                target_layer=temp_path
+            )
+            # import vector
+            self.import_vector(
+                file_path=merged, macroclass_value=macroclass_value,
+                class_value=class_value, macroclass_name=macroclass_name,
+                class_name=class_name, calculate_signature=calculate_signature
+            )
+        # merge signatures if not geometry
+        else:
+            wavelength = None
+            value_arrays = []
+            std_arrays = []
+            for signature in signature_ids:
+                value_arrays.append(self.signatures[signature].value)
+                std_arrays.append(
+                    self.signatures[signature].standard_deviation
+                )
+                wavelength = self.signatures[signature].wavelength
+            wavelength_list = wavelength.tolist()
+            values = np.column_stack(value_arrays)
+            stds = np.column_stack(std_arrays)
+            values_mean = np.mean(values, axis=1)
+            stds_squared = np.square(stds)
+            stds_squared_sum = np.sum(stds_squared, axis=1)
+            stds_variance = np.divide(stds_squared_sum, stds_squared.shape[1])
+            stds_mean = np.sqrt(stds_variance)
+            self.add_spectral_signature(
+                value_list=values_mean.tolist(),
+                wavelength_list=wavelength_list,
+                standard_deviation_list=stds_mean.tolist(),
+                macroclass_id=macroclass_value, class_id=class_value,
+                macroclass_name=macroclass_name, class_name='merged',
+                geometry=0, signature=1
+            )
         cfg.logger.log.debug('end')
 
     # import spectral signature csv to Spectral Signatures Catalog
@@ -229,7 +362,8 @@ class SpectralSignaturesCatalog(object):
                 class_id=class_id,
                 macroclass_name=macroclass_name, class_name=class_name,
                 wavelength_list=wavelength_list,
-                standard_deviation_list=standard_deviation_list
+                standard_deviation_list=standard_deviation_list,
+                geometry=0, signature=1
             )
             cfg.logger.log.debug('end; imported: %s' % csv_path)
         else:
@@ -313,9 +447,10 @@ class SpectralSignaturesCatalog(object):
                         c_name = i_feature.GetField(class_name_field)
                     else:
                         c_name = class_name
-                    o_feature.SetField(cfg.macroclass_field_name, mc_value)
-                    o_feature.SetField(cfg.class_field_name, c_value)
                     o_feature.SetField(cfg.uid_field_name, signature_id)
+                    o_feature.SetField(cfg.class_field_name, int(c_value))
+                    o_feature.SetField(cfg.macroclass_field_name,
+                                       int(mc_value))
                     catalog_layer.CreateFeature(o_feature)
                     if calculate_signature:
                         temp_path = cfg.temp.temporary_file_path(
@@ -338,13 +473,13 @@ class SpectralSignaturesCatalog(object):
                             class_id=c_value, macroclass_name=mc_name,
                             class_name=c_name,
                             standard_deviation_list=standard_deviation_list,
-                            signature_id=signature_id
+                            signature_id=signature_id, geometry=1, signature=1
                         )
                     else:
                         self.signature_to_catalog(
                             signature_id=signature_id, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
-                            class_name=c_name
+                            class_name=c_name, geometry=1, signature=0
                         )
                     o_feature.Destroy()
                     i_feature.Destroy()

@@ -9,6 +9,7 @@ Submodules
 
    remotior_sensus.tools.band_calc
    remotior_sensus.tools.band_classification
+   remotior_sensus.tools.band_clip
    remotior_sensus.tools.band_combination
    remotior_sensus.tools.band_dilation
    remotior_sensus.tools.band_erosion

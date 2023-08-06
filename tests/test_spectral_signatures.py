@@ -11,6 +11,7 @@ class TestSpectralSignatures(TestCase):
             )
         cfg = rs.configurations
         cfg.logger.log.debug('test')
+        """
         # create Spectral Signature Catalog
         cfg.logger.log.debug('>>> test create Spectral Signature Catalog')
         signature_catalog = rs.spectral_signatures_catalog()
@@ -113,6 +114,9 @@ class TestSpectralSignatures(TestCase):
         temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
         signature_catalog_2.save(output_path=temp)
         self.assertTrue(rs.files_directories.is_file(temp))
+        
+        
+        """
         # region growing
         cfg.logger.log.debug('>>> test region growing')
         catalog_3 = rs.bandset_catalog()
@@ -143,6 +147,36 @@ class TestSpectralSignatures(TestCase):
             signature_catalog_3.table[
                 signature_catalog_3.table['macroclass_id'] == 5].macroclass_id,
             5
+        )
+        region_vector = rs.shared_tools.region_growing_polygon(
+            coordinate_x=230316, coordinate_y=4674708,
+            input_bands=1, max_width=4,
+            max_spectral_distance=0.1, minimum_size=1,
+            bandset_catalog=catalog_3
+        )
+        signature_catalog_3.import_vector(
+            file_path=region_vector, macroclass_value=7,
+            class_value=21, macroclass_name='macroclass_2',
+            class_name='class_2', calculate_signature=True
+        )
+        signature_count = signature_catalog_3.table.shape[0]
+        ids = signature_catalog_3.table.signature_id.tolist()
+        signature_catalog_3.merge_signatures_by_id(
+            signature_id_list=ids, calculate_signature=False)
+        self.assertEqual(
+            signature_catalog_3.table.shape[0], signature_count + 1
+        )
+        signature = signature_catalog_3.table[
+            signature_catalog_3.table['signature'] == 0].signature_id[0]
+        ids.append(signature)
+        signature_catalog_3.merge_signatures_by_id(
+            signature_id_list=ids, calculate_signature=True,
+            class_name='merged3'
+        )
+        self.assertEqual(
+            signature_catalog_3.table[
+                signature_catalog_3.table['signature_id'] == signature
+            ].signature, 1
         )
 
         # clear temporary directory

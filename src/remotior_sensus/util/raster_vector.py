@@ -454,6 +454,8 @@ def get_vector_values(vector_path, field_name):
     values = []
     for i, f in enumerate(unique_values):
         values.append(f.GetField(0))
+    # release sql results
+    vector.ReleaseResultSet(unique_values)
     return values
 
 
@@ -2010,6 +2012,61 @@ def merge_dissolve_layer(
             cfg.logger.log.error('cancel')
             return None
     cfg.logger.log.debug('end')
+    return target_layer
+
+
+# merge geometries by list of IDs and save them in a new vector
+def merge_polygons(
+        input_layer, value_list, target_layer
+):
+    cfg.logger.log.debug('start')
+    # open virtual layer
+    _input_source = ogr.Open(input_layer)
+    _i_layer = _input_source.GetLayer()
+    i_layer_name = _i_layer.GetName()
+    i_layer_sr = _i_layer.GetSpatialRef()
+    i_layer_def = _i_layer.GetLayerDefn()
+    field_count = i_layer_def.GetFieldCount()
+    i_d = ogr.GetDriverByName('GPKG')
+    _output_source = i_d.CreateDataSource(target_layer)
+    _output_name = files_directories.file_name(target_layer)
+    _o_layer = _output_source.CreateLayer(
+        str(_output_name), i_layer_sr, ogr.wkbMultiPolygon
+    )
+    # fields
+    for f_c in range(field_count):
+        field_def = i_layer_def.GetFieldDefn(f_c)
+        _o_layer.CreateField(field_def)
+    o_layer_def = _o_layer.GetLayerDefn()
+    # get unique values
+    sql = ('SELECT %s, ST_Union(geom) AS merged_geometry FROM %s '
+           'WHERE %s IN (%s)') % (
+        cfg.uid_field_name, i_layer_name, cfg.uid_field_name,
+        str(value_list).replace('[', '').replace(']', '')
+    )
+    output_values = _input_source.ExecuteSQL(sql, dialect='SQLITE')
+    if output_values is not None:
+        uv_features = output_values.GetNextFeature()
+        geometry_ref = uv_features.GetGeometryRef()
+        if geometry_ref is not None:
+            if not geometry_ref.IsValid():
+                # try to fix invalid geometry with buffer
+                geometry_ref = geometry_ref.Buffer(0.0)
+            geometry_count = geometry_ref.GetGeometryCount()
+            cfg.logger.log.debug('geometry_count: %s' % str(geometry_count))
+            _o_layer.StartTransaction()
+            _o_feature = ogr.Feature(o_layer_def)
+            _o_feature.SetGeometry(geometry_ref)
+            _o_layer.CreateFeature(_o_feature)
+            _o_layer.CommitTransaction()
+            _o_feature = None
+    # release sql results
+    _input_source.ReleaseResultSet(output_values)
+    _i_layer = None
+    _o_layer = None
+    _input_source = None
+    _output_source = None
+    cfg.logger.log.debug('end; target_layer: %s' % target_layer)
     return target_layer
 
 

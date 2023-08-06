@@ -26,7 +26,7 @@ exclude_patterns = ['modules.rst', 'remotior_sensus.util.*']
 autodoc_default_options = {
     'special-members': '__init__',
 }
-pygments_style = 'github-dark'
+pygments_style = 'tango'
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -49,6 +49,8 @@ latex_elements = {
     'papersize': 'a4paper',
     'sphinxsetup': """
         pre_box-shadow=2pt 2pt,
+        pre_background-TeXcolor={named}{white},
+        pre_box-shadow-TeXcolor={named}{black}
     """
 }
 # -- Options for manual page output ---------------------------------------
