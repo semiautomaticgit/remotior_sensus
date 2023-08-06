@@ -26,6 +26,7 @@ exclude_patterns = ['modules.rst', 'remotior_sensus.util.*']
 autodoc_default_options = {
     'special-members': '__init__',
 }
+pygments_style = 'sphinx'
 
 # -- Options for HTML output -------------------------------------------------
 
