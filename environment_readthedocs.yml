@@ -5,3 +5,5 @@ channels:
 dependencies:
   - python=3.10
   - numpy
+  - scipy
+  - gdal
