@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.abspath('../../src/'))
 project = 'Remotior Sensus'
 copyright = '2022-2023, Luca Congedo'
 author = 'Luca Congedo'
-release = '0.0.35'
-version = '0.0.35.1'
+release = '0.0.60'
+version = '0.0.60.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -26,7 +26,7 @@ exclude_patterns = ['modules.rst', 'remotior_sensus.util.*']
 autodoc_default_options = {
     'special-members': '__init__',
 }
-pygments_style = 'tango'
+pygments_style = 'sphinx'
 
 # -- Options for HTML output -------------------------------------------------
 
