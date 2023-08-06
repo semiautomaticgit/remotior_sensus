@@ -16,6 +16,4 @@ formats:
 
 python:
   install:
-  - requirements:
-    - sphinx<7.0.0
-    - sphinx_rtd_theme
+  - requirements: sphinx<7.0.0, sphinx_rtd_theme
