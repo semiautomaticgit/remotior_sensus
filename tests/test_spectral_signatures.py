@@ -11,7 +11,6 @@ class TestSpectralSignatures(TestCase):
             )
         cfg = rs.configurations
         cfg.logger.log.debug('test')
-        """
         # create Spectral Signature Catalog
         cfg.logger.log.debug('>>> test create Spectral Signature Catalog')
         signature_catalog = rs.spectral_signatures_catalog()
@@ -114,9 +113,7 @@ class TestSpectralSignatures(TestCase):
         temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
         signature_catalog_2.save(output_path=temp)
         self.assertTrue(rs.files_directories.is_file(temp))
-        
-        
-        """
+
         # region growing
         cfg.logger.log.debug('>>> test region growing')
         catalog_3 = rs.bandset_catalog()
@@ -173,6 +170,9 @@ class TestSpectralSignatures(TestCase):
             signature_id_list=ids, calculate_signature=True,
             class_name='merged3'
         )
+        print(signature_catalog_3.table[
+                signature_catalog_3.table['signature_id'] == signature
+            ].signature)
         self.assertEqual(
             signature_catalog_3.table[
                 signature_catalog_3.table['signature_id'] == signature

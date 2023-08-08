@@ -1215,7 +1215,7 @@ def region_growing(*argv):
     max_spectral_distance = function_variable[2]
     minimum_size = function_variable[3]
     seed_array = np.zeros(array_roi.shape)
-    seed_value = float(array_roi[seed_y, seed_x])
+    seed_value = float(array_roi[seed_x, seed_y])
     cfg.logger.log.debug('seed_value: %s' % str(seed_value))
     # if nodata
     if np.sum(np.isnan(seed_value)) > 0:

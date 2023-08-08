@@ -65,6 +65,8 @@ class SpectralSignaturesCatalog(object):
         self.signatures = {}
         # dictionary of names of macroclasses
         self.macroclasses = {}
+        # dictionary of color strings of macroclasses
+        self.macroclasses_color_string = {}
         # vector file linked to signature table containing ROIs
         if geometry_file_path is None:
             geometry_file_path = cfg.temp.temporary_file_path(
@@ -93,7 +95,7 @@ class SpectralSignaturesCatalog(object):
             macroclass_name=None, class_name=None, wavelength_list=None,
             standard_deviation_list=None, signature_id=None, selected=1,
             min_dist_thr=0, max_like_thr=0, spec_angle_thr=0, geometry=0,
-            signature=0
+            signature=0, color_string=None
     ):
         """Adds a spectral signature.
 
@@ -114,6 +116,7 @@ class SpectralSignaturesCatalog(object):
             spec_angle_thr:
             geometry:
             signature:
+            color_string:
 
         Returns:
             object OutputManger
@@ -124,6 +127,8 @@ class SpectralSignaturesCatalog(object):
             macroclass_id = 1
         if class_id is None:
             class_id = 1
+        if color_string is None:
+            color_string = '#ffffff'
         # signature id
         if signature_id is None:
             signature_id = generate_signature_id()
@@ -140,15 +145,19 @@ class SpectralSignaturesCatalog(object):
             class_name=class_name, selected=selected,
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
             spec_angle_thr=spec_angle_thr, geometry=geometry,
-            signature=signature
+            signature=signature, color_string=color_string
         )
         cfg.logger.log.debug('end')
+
+    # sets macroclass color string
+    def set_macroclass_color(self, macroclass_id, color_string):
+        self.macroclasses_color_string[macroclass_id] = color_string
 
     # add spectral signature reference to Spectral Signatures Catalog
     def signature_to_catalog(
             self, signature_id, macroclass_id, class_id, macroclass_name=None,
             class_name=None, selected=1, min_dist_thr=0, max_like_thr=0,
-            spec_angle_thr=0, geometry=0, signature=0
+            spec_angle_thr=0, geometry=0, signature=0, color_string=None
     ):
         # add signature to catalog
         self.table = tm.add_spectral_signature_to_catalog_table(
@@ -157,7 +166,7 @@ class SpectralSignaturesCatalog(object):
             previous_catalog=self.table, selected=selected,
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
             spec_angle_thr=spec_angle_thr, geometry=geometry,
-            signature=signature
+            signature=signature, color_string=color_string
         )
         # add or update macroclass name
         if macroclass_name is not None:
@@ -166,6 +175,8 @@ class SpectralSignaturesCatalog(object):
         if macroclass_id not in self.macroclasses:
             self.macroclasses[macroclass_id] = '%s%s' % (
                 cfg.macroclass_default, str(len(self.macroclasses) + 1))
+        if macroclass_id not in self.macroclasses_color_string:
+            self.macroclasses_color_string[macroclass_id] = color_string
 
     # remove spectral signature and geometry from Spectral Signatures Catalog
     def remove_signature_by_id(self, signature_id: str):
@@ -190,6 +201,7 @@ class SpectralSignaturesCatalog(object):
         if macroclass_value not in self.table.macroclass_id.tolist():
             try:
                 del self.macroclasses[macroclass_value]
+                del self.macroclasses_color_string[macroclass_value]
             except Exception as err:
                 str(err)
         if geometry == 1:
@@ -205,7 +217,7 @@ class SpectralSignaturesCatalog(object):
     def merge_signatures_by_id(
             self, signature_id_list, calculate_signature=True,
             macroclass_id=None, class_id=None, macroclass_name=None,
-            class_name=None
+            class_name=None, color_string=None
     ):
         cfg.logger.log.debug('start')
         geometry_check = True
@@ -213,7 +225,7 @@ class SpectralSignaturesCatalog(object):
         class_value = 0
         geometry_ids = []
         signature_ids = []
-        # get signatures
+        # get signatures and geometries from list
         count = 0
         for signature_id in signature_id_list:
             count += 1
@@ -249,13 +261,18 @@ class SpectralSignaturesCatalog(object):
                         c_name = self.table[
                             self.table['signature_id'] == signature_id
                         ].class_name[0]
+                        if color_string is None:
+                            color_string = self.table[
+                                self.table['signature_id'] == signature_id
+                            ].color_string[0]
                         mc_name = self.macroclasses[mc_value]
                         self.add_spectral_signature(
                             value_list=value_list, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
                             class_name=c_name,
                             standard_deviation_list=standard_deviation_list,
-                            signature_id=signature_id, geometry=1, signature=1
+                            signature_id=signature_id, geometry=1, signature=1,
+                            color_string=color_string
                         )
                     signature_ids.append(signature_id)
                 # get first element class and macroclass
@@ -282,8 +299,7 @@ class SpectralSignaturesCatalog(object):
                 name_suffix=cfg.gpkg_suffix
             )
             merged = raster_vector.merge_polygons(
-                input_layer=self.geometry_file,
-                value_list=signature_id_list,
+                input_layer=self.geometry_file, value_list=signature_id_list,
                 target_layer=temp_path
             )
             # import vector
@@ -311,21 +327,23 @@ class SpectralSignaturesCatalog(object):
             stds_squared_sum = np.sum(stds_squared, axis=1)
             stds_variance = np.divide(stds_squared_sum, stds_squared.shape[1])
             stds_mean = np.sqrt(stds_variance)
+            if color_string is None:
+                color_string = '#ffffff'
             self.add_spectral_signature(
                 value_list=values_mean.tolist(),
                 wavelength_list=wavelength_list,
                 standard_deviation_list=stds_mean.tolist(),
                 macroclass_id=macroclass_value, class_id=class_value,
                 macroclass_name=macroclass_name, class_name='merged',
-                geometry=0, signature=1
+                geometry=0, signature=1, color_string=color_string
             )
         cfg.logger.log.debug('end')
 
     # import spectral signature csv to Spectral Signatures Catalog
     def import_spectral_signature_csv(
             self, csv_path, macroclass_id=None, class_id=None,
-            macroclass_name=None,
-            class_name=None, separator=','
+            macroclass_name=None, class_name=None, separator=',',
+            color_string='#ffffff'
     ):
         cfg.logger.log.debug('start')
         # import csv as comma separated with fields value, wavelength,
@@ -363,7 +381,7 @@ class SpectralSignaturesCatalog(object):
                 macroclass_name=macroclass_name, class_name=class_name,
                 wavelength_list=wavelength_list,
                 standard_deviation_list=standard_deviation_list,
-                geometry=0, signature=1
+                geometry=0, signature=1, color_string=color_string
             )
             cfg.logger.log.debug('end; imported: %s' % csv_path)
         else:
@@ -375,7 +393,8 @@ class SpectralSignaturesCatalog(object):
             self, file_path, macroclass_value=None, class_value=None,
             macroclass_name=None, class_name=None, macroclass_field=None,
             class_field=None, macroclass_name_field=None,
-            class_name_field=None, calculate_signature=True
+            class_name_field=None, calculate_signature=True,
+            color_string='#ffffff'
     ):
         cfg.logger.log.debug('start')
         if files_directories.is_file(file_path):
@@ -473,13 +492,15 @@ class SpectralSignaturesCatalog(object):
                             class_id=c_value, macroclass_name=mc_name,
                             class_name=c_name,
                             standard_deviation_list=standard_deviation_list,
-                            signature_id=signature_id, geometry=1, signature=1
+                            signature_id=signature_id, geometry=1, signature=1,
+                            color_string=color_string
                         )
                     else:
                         self.signature_to_catalog(
                             signature_id=signature_id, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
-                            class_name=c_name, geometry=1, signature=0
+                            class_name=c_name, geometry=1, signature=0,
+                            color_string=color_string
                         )
                     o_feature.Destroy()
                     i_feature.Destroy()
@@ -554,6 +575,9 @@ class SpectralSignaturesCatalog(object):
                 macroclass_element.set('id', str(macroclass))
                 macroclass_element.set('name',
                                        str(self.macroclasses[macroclass]))
+                macroclass_element.set(
+                    'color', str(self.macroclasses_color_string[macroclass])
+                )
         if self.signatures is not None:
             for signature in self.signatures:
                 # create file inside temporary directory
@@ -604,11 +628,15 @@ class SpectralSignaturesCatalog(object):
                     self.macroclass_field = root.get('macroclass_field')
                     self.class_field = root.get('class_field')
                     self.macroclasses = {}
+                    self.macroclasses_color_string = {}
                     for child in root:
                         macroclass_id = child.get('id')
                         macroclass_name = child.get('name')
+                        macroclass_color = child.get('color')
                         self.macroclasses[int(macroclass_id)] = str(
                             macroclass_name)
+                        self.macroclasses_color_string[
+                            int(macroclass_id)] = str(macroclass_color)
             else:
                 self.signatures[f_name] = np.core.records.fromfile(
                     f, dtype=cfg.signature_dtype_list)

@@ -341,6 +341,7 @@ def region_growing_polygon(
         region_max_y = top
     seed_x = abs(int((abs(coordinate_x) - region_min_x) / p_x))
     seed_y = abs(int((region_max_y - abs(coordinate_y)) / p_y))
+    cfg.logger.log.debug('seed_x: %s; seed_y: %s' % (seed_x, seed_y))
     # extract each virtual band and apply extent from max_width and coordinates
     extent_list = [region_min_x, region_max_y, region_max_x, region_min_y]
     function_variable = []
@@ -387,6 +388,8 @@ def region_growing_polygon(
                 region = region_array.astype(int)
             else:
                 region = region * region_array.astype(int)
+        if region[seed_x, seed_y] == 0:
+            region[seed_x, seed_y] = 1
         if np.count_nonzero(region) > 0:
             try:
                 region_label, num_features = label(region)
