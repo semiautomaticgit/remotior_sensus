@@ -170,12 +170,9 @@ class TestSpectralSignatures(TestCase):
             signature_id_list=ids, calculate_signature=True,
             class_name='merged3'
         )
-        print(signature_catalog_3.table[
-                signature_catalog_3.table['signature_id'] == signature
-            ].signature)
         self.assertEqual(
             signature_catalog_3.table[
-                signature_catalog_3.table['signature_id'] == signature
+                signature_catalog_3.table['class_name'] == 'merged3'
             ].signature, 1
         )
 
