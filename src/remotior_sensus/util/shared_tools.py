@@ -388,12 +388,12 @@ def region_growing_polygon(
                 region = region_array.astype(int)
             else:
                 region = region * region_array.astype(int)
-        if region[seed_x, seed_y] == 0:
-            region[seed_x, seed_y] = 1
+        if region[seed_y, seed_x] == 0:
+            region[seed_y, seed_x] = 1
         if np.count_nonzero(region) > 0:
             try:
                 region_label, num_features = label(region)
-                region_seed_value = region_label[seed_x, seed_y]
+                region_seed_value = region_label[seed_y, seed_x]
                 new_region = (region_label == region_seed_value).astype(int)
             except Exception as err:
                 str(err)
@@ -405,7 +405,7 @@ def region_growing_polygon(
     else:
         new_region = regions[0]
     # create vector from region
-    if np.count_nonzero(new_region) > 0 and new_region[seed_x, seed_y] == 1:
+    if np.count_nonzero(new_region) > 0 and new_region[seed_y, seed_x] == 1:
         if output_vector is None:
             output_vector = cfg.temp.temporary_file_path(
                 name_suffix=cfg.gpkg_suffix
