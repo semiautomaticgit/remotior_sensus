@@ -1183,7 +1183,8 @@ def band_classification(
     # prepare process files
     prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
-        n_processes=n_processes, bandset_catalog=bandset_catalog
+        n_processes=n_processes, bandset_catalog=bandset_catalog,
+        multiple_input=True
     )
     input_raster_list = prepared['input_raster_list']
     out_path = prepared['output_path']
