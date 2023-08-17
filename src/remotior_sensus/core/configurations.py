@@ -303,6 +303,7 @@ uid_field_name = 'roi_id'
 macroclass_field_name = 'macroclass_id'
 class_field_name = 'class_id'
 macroclass_default = 'macroclass'
+class_default = 'class'
 # input normalization for classification
 z_score = 'z score'
 linear_scaling = 'linear scaling'

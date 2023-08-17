@@ -43,7 +43,10 @@ from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.log import Log
 from remotior_sensus.core.multiprocess_manager import Multiprocess
 from remotior_sensus.core.progress import Progress
-from remotior_sensus.core.spectral_signatures import SpectralSignaturesCatalog
+from remotior_sensus.core.spectral_signatures import (
+    SpectralSignaturesCatalog, SpectralSignaturePlotCatalog,
+    SpectralSignaturePlot
+)
 from remotior_sensus.core.temporary import Temporary
 from remotior_sensus.tools import (
     band_calc, band_classification, band_clip, band_combination, band_dilation,
@@ -69,6 +72,8 @@ class Session(object):
         bandset: access :func:`~remotior_sensus.core.bandset_catalog.BandSet` class
         bandset_catalog: access :func:`~remotior_sensus.core.bandset_catalog.BandSetCatalog` class
         spectral_signatures_catalog: access :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturesCatalog` class 
+        spectral_signatures_plot_catalog: access :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturePlotCatalog` class 
+        spectral_signatures_plot: access :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturePlot` class 
         output_manager: access :func:`~remotior_sensus.core.output_manager.OutputManager` class 
         table_manager: access functions of :func:`~remotior_sensus.core.table_manager` module
         dates_times: access dates and times utilities
@@ -213,6 +218,10 @@ class Session(object):
             self.bandset = BandSet
             self.bandset_catalog = BandSetCatalog
             self.spectral_signatures_catalog = SpectralSignaturesCatalog
+            self.spectral_signatures_plot_catalog = (
+                SpectralSignaturePlotCatalog
+            )
+            self.spectral_signatures_plot = SpectralSignaturePlot
             self.output_manager = OutputManager
             self.table_manager = table_manager
             # available tools
@@ -413,6 +422,15 @@ def _check_dependencies(configuration_module: configurations) -> bool:
             configuration_module.logger.log.error(str(err))
             configuration_module.messages.error('dependency error: scipy')
             check = False
+        # optional Matplotlib for spectral signature plots
+        try:
+            import matplotlib.pyplot as plt
+        except Exception as err:
+            configuration_module.logger.log.warning(str(err))
+            configuration_module.messages.warning(
+                'dependency error: matplotlib; spectral signature plots '
+                'are not available'
+                )
         try:
             import torch
         except Exception as err:

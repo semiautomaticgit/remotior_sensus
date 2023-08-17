@@ -175,6 +175,24 @@ class TestSpectralSignatures(TestCase):
                 signature_catalog_3.table['class_name'] == 'merged3'
             ].signature, 1
         )
+        # signature to plot
+        cfg.logger.log.debug('>>> test signature to plot')
+        plot_catalog = rs.spectral_signatures_plot_catalog()
+        signature_id = signature_catalog_3.table.signature_id[0]
+        signature_catalog_3.export_signature_values_for_plot(
+            signature_id=signature_id, plot_catalog=plot_catalog
+            )
+        self.assertEqual(plot_catalog.get_signature_count(), 1)
+        for plot in plot_catalog.catalog:
+            signature = plot_catalog.get_signature(signature_id=plot)
+
+            self.assertEqual(signature.signature_id, signature_id)
+        signature_ids = plot_catalog.get_signature_ids()
+        self.assertEqual(len(signature_ids), 1)
+        # interactive plot
+        # signature_catalog_3.add_signatures_to_plot_by_id(signature_ids)
+        plot_catalog.remove_signature(signature_id)
+        self.assertEqual(plot_catalog.get_signature_count(), 0)
 
         # clear temporary directory
         rs.close()

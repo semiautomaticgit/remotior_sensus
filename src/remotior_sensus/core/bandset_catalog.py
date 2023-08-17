@@ -2515,7 +2515,7 @@ class BandSetCatalog(object):
             List of BandSets, or list of BandSets numbers if output_number is True.
 
         Examples:
-            Iterate BandSets.
+            Get BandSets.
                 >>> catalog = BandSetCatalog()
                 >>> bandset_t = catalog.get_bandsets_by_list()
                 >>> for bandset in bandset_t:

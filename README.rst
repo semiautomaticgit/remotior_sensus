@@ -18,6 +18,7 @@ and GIS data.
 Basic dependencies are `NumPy <https://numpy.org>`_,
 `SciPy <https://scipy.org>`_ for calculations, and `GDAL <https://gdal.org/>`_
 for managing spatial data.
+Optionally, `Matplotlib` is used to display spectral signature plots.
 
 The main features are:
 
@@ -76,6 +77,7 @@ ______________
 
 Remotior Sensus requires `GDAL`, `NumPy` and `SciPy` for most functionalities.
 Also, `scikit-learn` and `PyTorch` are optional but required for machine learning.
+Optionally, `Matplotlib` is used to display spectral signature plots.
 
 It is recommended to install Remotior Sensus using a `Conda` environment.
 

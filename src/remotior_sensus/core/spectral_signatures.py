@@ -29,7 +29,7 @@ from remotior_sensus.core import (
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.processor_functions import spectral_signature
 from remotior_sensus.util import (
-    raster_vector, dates_times, files_directories, read_write_files
+    raster_vector, dates_times, files_directories, read_write_files, plot_tools
 )
 
 try:
@@ -128,7 +128,7 @@ class SpectralSignaturesCatalog(object):
         if class_id is None:
             class_id = 1
         if color_string is None:
-            color_string = '#ffffff'
+            color_string = '#000000'
         # signature id
         if signature_id is None:
             signature_id = generate_signature_id()
@@ -249,8 +249,8 @@ class SpectralSignaturesCatalog(object):
                             attribute_filter="%s = '%s'" % (
                                 cfg.uid_field_name, signature_id)
                         )
-                        (value_list,
-                         standard_deviation_list) = self.calculate_signature(
+                        (value_list, standard_deviation_list,
+                         wavelength_list) = self.calculate_signature(
                             vector)
                         mc_value = self.table[
                             self.table['signature_id'] == signature_id
@@ -264,7 +264,7 @@ class SpectralSignaturesCatalog(object):
                         if color_string is None:
                             color_string = self.table[
                                 self.table['signature_id'] == signature_id
-                            ].color_string[0]
+                            ].color[0]
                         mc_name = self.macroclasses[mc_value]
                         self.add_spectral_signature(
                             value_list=value_list, macroclass_id=mc_value,
@@ -328,7 +328,7 @@ class SpectralSignaturesCatalog(object):
             stds_variance = np.divide(stds_squared_sum, stds_squared.shape[1])
             stds_mean = np.sqrt(stds_variance)
             if color_string is None:
-                color_string = '#ffffff'
+                color_string = '#000000'
             self.add_spectral_signature(
                 value_list=values_mean.tolist(),
                 wavelength_list=wavelength_list,
@@ -343,7 +343,7 @@ class SpectralSignaturesCatalog(object):
     def import_spectral_signature_csv(
             self, csv_path, macroclass_id=None, class_id=None,
             macroclass_name=None, class_name=None, separator=',',
-            color_string='#ffffff'
+            color_string='#000000'
     ):
         cfg.logger.log.debug('start')
         # import csv as comma separated with fields value, wavelength,
@@ -394,7 +394,7 @@ class SpectralSignaturesCatalog(object):
             macroclass_name=None, class_name=None, macroclass_field=None,
             class_field=None, macroclass_name_field=None,
             class_name_field=None, calculate_signature=True,
-            color_string='#ffffff'
+            color_string='#000000'
     ):
         cfg.logger.log.debug('start')
         if files_directories.is_file(file_path):
@@ -484,8 +484,8 @@ class SpectralSignaturesCatalog(object):
                         temp_layer = temp_vector.GetLayer()
                         temp_layer.CreateFeature(o_feature)
                         temp_vector.Destroy()
-                        (value_list,
-                         standard_deviation_list) = self.calculate_signature(
+                        (value_list, standard_deviation_list,
+                         wavelength_list) = self.calculate_signature(
                             temp_path)
                         self.add_spectral_signature(
                             value_list=value_list, macroclass_id=mc_value,
@@ -520,6 +520,7 @@ class SpectralSignaturesCatalog(object):
 
     # import vector to Spectral Signatures Catalog
     def calculate_signature(self, roi_path, n_processes: int = None):
+        cfg.logger.log.debug('calculate_signature: %s' % roi_path)
         if n_processes is None:
             n_processes = cfg.n_processes
         _temp_vector = ogr.Open(roi_path)
@@ -546,12 +547,16 @@ class SpectralSignaturesCatalog(object):
             progress_message='calculate signature', min_progress=1,
             max_progress=80
             )
+        wavelength_list = self.bandset.get_wavelengths()
         cfg.multiprocess.multiprocess_spectral_signature()
         value_list, standard_deviation_list = cfg.multiprocess.output
-        return value_list, standard_deviation_list
+        return value_list, standard_deviation_list, wavelength_list
 
     # save Spectral Signatures Catalog to file
     def save(self, output_path):
+        cfg.logger.log.debug(
+            'save Spectral Signatures Catalog: %s' % output_path
+        )
         # file list
         file_list = []
         # create temporary directory
@@ -603,6 +608,9 @@ class SpectralSignaturesCatalog(object):
 
     # load Spectral Signatures Catalog from file
     def load(self, file_path):
+        cfg.logger.log.debug(
+            'load Spectral Signatures Catalog: %s' % file_path
+        )
         self.table = None
         self.signatures = {}
         # create temporary directory
@@ -640,6 +648,333 @@ class SpectralSignaturesCatalog(object):
             else:
                 self.signatures[f_name] = np.core.records.fromfile(
                     f, dtype=cfg.signature_dtype_list)
+
+    # prepare signature values for plot
+    def export_signature_values_for_plot(
+            self, signature_id, plot_catalog=None
+    ):
+        cfg.logger.log.debug('export_signature_values_for_plot: %s'
+                             % signature_id)
+        # check signature
+        try:
+            signature = self.table[
+                self.table['signature_id'] == signature_id].signature[0]
+        except Exception as err:
+            str(err)
+            cfg.logger.log.error('signature not found: %s' % signature_id)
+            cfg.messages.error('signature not found: %s' % signature_id)
+            return False
+        if signature == 0:
+            geometry = self.table[
+                self.table['signature_id'] == signature_id].geometry[0]
+            # not geometry
+            if geometry == 0:
+                cfg.logger.log.error('signature not found: %s' % signature_id)
+                cfg.messages.error('signature not found: %s' % signature_id)
+                return False
+            # geometry
+            else:
+                # calculate signature
+                vector = raster_vector.get_polygon_from_vector(
+                    vector_path=self.geometry_file,
+                    attribute_filter="%s = '%s'" % (
+                        cfg.uid_field_name, signature_id
+                    )
+                )
+                (value_list, standard_deviation_list,
+                 wavelength_list) = self.calculate_signature(vector)
+        else:
+            value_list = self.signatures[signature_id].value
+            wavelength_list = self.signatures[signature_id].wavelength
+            standard_deviation_list = self.signatures[
+                signature_id].standard_deviation
+        mc_value = self.table[
+            self.table['signature_id'] == signature_id].macroclass_id[0]
+        c_value = self.table[
+            self.table['signature_id'] == signature_id].class_id[0]
+        c_name = self.table[
+            self.table['signature_id'] == signature_id].class_name[0]
+        color_string = self.table[
+            self.table['signature_id'] == signature_id].color[0]
+        mc_name = self.macroclasses[mc_value]
+        signature_plot = SpectralSignaturePlot(
+            value=value_list, wavelength=wavelength_list,
+            standard_deviation=standard_deviation_list,
+            signature_id=signature_id, macroclass_id=mc_value,
+            class_id=c_value, macroclass_name=mc_name, class_name=c_name,
+            color_string=color_string
+            )
+        if plot_catalog is not None:
+            plot_catalog.add_signature(signature_plot)
+        return signature_plot
+
+    # display plot of signatures using Matplotlib
+    def add_signatures_to_plot_by_id(self, signature_id_list):
+        cfg.logger.log.debug('add_signatures_to_plot_by_id: %s'
+                             % str(signature_id_list))
+        try:
+            plot_catalog = SpectralSignaturePlotCatalog()
+            ax = plot_tools.prepare_plot()
+            for signature in signature_id_list:
+                self.export_signature_values_for_plot(
+                    signature_id=signature, plot_catalog=plot_catalog
+                )
+            name_list = plot_catalog.get_signature_names()
+            value_list = plot_catalog.get_signature_values()
+            wavelength_list = plot_catalog.get_signature_wavelength()
+            color_list = plot_catalog.get_signature_color()
+            plots, plot_names, x_ticks, y_ticks, v_lines = (
+                plot_tools.add_lines_to_plot(
+                    name_list=name_list, wavelength_list=wavelength_list,
+                    value_list=value_list, color_list=color_list)
+            )
+            plot_tools.create_plot(
+                ax=ax, plots=plots, plot_names=plot_names, x_ticks=x_ticks,
+                y_ticks=y_ticks, v_lines=v_lines
+            )
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+            return False
+
+
+class SpectralSignaturePlot(object):
+    """A class to manage Spectral Signatures for plots.
+
+    """
+
+    def __init__(
+            self, value, wavelength, standard_deviation=None,
+            signature_id=None, macroclass_id=None, class_id=None,
+            macroclass_name=None, class_name=None, color_string=None,
+            selected=None
+    ):
+        self.value = value
+        self.wavelength = wavelength
+        self.standard_deviation = standard_deviation
+        if signature_id is None:
+            signature_id = generate_signature_id()
+        self.signature_id = signature_id
+        if macroclass_id is None:
+            macroclass_id = 0
+        self.macroclass_id = macroclass_id
+        if class_id is None:
+            class_id = 0
+        self.class_id = class_id
+        if macroclass_name is None:
+            macroclass_name = cfg.macroclass_default
+        self.macroclass_name = macroclass_name
+        if class_name is None:
+            class_name = cfg.class_default
+        self.class_name = class_name
+        if color_string is None:
+            color_string = '#000000'
+        self.color = color_string
+        if selected is None:
+            selected = 1
+        self.selected = selected
+
+
+class SpectralSignaturePlotCatalog(object):
+    """A class to manage Spectral Signatures Catalog for plots.
+
+    """
+
+    def __init__(
+            self, signature: SpectralSignaturePlot = None
+    ):
+        self.catalog = {}
+        if signature is not None:
+            self.catalog[signature.signature_id] = signature
+
+    # add signature to catalog
+    def add_signature(self, signature: SpectralSignaturePlot):
+        self.catalog[signature.signature_id] = signature
+        cfg.logger.log.debug('add_signature: %s' % signature.signature_id)
+        return True
+
+    # add signature to catalog
+    def remove_signature(self, signature_id: str):
+        try:
+            del self.catalog[signature_id]
+            cfg.logger.log.debug('remove_signature: %s' % signature_id)
+            return True
+        except Exception as err:
+            str(err)
+            cfg.logger.log.error('signature not found: %s' % signature_id)
+            cfg.messages.error('signature not found: %s' % signature_id)
+            return False
+
+    def get_signature_count(self) -> int:
+        """Gets count of signatures in the catalog.
+
+        This function gets the count of signatures present in the catalog.
+
+        Returns:
+            The integer number of signatures.
+
+        Examples:
+            Count of signatures present.
+                >>> catalog = SpectralSignaturePlotCatalog()
+                >>> count = catalog.get_signature_count()
+                >>> print(count)
+                1
+        """
+        return len(self.catalog)
+
+    def get_signature(self, signature_id) -> SpectralSignaturePlot:
+        """Gets signature in the catalog.
+
+        This function gets signature by id from the catalog.
+
+        Returns:
+            The SpectralSignaturePlot.
+
+        Examples:
+            Get signature.
+                >>> catalog = SpectralSignaturePlotCatalog()
+                >>> signature = catalog.get_signature(signature_id='signature_id')
+                >>> print(signature.signature_id)
+                'signature_id'
+        """  # noqa: E501
+        return self.catalog[signature_id]
+
+    def get_signature_ids(self) -> list:
+        """Gets signature ids in the catalog.
+
+        This function gets signature ids from the catalog.
+
+        Returns:
+            The list of ids.
+
+        Examples:
+            Get signature.
+                >>> catalog = SpectralSignaturePlotCatalog()
+                >>> signature_ids = catalog.get_signature_ids()
+                >>> print(signature_ids)
+                ['signature_id']
+        """
+        return list(self.catalog.keys())
+
+    def get_signature_names(self, selected=True) -> list:
+        """Gets signature names in the catalog.
+
+        This function gets signature names from the catalog,
+        derived from SpectralSignaturePlot.
+
+        Returns:
+            The list of values.
+
+        Examples:
+            Get signature.
+                >>> catalog = SpectralSignaturePlotCatalog()
+                >>> signature_names = catalog.get_signature_names()
+                >>> print(signature_names)
+                ['name']
+        """
+        property_list = []
+        for signature in self.catalog:
+            if selected is True:
+                if self.catalog[signature].selected == 1:
+                    property_list.append(
+                        '%s#%s %s#%s' % (
+                            self.catalog[signature].macroclass_id,
+                            self.catalog[signature].macroclass_name,
+                            self.catalog[signature].class_id,
+                            self.catalog[signature].class_name)
+                    )
+            else:
+                property_list.append(
+                    '%s#%s %s#%s' % (
+                        self.catalog[signature].macroclass_id,
+                        self.catalog[signature].macroclass_name,
+                        self.catalog[signature].class_id,
+                        self.catalog[signature].class_name)
+                )
+        return property_list
+
+    def get_signature_values(self, selected=True) -> list:
+        """Gets signature values in the catalog.
+
+        This function gets signature values from the catalog.
+
+        Returns:
+            The list of values.
+
+        """
+        property_list = []
+        for signature in self.catalog:
+            if selected is True:
+                if self.catalog[signature].selected == 1:
+                    property_list.append(
+                        self.catalog[signature].value
+                    )
+            else:
+                property_list.append(self.catalog[signature].value)
+        return property_list
+
+    def get_signature_wavelength(self, selected=True) -> list:
+        """Gets signature wavelength in the catalog.
+
+        This function gets signature wavelength from the catalog.
+
+        Returns:
+            The list of values.
+
+        """
+        property_list = []
+        for signature in self.catalog:
+            if selected is True:
+                if self.catalog[signature].selected == 1:
+                    property_list.append(
+                        self.catalog[signature].wavelength
+                    )
+            else:
+                property_list.append(self.catalog[signature].wavelength)
+        return property_list
+
+    def get_signature_standard_deviation(self, selected=True) -> list:
+        """Gets signature standard deviation in the catalog.
+
+        This function gets signature standard deviation from the catalog.
+
+        Returns:
+            The list of values.
+
+        """
+        property_list = []
+        for signature in self.catalog:
+            if selected is True:
+                if self.catalog[signature].selected == 1:
+                    property_list.append(
+                        self.catalog[signature].standard_deviation
+                    )
+            else:
+                property_list.append(
+                    self.catalog[signature].standard_deviation
+                )
+        return property_list
+
+    def get_signature_color(self, selected=True) -> list:
+        """Gets signature color in the catalog.
+
+        This function gets signature color from the catalog.
+
+        Returns:
+            The list of values.
+
+        """
+        property_list = []
+        for signature in self.catalog:
+            if selected is True:
+                if self.catalog[signature].selected == 1:
+                    property_list.append(
+                        self.catalog[signature].color
+                    )
+            else:
+                property_list.append(
+                    self.catalog[signature].color
+                )
+        return property_list
 
 
 # generate signature id
