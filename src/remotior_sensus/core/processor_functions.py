@@ -1196,8 +1196,31 @@ def spectral_signature(*argv):
     array_roi = array_function_placeholder[_a == 1]
     mean = np.nanmean(array_roi)
     std = np.nanstd(array_roi)
+    count = np.count_nonzero(_a == 1)
     cfg.logger.log.debug('end')
-    return [None, [mean, std]]
+    return [None, [mean, std, count]]
+
+
+# get raster band values for scatter plot
+def get_values_for_scatter_plot(*argv):
+    cfg.logger.log.debug('start')
+    output_no_data = argv[0][2]
+    array_function_placeholder = argv[1]
+    nodata_mask = argv[2]
+    # vector path
+    function_argument = argv[7]
+    # reference path
+    function_variable = argv[8]
+    temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    raster_vector.vector_to_raster(
+        vector_path=function_argument, burn_values=1, output_path=temp,
+        reference_raster_path=function_variable, extent=True
+    )
+    _a = raster_vector.read_raster(temp)
+    _a[::, ::][nodata_mask == output_no_data] = np.nan
+    array_roi = array_function_placeholder[_a == 1]
+    cfg.logger.log.debug('end')
+    return [None, array_roi.ravel()]
 
 
 # calculate region growing from seed value

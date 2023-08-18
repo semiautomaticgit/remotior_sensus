@@ -1747,16 +1747,38 @@ class Multiprocess(object):
             return
         mean_values = []
         std = []
+        count_list = []
         # calculate values
         for x in sorted(multiprocess_dictionary):
             for arr_x in multiprocess_dictionary[x]:
                 try:
                     mean_values.append(arr_x[1][0])
                     std.append(arr_x[1][1])
+                    count_list.append(arr_x[1][2])
                 except Exception as err:
                     cfg.logger.log.error(str(err))
                     return
-        self.output = mean_values, std
+        count = sum(count_list)
+        self.output = mean_values, std, count
+        cfg.logger.log.debug('end')
+
+    # scatter plot values from output of multiprocess
+    def multiprocess_scatter_values(self):
+        cfg.logger.log.debug('start')
+        multiprocess_dictionary: Union[dict, bool] = self.output
+        if not multiprocess_dictionary:
+            cfg.logger.log.error('unable to process')
+            return
+        values = []
+        # calculate values
+        for x in sorted(multiprocess_dictionary):
+            for arr_x in multiprocess_dictionary[x]:
+                try:
+                    values.append(arr_x[1])
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    return
+        self.output = values
         cfg.logger.log.debug('end')
 
     # region growing from output of multiprocess

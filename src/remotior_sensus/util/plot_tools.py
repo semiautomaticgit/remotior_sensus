@@ -20,12 +20,12 @@ Tools to manage plots
 """
 
 
-from remotior_sensus.core import configurations as cfg
-
 try:
     import matplotlib.pyplot as plt
+    import matplotlib.pyplot as mpl_plot
 except Exception as error:
-    cfg.logger.log.error(str(error))
+    str(error)
+    print('plot tools: matplotlib error')
 
 
 # prepare plot
@@ -45,9 +45,28 @@ def prepare_plot(x_label=None, y_label=None):
     return ax
 
 
+# prepare plot
+def prepare_scatter_plot(x_label=None, y_label=None):
+    if x_label is None:
+        x_label = 'Band X'
+    if y_label is None:
+        y_label = 'Band Y'
+    figure, ax = plt.subplots()
+    # Set empty ticks
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_aspect('auto')
+    ax.grid('on')
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    return ax
+
+
 # add list of values to plot
-def add_lines_to_plot(name_list, wavelength_list, value_list, color_list,
-                      legend_max_chars=15):
+def add_lines_to_plot(
+        name_list, wavelength_list, value_list, color_list,
+        legend_max_chars=15
+        ):
     plots = []
     plot_names = []
     v_lines = []
@@ -90,9 +109,39 @@ def create_plot(
     if v_lines is not None:
         for x in v_lines:
             ax.axvline(x, color='black', linestyle='dashed')
-    ax.legend(plots, plot_names, bbox_to_anchor=(0.0, 0.0, 1.1, 1.0), loc=1,
-              borderaxespad=0.
-              ).set_draggable(True)
+    ax.legend(
+        plots, plot_names, bbox_to_anchor=(0.0, 0.0, 1.1, 1.0), loc=1,
+        borderaxespad=0.
+        ).set_draggable(True)
     ax.set_xticks(x_ticks)
     ax.set_yticks(y_ticks)
     plt.show()
+
+
+# create plot
+def create_scatter_plot(
+        ax, plots, plot_names, x_ticks=None, y_ticks=None
+):
+    if x_ticks is None:
+        x_ticks = [0, 1]
+    if y_ticks is None:
+        y_ticks = [0, 1]
+    ax.legend(
+        plots, plot_names, bbox_to_anchor=(0.0, 0.0, 1.1, 1.0), loc=1,
+        borderaxespad=0.
+        ).set_draggable(True)
+    ax.set_xticks(x_ticks)
+    ax.set_yticks(y_ticks)
+    plt.show()
+
+
+# add values to plot
+def add_values_to_scatter_plot(histogram, ax):
+    pal = mpl_plot.get_cmap('rainbow')
+    pal.set_under('w', 0.0)
+    plot = ax.imshow(
+        histogram[0].T, origin='lower', interpolation='none',
+        extent=[histogram[1][0], histogram[1][-1], histogram[2][0],
+                histogram[2][-1]], cmap=pal, vmin=0.001
+    )
+    return plot

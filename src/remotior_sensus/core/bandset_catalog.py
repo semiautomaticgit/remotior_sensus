@@ -3063,3 +3063,25 @@ class BandSetCatalog(object):
                                        output=output_path)
         cfg.logger.log.debug('output_path: %s' % str(output_path))
         return output_path
+
+    def build_bandset_band_overview(self, bandset_number: int = None) -> bool:
+        """Build bandset band overviews.
+
+        Build bandset band overviews as external files to faster the visualization.
+
+        Args:
+            bandset_number: number of BandSet; if None, current BandSet is used.
+            
+        Returns:
+            True if successfull.
+
+        Examples:
+            Build BandSet 1 overview.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.build_bandset_band_overview(1)
+         """  # noqa: E501
+        bandset = self.get(bandset_number)
+        band_list = bandset.get_absolute_paths()
+        raster_vector.build_band_overview(input_raster_list=band_list)
+        cfg.logger.log.debug('bandset_number: %s' % str(bandset_number))
+        return True

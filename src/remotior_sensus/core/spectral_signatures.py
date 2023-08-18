@@ -18,8 +18,8 @@
 import os
 import random
 import zipfile
-from xml.etree import cElementTree
 from xml.dom import minidom
+from xml.etree import cElementTree
 
 import numpy as np
 
@@ -27,9 +27,12 @@ from remotior_sensus.core import (
     configurations as cfg, table_manager as tm
 )
 from remotior_sensus.core.bandset_catalog import BandSet
-from remotior_sensus.core.processor_functions import spectral_signature
+from remotior_sensus.core.processor_functions import (
+    spectral_signature, get_values_for_scatter_plot
+)
 from remotior_sensus.util import (
-    raster_vector, dates_times, files_directories, read_write_files, plot_tools
+    raster_vector, dates_times, files_directories, read_write_files,
+    plot_tools, shared_tools
 )
 
 try:
@@ -71,7 +74,7 @@ class SpectralSignaturesCatalog(object):
         if geometry_file_path is None:
             geometry_file_path = cfg.temp.temporary_file_path(
                 name_suffix=cfg.gpkg_suffix
-                )
+            )
         if not macroclass_field:
             macroclass_field = cfg.macroclass_field_name
         if not class_field:
@@ -88,14 +91,13 @@ class SpectralSignaturesCatalog(object):
                 class_field_name=self.class_field
             )
 
-    # TODO add geometry
     # add spectral signature to Spectral Signatures Catalog
     def add_spectral_signature(
             self, value_list, macroclass_id=None, class_id=None,
             macroclass_name=None, class_name=None, wavelength_list=None,
             standard_deviation_list=None, signature_id=None, selected=1,
             min_dist_thr=0, max_like_thr=0, spec_angle_thr=0, geometry=0,
-            signature=0, color_string=None
+            signature=0, color_string=None, count=0, unit=None
     ):
         """Adds a spectral signature.
 
@@ -117,6 +119,8 @@ class SpectralSignaturesCatalog(object):
             geometry:
             signature:
             color_string:
+            count: pixel count
+            unit: unit
 
         Returns:
             object OutputManger
@@ -145,7 +149,8 @@ class SpectralSignaturesCatalog(object):
             class_name=class_name, selected=selected,
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
             spec_angle_thr=spec_angle_thr, geometry=geometry,
-            signature=signature, color_string=color_string
+            signature=signature, color_string=color_string, count=count,
+            unit=unit
         )
         cfg.logger.log.debug('end')
 
@@ -157,7 +162,8 @@ class SpectralSignaturesCatalog(object):
     def signature_to_catalog(
             self, signature_id, macroclass_id, class_id, macroclass_name=None,
             class_name=None, selected=1, min_dist_thr=0, max_like_thr=0,
-            spec_angle_thr=0, geometry=0, signature=0, color_string=None
+            spec_angle_thr=0, geometry=0, signature=0, color_string=None,
+            count=0, unit=None
     ):
         # add signature to catalog
         self.table = tm.add_spectral_signature_to_catalog_table(
@@ -166,7 +172,8 @@ class SpectralSignaturesCatalog(object):
             previous_catalog=self.table, selected=selected,
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
             spec_angle_thr=spec_angle_thr, geometry=geometry,
-            signature=signature, color_string=color_string
+            signature=signature, color_string=color_string, count=count,
+            unit=unit
         )
         # add or update macroclass name
         if macroclass_name is not None:
@@ -177,6 +184,64 @@ class SpectralSignaturesCatalog(object):
                 cfg.macroclass_default, str(len(self.macroclasses) + 1))
         if macroclass_id not in self.macroclasses_color_string:
             self.macroclasses_color_string[macroclass_id] = color_string
+
+    # calculate scatter plot for geometry from Spectral Signatures Catalog
+    def calculate_scatter_plot_by_id(
+            self, signature_id: str, band_x, band_y,
+            decimal_round: int = None, plot=False, n_processes: int = None
+    ):
+        cfg.logger.log.debug('start')
+        cfg.logger.log.debug(
+            'signature_id: %s; decimal_round: %s'
+            % (signature_id, decimal_round)
+        )
+        geometry = self.table[
+            self.table['signature_id'] == signature_id].geometry[0]
+        # geometry
+        if geometry == 1:
+            vector = raster_vector.get_polygon_from_vector(
+                vector_path=self.geometry_file,
+                attribute_filter="%s = '%s'" % (
+                    cfg.uid_field_name, signature_id)
+            )
+            value_list = self.calculate_scatter_plot(
+                roi_path=vector, band_x=band_x, band_y=band_y,
+                n_processes=n_processes
+            )
+            # calculate combinations
+            histogram = shared_tools.calculate_2d_histogram(
+                x_values=value_list[0], y_values=value_list[1],
+                decimal_round=decimal_round
+            )
+            if plot is True:
+                ax = plot_tools.prepare_scatter_plot()
+                plots = plot_tools.add_values_to_scatter_plot(
+                    histogram=histogram, ax=ax
+                )
+
+                macroclass_value = self.table[
+                    self.table['signature_id'] == signature_id].macroclass_id[
+                    0]
+                macroclass_name = self.macroclasses[macroclass_value]
+                class_value = self.table[
+                    self.table['signature_id'] == signature_id].class_id[
+                    0]
+                class_name = self.table[
+                    self.table['signature_id'] == signature_id].class_name[
+                    0]
+                plot_names = '%s#%s %s#%s' % (
+                    macroclass_value, macroclass_name, class_value, class_name
+                )
+                plot_tools.create_scatter_plot(
+                    ax=ax, plots=[plots], plot_names=[plot_names]
+                )
+            cfg.logger.log.debug('end')
+            return histogram
+        # not geometry
+        else:
+            cfg.logger.log.error('unable to calculate, missing geometry')
+            cfg.messages.error('unable to calculate, missing geometry')
+            return False
 
     # remove spectral signature and geometry from Spectral Signatures Catalog
     def remove_signature_by_id(self, signature_id: str):
@@ -241,7 +306,7 @@ class SpectralSignaturesCatalog(object):
                     geometry_ids.append(signature_id)
                     signature_check = self.table[
                         self.table['signature_id'] == signature_id
-                    ].signature[0]
+                        ].signature[0]
                     # calculate signature
                     if calculate_signature is True and signature_check == 0:
                         vector = raster_vector.get_polygon_from_vector(
@@ -249,40 +314,42 @@ class SpectralSignaturesCatalog(object):
                             attribute_filter="%s = '%s'" % (
                                 cfg.uid_field_name, signature_id)
                         )
-                        (value_list, standard_deviation_list,
-                         wavelength_list) = self.calculate_signature(
-                            vector)
+                        (value_list, standard_deviation_list, wavelength_list,
+                         pixel_count) = self.calculate_signature(vector)
                         mc_value = self.table[
                             self.table['signature_id'] == signature_id
-                        ].macroclass_id[0]
+                            ].macroclass_id[0]
                         c_value = self.table[
                             self.table['signature_id'] == signature_id
-                        ].class_id[0]
+                            ].class_id[0]
                         c_name = self.table[
                             self.table['signature_id'] == signature_id
-                        ].class_name[0]
+                            ].class_name[0]
+                        unit = self.table[
+                            self.table['signature_id'] == signature_id
+                            ].unit[0]
                         if color_string is None:
                             color_string = self.table[
                                 self.table['signature_id'] == signature_id
-                            ].color[0]
+                                ].color[0]
                         mc_name = self.macroclasses[mc_value]
                         self.add_spectral_signature(
                             value_list=value_list, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
-                            class_name=c_name,
+                            class_name=c_name, count=pixel_count,
                             standard_deviation_list=standard_deviation_list,
                             signature_id=signature_id, geometry=1, signature=1,
-                            color_string=color_string
+                            color_string=color_string, unit=unit
                         )
                     signature_ids.append(signature_id)
                 # get first element class and macroclass
                 if count == 1:
                     macroclass_value = self.table[
                         self.table['signature_id'] == signature_id
-                    ].macroclass_id[0]
+                        ].macroclass_id[0]
                     class_value = self.table[
                         self.table['signature_id'] == signature_id
-                    ].class_id[0]
+                        ].class_id[0]
             except Exception as err:
                 str(err)
         if macroclass_id is not None:
@@ -319,6 +386,8 @@ class SpectralSignaturesCatalog(object):
                     self.signatures[signature].standard_deviation
                 )
                 wavelength = self.signatures[signature].wavelength
+            unit = self.table[
+                self.table['signature_id'] == signature_ids[0]].unit[0]
             wavelength_list = wavelength.tolist()
             values = np.column_stack(value_arrays)
             stds = np.column_stack(std_arrays)
@@ -335,7 +404,8 @@ class SpectralSignaturesCatalog(object):
                 standard_deviation_list=stds_mean.tolist(),
                 macroclass_id=macroclass_value, class_id=class_value,
                 macroclass_name=macroclass_name, class_name='merged',
-                geometry=0, signature=1, color_string=color_string
+                geometry=0, signature=1, color_string=color_string, count=0,
+                unit=unit
             )
         cfg.logger.log.debug('end')
 
@@ -349,12 +419,14 @@ class SpectralSignaturesCatalog(object):
         # import csv as comma separated with fields value, wavelength,
         # standard_deviation (optional)
         if files_directories.is_file(csv_path):
-            csv = tm.open_file(file_path=csv_path, separators=separator,
-                               field_names=['value', 'wavelength',
-                                            'standard_deviation'],
-                               progress_message=False, skip_first_line=False
-                               )
+            csv = tm.open_file(
+                file_path=csv_path, separators=separator,
+                field_names=['value', 'wavelength',
+                             'standard_deviation'],
+                progress_message=False, skip_first_line=False
+            )
             bandset_wavelength = self.bandset.bands['wavelength']
+            unit = self.bandset.get_wavelength_units()[0]
             value_list = []
             wavelength_list = []
             standard_deviation_list = []
@@ -377,11 +449,11 @@ class SpectralSignaturesCatalog(object):
                 standard_deviation_list = None
             self.add_spectral_signature(
                 value_list=value_list, macroclass_id=macroclass_id,
-                class_id=class_id,
-                macroclass_name=macroclass_name, class_name=class_name,
-                wavelength_list=wavelength_list,
+                class_id=class_id, macroclass_name=macroclass_name,
+                class_name=class_name, wavelength_list=wavelength_list,
                 standard_deviation_list=standard_deviation_list,
-                geometry=0, signature=1, color_string=color_string
+                geometry=0, signature=1, color_string=color_string, count=0,
+                unit=unit
             )
             cfg.logger.log.debug('end; imported: %s' % csv_path)
         else:
@@ -415,6 +487,7 @@ class SpectralSignaturesCatalog(object):
             catalog_sr.ImportFromWkt(self.bandset.crs)
             vector_sr = osr.SpatialReference()
             vector_sr.ImportFromWkt(vector_crs)
+            unit = self.bandset.get_wavelength_units()[0]
             # required by GDAL 3 coordinate order
             try:
                 catalog_sr.SetAxisMappingStrategy(
@@ -468,13 +541,15 @@ class SpectralSignaturesCatalog(object):
                         c_name = class_name
                     o_feature.SetField(cfg.uid_field_name, signature_id)
                     o_feature.SetField(cfg.class_field_name, int(c_value))
-                    o_feature.SetField(cfg.macroclass_field_name,
-                                       int(mc_value))
+                    o_feature.SetField(
+                        cfg.macroclass_field_name,
+                        int(mc_value)
+                    )
                     catalog_layer.CreateFeature(o_feature)
                     if calculate_signature:
                         temp_path = cfg.temp.temporary_file_path(
                             name_suffix=cfg.gpkg_suffix
-                            )
+                        )
                         raster_vector.create_geometry_vector(
                             output_path=temp_path, crs_wkt=self.bandset.crs,
                             macroclass_field_name=self.macroclass_field,
@@ -484,23 +559,22 @@ class SpectralSignaturesCatalog(object):
                         temp_layer = temp_vector.GetLayer()
                         temp_layer.CreateFeature(o_feature)
                         temp_vector.Destroy()
-                        (value_list, standard_deviation_list,
-                         wavelength_list) = self.calculate_signature(
-                            temp_path)
+                        (value_list, standard_deviation_list, wavelength_list,
+                         pixel_count) = self.calculate_signature(temp_path)
                         self.add_spectral_signature(
                             value_list=value_list, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
-                            class_name=c_name,
+                            class_name=c_name, count=pixel_count,
                             standard_deviation_list=standard_deviation_list,
                             signature_id=signature_id, geometry=1, signature=1,
-                            color_string=color_string
+                            color_string=color_string, unit=unit
                         )
                     else:
                         self.signature_to_catalog(
                             signature_id=signature_id, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
                             class_name=c_name, geometry=1, signature=0,
-                            color_string=color_string
+                            color_string=color_string, unit=unit
                         )
                     o_feature.Destroy()
                     i_feature.Destroy()
@@ -533,7 +607,7 @@ class SpectralSignaturesCatalog(object):
         for p in path_list:
             temp_path = cfg.temp.temporary_file_path(
                 name_suffix=cfg.tif_suffix
-                )
+            )
             virtual = raster_vector.create_virtual_raster(
                 input_raster_list=[p], output=temp_path,
                 box_coordinate_list=[min_x, max_y, max_x, min_y]
@@ -546,11 +620,59 @@ class SpectralSignaturesCatalog(object):
             n_processes=n_processes, keep_output_argument=True,
             progress_message='calculate signature', min_progress=1,
             max_progress=80
-            )
+        )
         wavelength_list = self.bandset.get_wavelengths()
         cfg.multiprocess.multiprocess_spectral_signature()
-        value_list, standard_deviation_list = cfg.multiprocess.output
-        return value_list, standard_deviation_list, wavelength_list
+        (value_list, standard_deviation_list,
+         count_list) = cfg.multiprocess.output
+        return value_list, standard_deviation_list, wavelength_list, count_list
+
+    # import vector for scatter plot
+    def calculate_scatter_plot(
+            self, roi_path, band_x, band_y, n_processes: int = None
+    ):
+        cfg.logger.log.debug(
+            'calculate_scatter_plot: %s; band x: %s; band y: %s'
+            % (roi_path, band_x, band_y)
+        )
+        if n_processes is None:
+            n_processes = cfg.n_processes
+        _temp_vector = ogr.Open(roi_path)
+        _temp_layer = _temp_vector.GetLayer()
+        min_x, max_x, min_y, max_y = _temp_layer.GetExtent()
+        _temp_layer = None
+        _temp_vector = None
+        band_x_path = self.bandset.get_absolute_path(band_number=band_x)
+        band_y_path = self.bandset.get_absolute_path(band_number=band_y)
+        if band_x_path is None or band_y_path is None:
+            cfg.logger.log.error('failed to get bands')
+            cfg.messages.error('failed to get bands')
+            return False
+        path_list = [band_x_path, band_y_path]
+        virtual_path_list = []
+        for p in path_list:
+            temp_path = cfg.temp.temporary_file_path(
+                name_suffix=cfg.tif_suffix
+            )
+            virtual = raster_vector.create_virtual_raster(
+                input_raster_list=[p], output=temp_path,
+                box_coordinate_list=[min_x, max_y, max_x, min_y]
+            )
+            virtual_path_list.append(virtual)
+        roi_paths = [roi_path] * len(path_list)
+        if n_processes > 2:
+            n_processes = 2
+        cfg.multiprocess.run_separated(
+            raster_path_list=virtual_path_list,
+            function=get_values_for_scatter_plot,
+            function_argument=roi_paths, function_variable=virtual_path_list,
+            n_processes=n_processes, keep_output_argument=True,
+            progress_message='calculate band values', min_progress=1,
+            max_progress=80
+        )
+        cfg.multiprocess.multiprocess_scatter_values()
+        value_list = cfg.multiprocess.output
+        return value_list
 
     # save Spectral Signatures Catalog to file
     def save(self, output_path):
@@ -578,31 +700,40 @@ class SpectralSignaturesCatalog(object):
                     root, 'macroclass'
                 )
                 macroclass_element.set('id', str(macroclass))
-                macroclass_element.set('name',
-                                       str(self.macroclasses[macroclass]))
+                macroclass_element.set(
+                    'name',
+                    str(self.macroclasses[macroclass])
+                )
                 macroclass_element.set(
                     'color', str(self.macroclasses_color_string[macroclass])
                 )
         if self.signatures is not None:
             for signature in self.signatures:
                 # create file inside temporary directory
-                self.signatures[signature].tofile(file='%s/%s' %
-                                                       (temp_dir, signature))
+                self.signatures[signature].tofile(
+                    file='%s/%s' %
+                         (temp_dir, signature)
+                )
                 file_list.append('%s/%s' % (temp_dir, signature))
         # save to file
         pretty_xml = minidom.parseString(
-            cElementTree.tostring(root)).toprettyxml()
+            cElementTree.tostring(root)
+        ).toprettyxml()
         # create file inside temporary directory
-        read_write_files.write_file(pretty_xml,
-                                    '%s/macroclasses.xml' % temp_dir)
+        read_write_files.write_file(
+            pretty_xml,
+            '%s/macroclasses.xml' % temp_dir
+        )
         file_list.append('%s/macroclasses.xml' % temp_dir)
         # create file inside temporary directory
         if self.table is not None:
             self.table.tofile(file='%s/table' % temp_dir)
             file_list.append('%s/table' % temp_dir)
         # zip files
-        files_directories.zip_files(file_list, output_path,
-                                    compression=zipfile.ZIP_STORED)
+        files_directories.zip_files(
+            file_list, output_path,
+            compression=zipfile.ZIP_STORED
+        )
         cfg.logger.log.debug('export signature catalog')
         return output_path
 
@@ -622,16 +753,21 @@ class SpectralSignaturesCatalog(object):
                 self.geometry_file = f
             elif f_name == 'table':
                 self.table = np.core.records.fromfile(
-                    f, dtype=cfg.spectral_dtype_list)
+                    f, dtype=cfg.spectral_dtype_list
+                )
             elif f_name == 'macroclasses.xml':
                 tree = cElementTree.parse(f)
                 root = tree.getroot()
                 version = root.get('version')
                 if version is None:
-                    cfg.logger.log.error('failed loading signatures: %s'
-                                         % file_path)
-                    cfg.messages.error('failed loading signatures: %s'
-                                       % file_path)
+                    cfg.logger.log.error(
+                        'failed loading signatures: %s'
+                        % file_path
+                    )
+                    cfg.messages.error(
+                        'failed loading signatures: %s'
+                        % file_path
+                    )
                 else:
                     self.macroclass_field = root.get('macroclass_field')
                     self.class_field = root.get('class_field')
@@ -642,19 +778,23 @@ class SpectralSignaturesCatalog(object):
                         macroclass_name = child.get('name')
                         macroclass_color = child.get('color')
                         self.macroclasses[int(macroclass_id)] = str(
-                            macroclass_name)
+                            macroclass_name
+                        )
                         self.macroclasses_color_string[
                             int(macroclass_id)] = str(macroclass_color)
             else:
                 self.signatures[f_name] = np.core.records.fromfile(
-                    f, dtype=cfg.signature_dtype_list)
+                    f, dtype=cfg.signature_dtype_list
+                )
 
     # prepare signature values for plot
     def export_signature_values_for_plot(
             self, signature_id, plot_catalog=None
     ):
-        cfg.logger.log.debug('export_signature_values_for_plot: %s'
-                             % signature_id)
+        cfg.logger.log.debug(
+            'export_signature_values_for_plot: %s'
+            % signature_id
+        )
         # check signature
         try:
             signature = self.table[
@@ -681,13 +821,15 @@ class SpectralSignaturesCatalog(object):
                         cfg.uid_field_name, signature_id
                     )
                 )
-                (value_list, standard_deviation_list,
-                 wavelength_list) = self.calculate_signature(vector)
+                (value_list, standard_deviation_list, wavelength_list,
+                 pixel_count) = self.calculate_signature(vector)
         else:
             value_list = self.signatures[signature_id].value
             wavelength_list = self.signatures[signature_id].wavelength
             standard_deviation_list = self.signatures[
                 signature_id].standard_deviation
+            pixel_count = self.table[
+                self.table['signature_id'] == signature_id].count[0]
         mc_value = self.table[
             self.table['signature_id'] == signature_id].macroclass_id[0]
         c_value = self.table[
@@ -699,19 +841,21 @@ class SpectralSignaturesCatalog(object):
         mc_name = self.macroclasses[mc_value]
         signature_plot = SpectralSignaturePlot(
             value=value_list, wavelength=wavelength_list,
-            standard_deviation=standard_deviation_list,
+            standard_deviation=standard_deviation_list, count=pixel_count,
             signature_id=signature_id, macroclass_id=mc_value,
             class_id=c_value, macroclass_name=mc_name, class_name=c_name,
             color_string=color_string
-            )
+        )
         if plot_catalog is not None:
             plot_catalog.add_signature(signature_plot)
         return signature_plot
 
     # display plot of signatures using Matplotlib
     def add_signatures_to_plot_by_id(self, signature_id_list):
-        cfg.logger.log.debug('add_signatures_to_plot_by_id: %s'
-                             % str(signature_id_list))
+        cfg.logger.log.debug(
+            'add_signatures_to_plot_by_id: %s'
+            % str(signature_id_list)
+        )
         try:
             plot_catalog = SpectralSignaturePlotCatalog()
             ax = plot_tools.prepare_plot()
@@ -726,7 +870,8 @@ class SpectralSignaturesCatalog(object):
             plots, plot_names, x_ticks, y_ticks, v_lines = (
                 plot_tools.add_lines_to_plot(
                     name_list=name_list, wavelength_list=wavelength_list,
-                    value_list=value_list, color_list=color_list)
+                    value_list=value_list, color_list=color_list
+                )
             )
             plot_tools.create_plot(
                 ax=ax, plots=plots, plot_names=plot_names, x_ticks=x_ticks,
@@ -736,6 +881,62 @@ class SpectralSignaturesCatalog(object):
             cfg.logger.log.error(str(err))
             return False
 
+    # calculate Bray-Curtis similarity
+    # (100 - 100 * sum(abs(x[ki]-x[kj]) / (sum(x[ki] + x[kj])))
+    def calculate_bray_curtis_similarity(self, signature_id_x, signature_id_y):
+        cfg.logger.log.debug(
+            'calculate_bray_curtis_similarity i: %s; j: %s'
+            % (str(signature_id_x), str(signature_id_y))
+        )
+        values_x = self.signatures[signature_id_x].value
+        values_y = self.signatures[signature_id_y].value
+        try:
+            array_i = np.array(values_x)
+            array_j = np.array(values_y)
+            sum_i_j = array_i.sum() + array_j.sum()
+            absolute = np.sqrt((array_i - array_j) ** 2)
+            value = 100 - absolute.sum() / sum_i_j * 100
+        except Exception as err:
+            str(err)
+            value = cfg.not_available
+        return value
+
+    # calculate Euclidean distance sqrt(sum((x[ki] - x[kj])^2))
+    def calculate_euclidean_distance(self, signature_id_x, signature_id_y):
+        cfg.logger.log.debug(
+            'calculate_euclidean_distance i: %s; j: %s'
+            % (str(signature_id_x), str(signature_id_y))
+        )
+        values_x = self.signatures[signature_id_x].value
+        values_y = self.signatures[signature_id_y].value
+        try:
+            difference = (values_x - values_y) ** 2
+            value = np.sqrt(difference.sum())
+        except Exception as err:
+            str(err)
+            value = cfg.not_available
+        return value
+
+    # calculate Spectral angle
+    # [ arccos( sum(r_i * s_i) / sqrt( sum(r_i**2) * sum(s_i**2) ) ) ]
+    def calculate_spectral_angle(self, signature_id_x, signature_id_y):
+        cfg.logger.log.debug(
+            'Spectral angle i: %s; j: %s'
+            % (str(signature_id_x), str(signature_id_y))
+        )
+        values_x = self.signatures[signature_id_x].value
+        values_y = self.signatures[signature_id_y].value
+        try:
+            value = np.arccos(
+                (values_x * values_y).sum() / np.sqrt(
+                    (values_x ** 2).sum() * (values_y ** 2).sum()
+                )
+            ) * 180 / np.pi
+        except Exception as err:
+            str(err)
+            value = cfg.not_available
+        return value
+
 
 class SpectralSignaturePlot(object):
     """A class to manage Spectral Signatures for plots.
@@ -743,7 +944,7 @@ class SpectralSignaturePlot(object):
     """
 
     def __init__(
-            self, value, wavelength, standard_deviation=None,
+            self, value, wavelength, standard_deviation=None, count=None,
             signature_id=None, macroclass_id=None, class_id=None,
             macroclass_name=None, class_name=None, color_string=None,
             selected=None
@@ -751,6 +952,7 @@ class SpectralSignaturePlot(object):
         self.value = value
         self.wavelength = wavelength
         self.standard_deviation = standard_deviation
+        self.count = count
         if signature_id is None:
             signature_id = generate_signature_id()
         self.signature_id = signature_id
@@ -772,6 +974,8 @@ class SpectralSignaturePlot(object):
         if selected is None:
             selected = 1
         self.selected = selected
+        # generic attributes
+        self.attributes = {}
 
 
 class SpectralSignaturePlotCatalog(object):
@@ -973,6 +1177,28 @@ class SpectralSignaturePlotCatalog(object):
             else:
                 property_list.append(
                     self.catalog[signature].color
+                )
+        return property_list
+
+    def get_generic_attributes(self, selected=True) -> list:
+        """Gets generic attributes in the catalog.
+
+        This function gets generic attributes from the catalog.
+
+        Returns:
+            The list of values.
+
+        """
+        property_list = []
+        for signature in self.catalog:
+            if selected is True:
+                if self.catalog[signature].selected == 1:
+                    property_list.append(
+                        self.catalog[signature].attributes
+                    )
+            else:
+                property_list.append(
+                    self.catalog[signature].attributes
                 )
         return property_list
 

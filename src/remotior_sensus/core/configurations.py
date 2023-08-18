@@ -294,7 +294,7 @@ spectral_dtype_list = [('signature_id', 'U64'), ('macroclass_id', 'int16'),
                        ('max_like_thr', 'float64'),
                        ('spec_angle_thr', 'float64'),
                        ('geometry', 'byte'), ('signature', 'byte'),
-                       ('color', 'U64')]
+                       ('color', 'U64'), ('count', 'int16'), ('unit', 'U64')]
 # spectral signature dtype
 signature_dtype_list = [('value', 'float64'), ('wavelength', 'float64'),
                         ('standard_deviation', 'float64')]
@@ -333,3 +333,4 @@ classification_algorithms = [
 ]
 # name used in raster conversion to vector for area field
 area_field_name = 'area'
+not_available = 'n/a'

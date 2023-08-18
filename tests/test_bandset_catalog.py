@@ -201,6 +201,15 @@ class TestBandSetCatalog(TestCase):
         self.assertGreater(
             catalog.get_bandset(1).get_band_count(), bandset_1_count
         )
+        # test band overview creation
+        band_list = catalog.get_bandset(1).get_absolute_paths()
+        temp_file = cfg.temp.temporary_file_path(name_suffix='.tif')
+        files_directories.copy_file(in_path=band_list[0], out_path=temp_file)
+        # load BandSet catalog
+        catalog_3 = rs.bandset_catalog()
+        catalog_3.create_bandset(paths=[temp_file], bandset_number=1)
+        catalog_3.build_bandset_band_overview(1)
+        self.assertTrue(files_directories.is_file(temp_file + '.ovr'))
         band_1_name = catalog.get(1).get(1).name
         # sort bands by wavelength
         catalog.sort_bands_by_wavelength(bandset_number=1)

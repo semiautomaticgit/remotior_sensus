@@ -156,6 +156,12 @@ class TestSpectralSignatures(TestCase):
             class_value=21, macroclass_name='macroclass_2',
             class_name='class_2', calculate_signature=True
         )
+        signature_7_count = signature_catalog_3.table[
+            signature_catalog_3.table['macroclass_id'] == 7].count[0]
+        signature_7_unit = signature_catalog_3.table[
+            signature_catalog_3.table['macroclass_id'] == 7].unit[0]
+        self.assertTrue(signature_7_count > 0)
+        self.assertEqual(signature_7_unit, cfg.wl_micro)
         signature_count = signature_catalog_3.table.shape[0]
         ids = signature_catalog_3.table.signature_id.tolist()
         signature_catalog_3.merge_signatures_by_id(
@@ -175,6 +181,23 @@ class TestSpectralSignatures(TestCase):
                 signature_catalog_3.table['class_name'] == 'merged3'
             ].signature, 1
         )
+        # signature distance
+        cfg.logger.log.debug('>>> test signature distance')
+        # calculate Bray-Curtis similarity
+        bray_curtis = signature_catalog_3.calculate_bray_curtis_similarity(
+            signature_id_x=ids[0], signature_id_y=ids[1]
+        )
+        self.assertTrue(bray_curtis > 0)
+        # calculate Euclidean Distance
+        euclidean_distance = signature_catalog_3.calculate_euclidean_distance(
+            signature_id_x=ids[0], signature_id_y=ids[1]
+        )
+        self.assertTrue(euclidean_distance > 0)
+        # calculate spectral angle
+        spectral_angle = signature_catalog_3.calculate_spectral_angle(
+            signature_id_x=ids[0], signature_id_y=ids[1]
+        )
+        self.assertTrue(spectral_angle > 0)
         # signature to plot
         cfg.logger.log.debug('>>> test signature to plot')
         plot_catalog = rs.spectral_signatures_plot_catalog()
@@ -189,10 +212,23 @@ class TestSpectralSignatures(TestCase):
             self.assertEqual(signature.signature_id, signature_id)
         signature_ids = plot_catalog.get_signature_ids()
         self.assertEqual(len(signature_ids), 1)
+        """
         # interactive plot
-        # signature_catalog_3.add_signatures_to_plot_by_id(signature_ids)
+        signature_catalog_3.add_signatures_to_plot_by_id(signature_ids)
+        """
         plot_catalog.remove_signature(signature_id)
         self.assertEqual(plot_catalog.get_signature_count(), 0)
+        """
+        # interactive plot
+        histogram = signature_catalog_3.calculate_scatter_plot_by_id(
+            signature_id=signature_id, band_x=1, band_y=2, decimal_round=1,
+            plot=True
+        )
+        """
+        histogram = signature_catalog_3.calculate_scatter_plot_by_id(
+            signature_id=signature_id, band_x=1, band_y=2, decimal_round=1
+        )
+        self.assertTrue(histogram is not None)
 
         # clear temporary directory
         rs.close()

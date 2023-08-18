@@ -419,3 +419,48 @@ def region_growing_polygon(
     else:
         cfg.logger.log.error('region growing empty')
         return False
+
+
+# calculate 2d histogram
+def calculate_2d_histogram(x_values, y_values, decimal_round=None):
+    if decimal_round is None:
+        decimal_round = 3
+    try:
+        x_values_2 = x_values[~np.isnan(x_values)]
+        y_values2 = y_values[~np.isnan(y_values)]
+        x_values = x_values_2[~np.isnan(y_values2)]
+        y_values = y_values2[~np.isnan(y_values2)]
+        del x_values_2
+        del y_values2
+        x_max = np.amax(x_values)
+        y_max = np.amax(y_values)
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        return False
+    precision = np.power(10, -float(decimal_round))
+    x_min = np.amin(x_values)
+    x_min = np.around(x_min, decimal_round) - precision
+    x_max = np.around(x_max, decimal_round) + precision
+    x_steps = calculate_steps(x_min, x_max, precision)
+    y_min = np.amin(y_values)
+    y_min = np.around(y_min, decimal_round) - precision
+    y_max = np.around(y_max, decimal_round) + precision
+    y_steps = calculate_steps(y_min, y_max, precision)
+    try:
+        histogram, x_edges, y_edges = np.histogram2d(
+            x_values, y_values, bins=(x_steps, y_steps)
+        )
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        return None
+    return [histogram, x_edges, y_edges]
+
+
+# calculate steps
+def calculate_steps(min_value, max_value, step):
+    steps = [min_value]
+    value = min_value
+    while value < max_value:
+        value += step
+        steps.append(value)
+    return steps

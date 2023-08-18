@@ -494,6 +494,17 @@ def write_raster(
     return raster_path
 
 
+# build band overview
+def build_band_overview(input_raster_list):
+    for input_raster in input_raster_list:
+        try:
+            _raster = gdal.Open(input_raster, gdal.GA_ReadOnly)
+            _raster.BuildOverviews('NEAREST', [8, 16, 32, 64])
+            _raster = None
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+
+
 # create temporary virtual raster
 def create_temporary_virtual_raster(
         input_raster_list, band_number_list=None, nodata_value=None,
