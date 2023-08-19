@@ -18,12 +18,12 @@ class TestSpectralSignatures(TestCase):
         wavelength_list = [1, 2, 3, 4]
         signature_catalog.add_spectral_signature(
             value_list=value_list, wavelength_list=wavelength_list
-        )
+            )
         self.assertEqual(len(signature_catalog.signatures), 1)
         signature_catalog.add_spectral_signature(
-            value_list=value_list, wavelength_list=wavelength_list,
-            macroclass_id=2
-        )
+            value_list=value_list, macroclass_id=2,
+            wavelength_list=wavelength_list
+            )
         self.assertEqual(signature_catalog.table.shape[0], 2)
         cfg.logger.log.debug('>>> test save Spectral Signature Catalog')
         temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
@@ -61,7 +61,7 @@ class TestSpectralSignatures(TestCase):
         # add spectral signature with macroclass_id = 2
         signature_catalog_2.add_spectral_signature(
             value_list=value_list, macroclass_id=2
-        )
+            )
         self.assertEqual(
             signature_catalog_2.table[
                 signature_catalog_2.table[
@@ -156,11 +156,11 @@ class TestSpectralSignatures(TestCase):
             class_value=21, macroclass_name='macroclass_2',
             class_name='class_2', calculate_signature=True
         )
-        signature_7_count = signature_catalog_3.table[
-            signature_catalog_3.table['macroclass_id'] == 7].count[0]
+        signature_7_pixel_count = signature_catalog_3.table[
+            signature_catalog_3.table['macroclass_id'] == 7].pixel_count[0]
         signature_7_unit = signature_catalog_3.table[
             signature_catalog_3.table['macroclass_id'] == 7].unit[0]
-        self.assertTrue(signature_7_count > 0)
+        self.assertTrue(signature_7_pixel_count > 0)
         self.assertEqual(signature_7_unit, cfg.wl_micro)
         signature_count = signature_catalog_3.table.shape[0]
         ids = signature_catalog_3.table.signature_id.tolist()

@@ -1084,13 +1084,14 @@ def create_bandset_table(band_list):
 def add_spectral_signature_to_catalog_table(
         signature_id=None, macroclass_id=0, class_id=0, class_name=None,
         previous_catalog=None, selected=1, min_dist_thr=0, max_like_thr=0,
-        spec_angle_thr=0, geometry=0, signature=0, color_string=None, count=0,
-        unit=None
+        spec_angle_thr=0, geometry=0, signature=0, color_string=None,
+        pixel_count=0, unit=None
 ):
     rec_array = np.rec.fromrecords(
         [(signature_id, int(macroclass_id), int(class_id), str(class_name),
           selected, min_dist_thr, max_like_thr, spec_angle_thr, geometry,
-          signature, color_string, count, unit)], dtype=cfg.spectral_dtype_list
+          signature, color_string, pixel_count, unit)],
+        dtype=cfg.spectral_dtype_list
     )
     # add to previous bandset catalog table
     if previous_catalog is not None:

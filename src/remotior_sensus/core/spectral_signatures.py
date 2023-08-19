@@ -97,7 +97,7 @@ class SpectralSignaturesCatalog(object):
             macroclass_name=None, class_name=None, wavelength_list=None,
             standard_deviation_list=None, signature_id=None, selected=1,
             min_dist_thr=0, max_like_thr=0, spec_angle_thr=0, geometry=0,
-            signature=0, color_string=None, count=0, unit=None
+            signature=0, color_string=None, pixel_count=0, unit=None
     ):
         """Adds a spectral signature.
 
@@ -119,7 +119,7 @@ class SpectralSignaturesCatalog(object):
             geometry:
             signature:
             color_string:
-            count: pixel count
+            pixel_count: pixel count
             unit: unit
 
         Returns:
@@ -149,9 +149,9 @@ class SpectralSignaturesCatalog(object):
             class_name=class_name, selected=selected,
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
             spec_angle_thr=spec_angle_thr, geometry=geometry,
-            signature=signature, color_string=color_string, count=count,
-            unit=unit
-        )
+            signature=signature, color_string=color_string,
+            pixel_count=pixel_count, unit=unit
+            )
         cfg.logger.log.debug('end')
 
     # sets macroclass color string
@@ -163,7 +163,7 @@ class SpectralSignaturesCatalog(object):
             self, signature_id, macroclass_id, class_id, macroclass_name=None,
             class_name=None, selected=1, min_dist_thr=0, max_like_thr=0,
             spec_angle_thr=0, geometry=0, signature=0, color_string=None,
-            count=0, unit=None
+            pixel_count=0, unit=None
     ):
         # add signature to catalog
         self.table = tm.add_spectral_signature_to_catalog_table(
@@ -172,8 +172,8 @@ class SpectralSignaturesCatalog(object):
             previous_catalog=self.table, selected=selected,
             min_dist_thr=min_dist_thr, max_like_thr=max_like_thr,
             spec_angle_thr=spec_angle_thr, geometry=geometry,
-            signature=signature, color_string=color_string, count=count,
-            unit=unit
+            signature=signature, color_string=color_string,
+            pixel_count=pixel_count, unit=unit
         )
         # add or update macroclass name
         if macroclass_name is not None:
@@ -336,11 +336,12 @@ class SpectralSignaturesCatalog(object):
                         self.add_spectral_signature(
                             value_list=value_list, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
-                            class_name=c_name, count=pixel_count,
+                            class_name=c_name,
                             standard_deviation_list=standard_deviation_list,
                             signature_id=signature_id, geometry=1, signature=1,
-                            color_string=color_string, unit=unit
-                        )
+                            color_string=color_string, pixel_count=pixel_count,
+                            unit=unit
+                            )
                     signature_ids.append(signature_id)
                 # get first element class and macroclass
                 if count == 1:
@@ -400,13 +401,13 @@ class SpectralSignaturesCatalog(object):
                 color_string = '#000000'
             self.add_spectral_signature(
                 value_list=values_mean.tolist(),
-                wavelength_list=wavelength_list,
-                standard_deviation_list=stds_mean.tolist(),
                 macroclass_id=macroclass_value, class_id=class_value,
                 macroclass_name=macroclass_name, class_name='merged',
-                geometry=0, signature=1, color_string=color_string, count=0,
+                wavelength_list=wavelength_list,
+                standard_deviation_list=stds_mean.tolist(), geometry=0,
+                signature=1, color_string=color_string, pixel_count=0,
                 unit=unit
-            )
+                )
         cfg.logger.log.debug('end')
 
     # import spectral signature csv to Spectral Signatures Catalog
@@ -451,10 +452,10 @@ class SpectralSignaturesCatalog(object):
                 value_list=value_list, macroclass_id=macroclass_id,
                 class_id=class_id, macroclass_name=macroclass_name,
                 class_name=class_name, wavelength_list=wavelength_list,
-                standard_deviation_list=standard_deviation_list,
-                geometry=0, signature=1, color_string=color_string, count=0,
+                standard_deviation_list=standard_deviation_list, geometry=0,
+                signature=1, color_string=color_string, pixel_count=0,
                 unit=unit
-            )
+                )
             cfg.logger.log.debug('end; imported: %s' % csv_path)
         else:
             cfg.logger.log.error('error file not found: %s' % csv_path)
@@ -564,18 +565,19 @@ class SpectralSignaturesCatalog(object):
                         self.add_spectral_signature(
                             value_list=value_list, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
-                            class_name=c_name, count=pixel_count,
+                            class_name=c_name,
                             standard_deviation_list=standard_deviation_list,
                             signature_id=signature_id, geometry=1, signature=1,
-                            color_string=color_string, unit=unit
-                        )
+                            color_string=color_string, pixel_count=pixel_count,
+                            unit=unit
+                            )
                     else:
                         self.signature_to_catalog(
                             signature_id=signature_id, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
                             class_name=c_name, geometry=1, signature=0,
                             color_string=color_string, unit=unit
-                        )
+                            )
                     o_feature.Destroy()
                     i_feature.Destroy()
                     i_feature = i_layer.GetNextFeature()
@@ -829,7 +831,7 @@ class SpectralSignaturesCatalog(object):
             standard_deviation_list = self.signatures[
                 signature_id].standard_deviation
             pixel_count = self.table[
-                self.table['signature_id'] == signature_id].count[0]
+                self.table['signature_id'] == signature_id].pixel_count[0]
         mc_value = self.table[
             self.table['signature_id'] == signature_id].macroclass_id[0]
         c_value = self.table[
@@ -841,11 +843,11 @@ class SpectralSignaturesCatalog(object):
         mc_name = self.macroclasses[mc_value]
         signature_plot = SpectralSignaturePlot(
             value=value_list, wavelength=wavelength_list,
-            standard_deviation=standard_deviation_list, count=pixel_count,
-            signature_id=signature_id, macroclass_id=mc_value,
-            class_id=c_value, macroclass_name=mc_name, class_name=c_name,
-            color_string=color_string
-        )
+            standard_deviation=standard_deviation_list,
+            pixel_count=pixel_count, signature_id=signature_id,
+            macroclass_id=mc_value, class_id=c_value, macroclass_name=mc_name,
+            class_name=c_name, color_string=color_string
+            )
         if plot_catalog is not None:
             plot_catalog.add_signature(signature_plot)
         return signature_plot
@@ -944,7 +946,7 @@ class SpectralSignaturePlot(object):
     """
 
     def __init__(
-            self, value, wavelength, standard_deviation=None, count=None,
+            self, value, wavelength, standard_deviation=None, pixel_count=None,
             signature_id=None, macroclass_id=None, class_id=None,
             macroclass_name=None, class_name=None, color_string=None,
             selected=None
@@ -952,7 +954,9 @@ class SpectralSignaturePlot(object):
         self.value = value
         self.wavelength = wavelength
         self.standard_deviation = standard_deviation
-        self.count = count
+        if pixel_count is None:
+            pixel_count = 0
+        self.pixel_count = pixel_count
         if signature_id is None:
             signature_id = generate_signature_id()
         self.signature_id = signature_id
