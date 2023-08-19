@@ -26,6 +26,9 @@ import numpy as np
 from remotior_sensus.core import configurations as cfg, table_manager as tm
 from remotior_sensus.util import (
     dates_times, files_directories, raster_vector, read_write_files)
+from remotior_sensus.core.processor_functions import (
+    get_values_for_scatter_plot
+)
 
 """BandSet manager.
 
@@ -3085,3 +3088,61 @@ class BandSetCatalog(object):
         raster_vector.build_band_overview(input_raster_list=band_list)
         cfg.logger.log.debug('bandset_number: %s' % str(bandset_number))
         return True
+
+    def calculate_scatter_plot_histogram(
+            self, bandset_number: int, band_x: int, band_y: int,
+            vector_path: str
+    ) -> bool:
+        """Calculate scatter plot histogram.
+
+        Calculate scatter plot histogram from two bands and a vector, useful for scatter plot display.
+
+        Args:
+            bandset_number: number of BandSet; if None, current BandSet is used.
+            band_x: number of band x.
+            band_y: number of band y.
+            vector_path: path to the vector used for histogram calculation.
+            
+        Returns:
+            NumPy histogram.
+
+        Examples:
+            Caculate BandSet 1 scatter plot.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.calculate_scatter_plot_histogram(
+                ... bandset_number= 1, band_x=1, band_y=1,  vector_path='path')
+         """  # noqa: E501
+        cfg.logger.log.debug('bandset_number: %s' % str(bandset_number))
+        bandset = self.get(bandset_number)
+        min_x, max_x, min_y, max_y = raster_vector.get_layer_extent(
+            vector_path
+        )
+        band_x_path = bandset.get_absolute_path(band_number=band_x)
+        band_y_path = bandset.get_absolute_path(band_number=band_y)
+        if band_x_path is None or band_y_path is None:
+            cfg.logger.log.error('failed to get bands')
+            cfg.messages.error('failed to get bands')
+            return False
+        path_list = [band_x_path, band_y_path]
+        virtual_path_list = []
+        for p in path_list:
+            temp_path = cfg.temp.temporary_file_path(
+                name_suffix=cfg.tif_suffix
+            )
+            virtual = raster_vector.create_virtual_raster(
+                input_raster_list=[p], output=temp_path,
+                box_coordinate_list=[min_x, max_y, max_x, min_y]
+            )
+            virtual_path_list.append(virtual)
+        roi_paths = [vector_path] * len(path_list)
+        cfg.multiprocess.run_separated(
+            raster_path_list=virtual_path_list,
+            function=get_values_for_scatter_plot,
+            function_argument=roi_paths, function_variable=virtual_path_list,
+            n_processes=2, keep_output_argument=True,
+            progress_message='calculate band values', min_progress=1,
+            max_progress=80
+        )
+        cfg.multiprocess.multiprocess_scatter_values()
+        value_list = cfg.multiprocess.output
+        return value_list

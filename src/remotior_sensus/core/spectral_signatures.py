@@ -208,7 +208,7 @@ class SpectralSignaturesCatalog(object):
                 roi_path=vector, band_x=band_x, band_y=band_y,
                 n_processes=n_processes
             )
-            # calculate combinations
+            # calculate histogram
             histogram = shared_tools.calculate_2d_histogram(
                 x_values=value_list[0], y_values=value_list[1],
                 decimal_round=decimal_round
@@ -599,11 +599,7 @@ class SpectralSignaturesCatalog(object):
         cfg.logger.log.debug('calculate_signature: %s' % roi_path)
         if n_processes is None:
             n_processes = cfg.n_processes
-        _temp_vector = ogr.Open(roi_path)
-        _temp_layer = _temp_vector.GetLayer()
-        min_x, max_x, min_y, max_y = _temp_layer.GetExtent()
-        _temp_layer = None
-        _temp_vector = None
+        min_x, max_x, min_y, max_y = raster_vector.get_layer_extent(roi_path)
         path_list = self.bandset.get_absolute_paths()
         virtual_path_list = []
         for p in path_list:
@@ -639,11 +635,7 @@ class SpectralSignaturesCatalog(object):
         )
         if n_processes is None:
             n_processes = cfg.n_processes
-        _temp_vector = ogr.Open(roi_path)
-        _temp_layer = _temp_vector.GetLayer()
-        min_x, max_x, min_y, max_y = _temp_layer.GetExtent()
-        _temp_layer = None
-        _temp_vector = None
+        min_x, max_x, min_y, max_y = raster_vector.get_layer_extent(roi_path)
         band_x_path = self.bandset.get_absolute_path(band_number=band_x)
         band_y_path = self.bandset.get_absolute_path(band_number=band_y)
         if band_x_path is None or band_y_path is None:

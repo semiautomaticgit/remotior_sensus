@@ -219,9 +219,7 @@ class TestBandSetCatalog(TestCase):
         # get BandSet band from attribute
         band_w = catalog.get_bandset_bands_by_attribute(
             bandset_number=1, attribute='wavelength',
-            attribute_value=catalog.get(
-                1
-            ).get(1).wavelength
+            attribute_value=catalog.get(1).get(1).wavelength
         )
         self.assertEqual(
             band_w[0].wavelength, catalog.get_bandset(1).get_band(1).wavelength
@@ -313,6 +311,11 @@ class TestBandSetCatalog(TestCase):
         catalog.get(1).crs = None
         catalog.update_crs(bandset_number=1)
         self.assertTrue(catalog.get(1).crs is not None)
+        histogram = catalog.calculate_scatter_plot_histogram(
+            bandset_number=1, band_x=1, band_y=2,
+            vector_path='./data/files/roi.gpkg'
+        )
+        self.assertTrue(histogram is not None)
         # create virtual raster
         virtual = catalog.create_virtual_raster(bandset_number=1)
         self.assertTrue(files_directories.is_file(virtual))
