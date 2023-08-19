@@ -1758,7 +1758,7 @@ class Multiprocess(object):
                 except Exception as err:
                     cfg.logger.log.error(str(err))
                     return
-        count = sum(count_list)
+        count = min(count_list)
         self.output = mean_values, std, count
         cfg.logger.log.debug('end')
 
