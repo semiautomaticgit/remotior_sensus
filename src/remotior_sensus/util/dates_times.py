@@ -19,7 +19,7 @@
 Tools to manage dates and times
 """
 
-import datetime
+from datetime import datetime
 from remotior_sensus.core import configurations as cfg
 
 
@@ -28,7 +28,7 @@ def date_string_from_directory_name(directory_name):
     date = False
     # format YYYY-MM-DD
     try:
-        datetime.datetime.strptime(directory_name[-10:], '%Y-%m-%d')
+        datetime.strptime(directory_name[-10:], '%Y-%m-%d')
         date = directory_name[-10:]
     except Exception as err:
         str(err)
@@ -38,7 +38,7 @@ def date_string_from_directory_name(directory_name):
             for d_p in dir_part:
                 d_p_part = d_p.lower().split('t')[0]
                 try:
-                    date_string = datetime.datetime.strptime(d_p_part,
+                    date_string = datetime.strptime(d_p_part,
                                                              '%Y%m%d')
                     d_p_part_string = date_string.strftime('%Y-%m-%d')
                     date = d_p_part_string
@@ -53,13 +53,13 @@ def date_string_from_directory_name(directory_name):
 
 # get time
 def get_time_string():
-    time = datetime.datetime.now().strftime('%Y%m%d_%H%M%S%f')
+    time = datetime.now().strftime('%Y%m%d_%H%M%S%f')
     return time
 
 
 # get date
 def get_date_string():
-    time = datetime.datetime.now().strftime('%m%d')
+    time = datetime.now().strftime('%m%d')
     return time
 
 
@@ -67,7 +67,7 @@ def get_date_string():
 def create_date(string: str):
     # format YYYY-MM-DD
     try:
-        date = datetime.datetime.strptime(string, '%Y-%m-%d')
+        date = datetime.strptime(string, '%Y-%m-%d')
     except Exception as err:
         cfg.logger.log.error(str(err))
         date = None

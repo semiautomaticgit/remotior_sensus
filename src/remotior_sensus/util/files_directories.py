@@ -53,6 +53,16 @@ def remove_directory(directory):
     return directory
 
 
+# remove file
+def remove_file(path):
+    try:
+        os.remove(path)
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+    cfg.logger.log.debug('path: %s' % path)
+    return path
+
+
 # convert to absolute path
 def relative_to_absolute_path(path, root=None):
     if root is None:

@@ -132,7 +132,7 @@ class SpectralSignaturesCatalog(object):
         if class_id is None:
             class_id = 1
         if color_string is None:
-            color_string = '#000000'
+            color_string = shared_tools.random_color()
         # signature id
         if signature_id is None:
             signature_id = generate_signature_id()
@@ -218,7 +218,6 @@ class SpectralSignaturesCatalog(object):
                 plots = plot_tools.add_values_to_scatter_plot(
                     histogram=histogram, ax=ax
                 )
-
                 macroclass_value = self.table[
                     self.table['signature_id'] == signature_id].macroclass_id[
                     0]
@@ -354,13 +353,15 @@ class SpectralSignaturesCatalog(object):
             except Exception as err:
                 str(err)
         if macroclass_id is not None:
-            macroclass_value = macroclass_value
+            macroclass_value = macroclass_id
         if macroclass_name is None:
             macroclass_name = self.macroclasses[macroclass_value]
         if class_id is not None:
             class_value = class_id
         if class_name is None:
             class_name = 'merged'
+        if color_string is None:
+            color_string = shared_tools.random_color()
         # merge geometries if geometry == 1 for whole signature_id_list
         if geometry_check is True:
             temp_path = cfg.temp.temporary_file_path(
@@ -374,7 +375,8 @@ class SpectralSignaturesCatalog(object):
             self.import_vector(
                 file_path=merged, macroclass_value=macroclass_value,
                 class_value=class_value, macroclass_name=macroclass_name,
-                class_name=class_name, calculate_signature=calculate_signature
+                class_name=class_name, calculate_signature=calculate_signature,
+                color_string=color_string
             )
         # merge signatures if not geometry
         else:
@@ -397,8 +399,6 @@ class SpectralSignaturesCatalog(object):
             stds_squared_sum = np.sum(stds_squared, axis=1)
             stds_variance = np.divide(stds_squared_sum, stds_squared.shape[1])
             stds_mean = np.sqrt(stds_variance)
-            if color_string is None:
-                color_string = '#000000'
             self.add_spectral_signature(
                 value_list=values_mean.tolist(),
                 macroclass_id=macroclass_value, class_id=class_value,
@@ -414,7 +414,7 @@ class SpectralSignaturesCatalog(object):
     def import_spectral_signature_csv(
             self, csv_path, macroclass_id=None, class_id=None,
             macroclass_name=None, class_name=None, separator=',',
-            color_string='#000000'
+            color_string=None
     ):
         cfg.logger.log.debug('start')
         # import csv as comma separated with fields value, wavelength,
@@ -448,6 +448,8 @@ class SpectralSignaturesCatalog(object):
                 wavelength_list = None
             if len(standard_deviation_list) == 0:
                 standard_deviation_list = None
+            if color_string is None:
+                color_string = shared_tools.random_color()
             self.add_spectral_signature(
                 value_list=value_list, macroclass_id=macroclass_id,
                 class_id=class_id, macroclass_name=macroclass_name,
@@ -467,7 +469,7 @@ class SpectralSignaturesCatalog(object):
             macroclass_name=None, class_name=None, macroclass_field=None,
             class_field=None, macroclass_name_field=None,
             class_name_field=None, calculate_signature=True,
-            color_string='#000000'
+            color_string=None
     ):
         cfg.logger.log.debug('start')
         if files_directories.is_file(file_path):
@@ -543,10 +545,11 @@ class SpectralSignaturesCatalog(object):
                     o_feature.SetField(cfg.uid_field_name, signature_id)
                     o_feature.SetField(cfg.class_field_name, int(c_value))
                     o_feature.SetField(
-                        cfg.macroclass_field_name,
-                        int(mc_value)
+                        cfg.macroclass_field_name, int(mc_value)
                     )
                     catalog_layer.CreateFeature(o_feature)
+                    if color_string is None:
+                        color_string = shared_tools.random_color()
                     if calculate_signature:
                         temp_path = cfg.temp.temporary_file_path(
                             name_suffix=cfg.gpkg_suffix
@@ -749,6 +752,8 @@ class SpectralSignaturesCatalog(object):
                 self.table = np.core.records.fromfile(
                     f, dtype=cfg.spectral_dtype_list
                 )
+                # remove file
+                files_directories.remove_file(f)
             elif f_name == 'macroclasses.xml':
                 tree = cElementTree.parse(f)
                 root = tree.getroot()
@@ -776,10 +781,14 @@ class SpectralSignaturesCatalog(object):
                         )
                         self.macroclasses_color_string[
                             int(macroclass_id)] = str(macroclass_color)
+                # remove file
+                files_directories.remove_file(f)
             else:
                 self.signatures[f_name] = np.core.records.fromfile(
                     f, dtype=cfg.signature_dtype_list
                 )
+                # remove file
+                files_directories.remove_file(f)
 
     # prepare signature values for plot
     def export_signature_values_for_plot(

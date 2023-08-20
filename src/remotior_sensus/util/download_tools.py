@@ -19,14 +19,15 @@
 Tools to download files
 """
 
-import datetime
-import os
-import time
+from datetime import datetime
+from os import stat
+from time import sleep
 import urllib.request
 from http.cookiejar import CookieJar
 
 from remotior_sensus.core import configurations as cfg
-from remotior_sensus.util import read_write_files, files_directories
+from remotior_sensus.util.read_write_files import write_file
+from remotior_sensus.util.files_directories import create_parent_directory
 
 
 # get proxy handler
@@ -136,20 +137,20 @@ def download_file(
         # small files
         if block_size >= file_size:
             response = url_request.read()
-            read_write_files.write_file(response, output_path, mode='wb')
+            write_file(response, output_path, mode='wb')
         else:
-            files_directories.create_parent_directory(output_path)
+            create_parent_directory(output_path)
             with open(output_path, 'wb') as file:
                 while True:
                     if cfg.action is True:
                         if adaptive_block_size:
-                            start_time = datetime.datetime.now()
+                            start_time = datetime.now()
                         block_read = url_request.read(block_size)
                         if not block_read:
                             break
                         # adapt block size
                         if adaptive_block_size:
-                            end_time = datetime.datetime.now()
+                            end_time = datetime.now()
                             time_delta = end_time - start_time
                             new_speed = block_size / time_delta.microseconds
                             if new_speed >= speed:
@@ -162,7 +163,7 @@ def download_file(
                                     downloaded_part_size, total_size, url
                                 )
                             downloaded_part_size = round(
-                                int(os.stat(output_path).st_size) / 1048576, 2
+                                int(stat(output_path).st_size) / 1048576, 2
                             )
                             step = int(
                                 (max_progress - min_progress)
@@ -186,7 +187,7 @@ def download_file(
     except Exception as err:
         if retried is False and '403' not in str(err):
             cfg.logger.log.debug('retry url: %s' % url)
-            time.sleep(2)
+            sleep(2)
             download_file(
                 url=url, output_path=output_path,
                 authentication_uri=authentication_uri, user=user,

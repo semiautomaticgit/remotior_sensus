@@ -321,6 +321,5 @@ class TestBandSetCatalog(TestCase):
         self.assertTrue(files_directories.is_file(virtual))
         stack = catalog.create_bandset_stack(bandset_number=1)
         self.assertTrue(files_directories.is_file(stack))
-
         # clear temporary directory
         rs.close()

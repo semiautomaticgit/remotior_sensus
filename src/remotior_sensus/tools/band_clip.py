@@ -36,7 +36,9 @@ from remotior_sensus.core import configurations as cfg
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
-from remotior_sensus.util import shared_tools, raster_vector
+from remotior_sensus.util.files_directories import move_file, parent_directory
+from remotior_sensus.util.shared_tools import prepare_process_files
+from remotior_sensus.util.raster_vector import get_vector_values
 from remotior_sensus.core.processor_functions import clip_raster
 
 
@@ -94,7 +96,7 @@ def band_clip(
         available_ram = cfg.available_ram
     ram = int(available_ram / n_processes)
     # prepare process files
-    prepared = shared_tools.prepare_process_files(
+    prepared = prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
         box_coordinate_list=extent_list,
@@ -107,48 +109,54 @@ def band_clip(
     argument_list = []
     function_list = []
     output_raster_list = []
-    if vector_field is not None:
-        # find unique values of vector_field
-        unique_values = raster_vector.get_vector_values(
-            vector_path=vector_path, field_name=vector_field)
-        for value in unique_values:
+    if virtual_output is True and extent_list is not None:
+        for raster in range(0, len(input_raster_list)):
+            output_file = '%s.vrt' % (output_list[raster][:-4])
+            move_file(input_raster_list[raster], output_file)
+            output_raster_list.append(output_file)
+    else:
+        if vector_field is not None:
+            # find unique values of vector_field
+            unique_values = get_vector_values(
+                vector_path=vector_path, field_name=vector_field)
+            for value in unique_values:
+                for raster in range(0, len(input_raster_list)):
+                    output_p = '%s_%s_%s.tif' % (
+                            output_list[raster][:-4], str(vector_field),
+                            str(value))
+                    output_raster_list.append(output_p)
+                    argument_list.append(
+                        {
+                            'input_raster': input_raster_list[raster],
+                            'extent_list': None,
+                            'vector_path': vector_path,
+                            'available_ram': ram,
+                            'output': output_p,
+                            'gdal_path': cfg.gdal_path,
+                            'compress_format': 'LZW',
+                            'where': "%s = %s" % (vector_field, value)
+                        }
+                    )
+                    function_list.append(clip_raster)
+        else:
             for raster in range(0, len(input_raster_list)):
-                output_p = '%s_%s_%s.tif' % (
-                        output_list[raster][:-4], str(vector_field),
-                        str(value))
-                output_raster_list.append(output_p)
                 argument_list.append(
                     {
                         'input_raster': input_raster_list[raster],
-                        'extent_list': None,
+                        'extent_list': extent_list,
                         'vector_path': vector_path,
                         'available_ram': ram,
-                        'output': output_p,
+                        'output': output_list[raster],
                         'gdal_path': cfg.gdal_path,
                         'compress_format': 'LZW',
-                        'where': "%s = %s" % (vector_field, value)
+                        'where': None
                     }
                 )
                 function_list.append(clip_raster)
-    else:
-        for raster in range(0, len(input_raster_list)):
-            argument_list.append(
-                {
-                    'input_raster': input_raster_list[raster],
-                    'extent_list': extent_list,
-                    'vector_path': vector_path,
-                    'available_ram': ram,
-                    'output': output_list[raster],
-                    'gdal_path': cfg.gdal_path,
-                    'compress_format': 'LZW',
-                    'where': None
-                }
-            )
-            function_list.append(clip_raster)
-            output_raster_list.append(output_list[raster])
-    cfg.multiprocess.run_iterative_process(
-        function_list=function_list, argument_list=argument_list
-    )
+                output_raster_list.append(output_list[raster])
+        cfg.multiprocess.run_iterative_process(
+            function_list=function_list, argument_list=argument_list
+        )
     cfg.progress.update(end=True)
     cfg.logger.log.info('end; band clip: %s' % output_raster_list)
     return OutputManager(paths=output_raster_list)

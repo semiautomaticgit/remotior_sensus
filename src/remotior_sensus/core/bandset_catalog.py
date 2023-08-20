@@ -798,10 +798,10 @@ class BandSet(object):
             # get wavelength
             if wavelengths is None:
                 if satellite is not None and satellite != cfg.no_satellite:
-                    wl = sat_wl[f]
-                    unit = sat_unit
                     # get band number from names
                     try:
+                        wl = sat_wl[f]
+                        unit = sat_unit
                         # numbers in format 01, 02, ...
                         b = band_name.lower()[-2:]
                         wl = float(sat_wl[sat_bands.index(b)])
@@ -817,7 +817,8 @@ class BandSet(object):
                             try:
                                 wl = float(sat_wl[f])
                             except Exception as err:
-                                cfg.logger.log.error('%s: %s', (err, e))
+                                wl = f + 1
+                                cfg.logger.log.error('%s: %s' % (err, e))
                 else:
                     wl = f + 1
                     unit = cfg.no_unit

@@ -20,14 +20,16 @@ Tools to manage text files
 """
 
 from remotior_sensus.core import configurations as cfg
-from remotior_sensus.util import files_directories
+from remotior_sensus.util.files_directories import (
+    create_parent_directory as file_create_parent_directory
+)
 
 
 # write file
 def write_file(data, output_path, create_parent_directory=True, mode='w'):
     cfg.logger.log.debug('output_path: %s' % output_path)
     if create_parent_directory:
-        files_directories.create_parent_directory(output_path)
+        file_create_parent_directory(output_path)
     # save combination to table
     with open(output_path, mode) as output_file:
         output_file.write(data)

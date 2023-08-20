@@ -19,7 +19,7 @@
 Tools to manage operating systems
 """
 
-import platform
+from platform import system
 import sys
 
 from remotior_sensus.core import configurations as cfg
@@ -34,7 +34,7 @@ def get_system_info():
     # file system encoding
     cfg.file_sys_encoding = sys.getfilesystemencoding()
     # system information
-    cfg.sys_name = platform.system()
+    cfg.sys_name = system()
     cfg.logger.log.info(
         'system: %s; 64bit: %s; n_processes: %s; ram: %s; temp.dir: %s'
         % (cfg.sys_name, cfg.sys_64bit, cfg.n_processes, cfg.available_ram,

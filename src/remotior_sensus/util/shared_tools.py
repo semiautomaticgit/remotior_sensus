@@ -19,8 +19,9 @@
 Shared tools
 """
 
-import os
+from os import path
 import re
+from random import randint
 from typing import Union, Optional
 
 import numpy as np
@@ -142,7 +143,7 @@ def prepare_process_files(
                 output_path
         ):
             for r in input_raster_list:
-                p = os.path.join(
+                p = path.join(
                     output_path, '{}{}'.format(
                         prefix, files_directories.file_name(r)
                     )
@@ -263,8 +264,8 @@ def expand_list(input_list):
 
 # join path
 def join_path(*argv):
-    path = os.path.join(*argv)
-    return path
+    joined_path = path.join(*argv)
+    return joined_path
 
 
 # replace ignoring case
@@ -464,3 +465,11 @@ def calculate_steps(min_value, max_value, step):
         value += step
         steps.append(value)
     return steps
+
+
+# get random color
+def random_color():
+    red = randint(0, 255)
+    green = randint(0, 255)
+    blue = randint(0, 255)
+    return "#%02x%02x%02x" % (red, green, blue)
