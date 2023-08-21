@@ -1123,7 +1123,7 @@ class Multiprocess(object):
             s_srs=None, t_srs=output_wkt, additional_params=extra_params,
             n_processes=n_processes, src_nodata=src_nodata,
             dst_nodata=dst_nodata
-            )
+        )
         # workaround to gdalwarp issue ignoring scale and offset
         try:
             (gt, r_p, unit, xy_count, nd, number_of_bands, block_size,
@@ -1655,10 +1655,24 @@ class Multiprocess(object):
         dtype_list = [('new_val', 'int64'), ('sum', 'int64')]
         unique_val = np.rec.fromarrays(np.asarray(val_sum).T, dtype=dtype_list)
         cfg.logger.log.debug(
-            'end; unique_val.shape: %s'
-            % str(unique_val.shape)
-            )
+            'end; unique_val.shape: %s' % str(unique_val.shape)
+        )
         self.output = unique_val
+
+    # get the pixel value of multiprocess
+    def multiprocess_pixel_value(self):
+        cfg.logger.log.debug('start')
+        multiprocess_dictionary: Union[dict, bool] = self.output
+        if not multiprocess_dictionary:
+            cfg.logger.log.error('unable to process')
+            return
+        try:
+            value = multiprocess_dictionary[0][0][0][0][0]
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+            return
+        cfg.logger.log.debug('end; value: %s' % str(value))
+        self.output = value
 
     # get dictionary of sums
     def get_dictionary_sum(self):
@@ -2298,21 +2312,28 @@ def _compute_raster_pieces(
                                 processor.RasterSection(
                                     x_min=0,
                                     y_min=int(
-                                        y * specific_output['resize_factor']),
+                                        y * specific_output['resize_factor']
+                                    ),
                                     x_max=int(
                                         block_size_x
-                                        * specific_output['resize_factor']),
+                                        * specific_output['resize_factor']
+                                    ),
                                     y_max=int(
                                         y_max
-                                        * specific_output['resize_factor']),
+                                        * specific_output['resize_factor']
+                                    ),
                                     x_size=int(
                                         block_size_x
-                                        * specific_output['resize_factor']),
+                                        * specific_output['resize_factor']
+                                    ),
                                     y_size=(int(
                                         y_max
-                                        * specific_output['resize_factor'])
-                                            - int(y * specific_output[
-                                                'resize_factor'])),
+                                        * specific_output['resize_factor']
+                                    )
+                                            - int(
+                                                y * specific_output[
+                                                    'resize_factor']
+                                                )),
                                 )
                             )
                         # range variables
@@ -2368,33 +2389,48 @@ def _compute_raster_pieces(
                                     x_min=0,
                                     y_min=int(
                                         y_min * specific_output[
-                                            'resize_factor']),
+                                            'resize_factor']
+                                    ),
                                     x_max=int(
                                         block_size_x * specific_output[
-                                            'resize_factor']),
-                                    y_max=int(y_max * specific_output[
-                                        'resize_factor']),
-                                    x_size=int(block_size_x * specific_output[
-                                        'resize_factor']),
-                                    y_size=(int(y_max * specific_output[
-                                        'resize_factor'])
-                                            - int(y_min * specific_output[
-                                                'resize_factor'])),
+                                            'resize_factor']
+                                    ),
+                                    y_max=int(
+                                        y_max * specific_output[
+                                            'resize_factor']
+                                        ),
+                                    x_size=int(
+                                        block_size_x * specific_output[
+                                            'resize_factor']
+                                        ),
+                                    y_size=(int(
+                                        y_max * specific_output[
+                                            'resize_factor']
+                                        )
+                                            - int(
+                                                y_min * specific_output[
+                                                    'resize_factor']
+                                                )),
                                     y_min_no_boundary=int(
                                         y_min_no_boundary * specific_output[
-                                            'resize_factor']),
+                                            'resize_factor']
+                                    ),
                                     y_max_no_boundary=int(
                                         y_max_no_boundary * specific_output[
-                                            'resize_factor']),
+                                            'resize_factor']
+                                    ),
                                     y_size_boundary_top=int(
                                         y_size_boundary_top * specific_output[
-                                            'resize_factor']),
+                                            'resize_factor']
+                                    ),
                                     y_size_boundary_bottom=int(
                                         y_size_boundary_bottom
-                                        * specific_output['resize_factor']),
+                                        * specific_output['resize_factor']
+                                    ),
                                     y_size_no_boundary=int(
                                         y_size_no_boundary
-                                        * specific_output['resize_factor'])
+                                        * specific_output['resize_factor']
+                                    )
                                 )
                             )
 
@@ -2449,36 +2485,51 @@ def _compute_raster_pieces(
                     else:
                         y_size_boundary_top_range_s = int(
                             y_size_boundary_top_range
-                            * specific_output['resize_factor'])
+                            * specific_output['resize_factor']
+                        )
                     if y_size_boundary_bottom_range is None:
                         y_size_boundary_bottom_range_s = None
                     else:
                         y_size_boundary_bottom_range_s = int(
                             y_size_boundary_bottom_range
-                            * specific_output['resize_factor'])
+                            * specific_output['resize_factor']
+                        )
                     specific_output['pieces'].append(
                         processor.RasterPiece(
                             section_list=specific_output_sections, x_min=0,
-                            y_min=int(y_min_range
-                                      * specific_output['resize_factor']),
-                            x_max=int(block_size_x
-                                      * specific_output['resize_factor']),
-                            y_max=int(y_max_range
-                                      * specific_output['resize_factor']),
-                            x_size=int(block_size_x
-                                       * specific_output['resize_factor']),
-                            y_size=int(y_size_range
-                                       * specific_output['resize_factor']),
+                            y_min=int(
+                                y_min_range
+                                * specific_output['resize_factor']
+                                ),
+                            x_max=int(
+                                block_size_x
+                                * specific_output['resize_factor']
+                                ),
+                            y_max=int(
+                                y_max_range
+                                * specific_output['resize_factor']
+                                ),
+                            x_size=int(
+                                block_size_x
+                                * specific_output['resize_factor']
+                                ),
+                            y_size=int(
+                                y_size_range
+                                * specific_output['resize_factor']
+                                ),
                             y_min_no_boundary=int(
                                 min(y_min_no_boundary_range_list)
-                                * specific_output['resize_factor']),
+                                * specific_output['resize_factor']
+                            ),
                             y_max_no_boundary=int(
                                 max(y_max_no_boundary_range_list)
-                                * specific_output['resize_factor']),
+                                * specific_output['resize_factor']
+                            ),
                             y_size_boundary_top=y_size_boundary_top_range_s,
                             y_size_no_boundary=int(
                                 y_size_no_boundary_range
-                                * specific_output['resize_factor']),
+                                * specific_output['resize_factor']
+                            ),
                             y_size_boundary_bottom=(
                                 y_size_boundary_bottom_range_s
                             )

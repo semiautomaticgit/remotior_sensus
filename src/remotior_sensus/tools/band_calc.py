@@ -69,7 +69,7 @@ def band_calc(
         any_nodata_mask: Optional[bool] = False,
         bandset_catalog: Optional[BandSetCatalog] = None,
         bandset_number: Optional[int] = None,
-        input_bands: Optional[BandSet] = None
+        input_bands: Optional[BandSet] = None, point_coordinates=None
 ) -> OutputManager:
     """Performs band calculation.
 
@@ -122,6 +122,7 @@ def band_calc(
             if None then do not apply nodata to output.
         bandset_catalog: BandSetCatalog object for using band sets in calculations.
         bandset_number: number of BandSet defined as current one.
+        point_coordinates: list of a point coordinates [x, y] for pixel calculations on Bandset
 
     Returns:
         :func:`~remotior_sensus.core.output_manager.OutputManager` object with
@@ -163,7 +164,8 @@ def band_calc(
             use_value_as_nodata=use_value_as_nodata,
             output_nodata=output_nodata, output_datatype=output_datatype,
             use_scale=use_scale, use_offset=use_offset,
-            calc_datatype=calc_datatype, any_nodata_mask=any_nodata_mask
+            calc_datatype=calc_datatype, any_nodata_mask=any_nodata_mask,
+            point_coordinates=point_coordinates
         )
         return output
     else:
@@ -233,7 +235,7 @@ def _run_expression(
         output_nodata=None, output_datatype=None, use_scale=None,
         use_offset=None, calc_datatype=None, nodata_mask=None,
         min_progress=None, max_progress=None, progress_message=None,
-        bandset_catalog=None
+        bandset_catalog=None, keep_output_array=None
 ) -> tuple:
     """Run expression calculation.
 
@@ -346,7 +348,7 @@ def _run_expression(
         scale=use_scale, offset=use_offset, dummy_bands=dummy_bands,
         input_nodata_as_value=input_nodata_as_value, virtual_raster=virtual,
         progress_message=progress_message, min_progress=min_progress,
-        max_progress=max_progress
+        max_progress=max_progress, keep_output_array=keep_output_array
     )
     # add output to BandSet
     if bs_number is not None and bandset_catalog is not None:
@@ -1554,7 +1556,8 @@ def _calculate_bandset(
         use_scale: Optional[float] = None,
         use_offset: Optional[float] = None,
         calc_datatype: Optional[str] = None,
-        any_nodata_mask: Optional[bool] = False
+        any_nodata_mask: Optional[bool] = False,
+        point_coordinates: Optional[list] = None
 ) -> OutputManager:
     """Performs band calculation using BandSet as input.
 
@@ -1589,10 +1592,12 @@ def _calculate_bandset(
         any_nodata_mask: if True then output nodata where any input is nodata, 
             if False then output nodata where all the inputs are nodata, 
             if None then do not apply nodata to output.
+        point_coordinates: list of a point coordinates [x, y]
 
     Returns:
         :func:`~remotior_sensus.core.output_manager.OutputManager` object with
             - paths = [output raster paths]
+        if point_coordinates is is not None, the float value of calculation is returned.
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
@@ -1615,6 +1620,22 @@ def _calculate_bandset(
     min_p = 1
     max_p = int((99 - 1) / len(exp_list))
     previous_output_list = []
+    if point_coordinates is not None:
+        x_size = input_bands.get_band_attributes('x_size')[0]
+        y_size = input_bands.get_band_attributes('y_size')[0]
+        top = input_bands.get_band_attributes('top')[0]
+        left = input_bands.get_band_attributes('left')[0]
+        pixel_left = left + int(
+            (point_coordinates[0] - left) / x_size) * x_size
+        pixel_right = pixel_left + x_size
+        pixel_top = top - int((top - point_coordinates[1]) / y_size) * y_size
+        pixel_bottom = pixel_top - y_size
+        extent_list = [pixel_left, pixel_top, pixel_right, pixel_bottom]
+        keep_output_array = True
+        n_processes = 1
+        cfg.logger.log.debug('extent_list: %s' % str(extent_list))
+    else:
+        keep_output_array = None
     for e in exp_list:
         output, out_name = _run_expression(
             expression_list=e, output_path=output_path,
@@ -1630,6 +1651,7 @@ def _calculate_bandset(
             use_offset=use_offset, calc_datatype=calc_datatype,
             nodata_mask=any_nodata_mask, min_progress=min_p + max_p * n,
             max_progress=min_p + max_p * (n + 1),
+            keep_output_array=keep_output_array,
             progress_message='running calculation %s' % (n + 1)
         )
         output_list.append(output)

@@ -473,3 +473,44 @@ def random_color():
     green = randint(0, 255)
     blue = randint(0, 255)
     return "#%02x%02x%02x" % (red, green, blue)
+
+
+# calculate Bray-Curtis similarity
+# (100 - 100 * sum(abs(x[ki]-x[kj]) / (sum(x[ki] + x[kj])))
+def calculate_bray_curtis_similarity(values_x, values_y):
+    try:
+        array_i = np.array(values_x)
+        array_j = np.array(values_y)
+        sum_i_j = array_i.sum() + array_j.sum()
+        absolute = np.sqrt((array_i - array_j) ** 2)
+        value = 100 - absolute.sum() / sum_i_j * 100
+    except Exception as err:
+        str(err)
+        value = cfg.not_available
+    return value
+
+
+# calculate Euclidean distance sqrt(sum((x[ki] - x[kj])^2))
+def calculate_euclidean_distance(values_x, values_y):
+    try:
+        difference = (values_x - values_y) ** 2
+        value = np.sqrt(difference.sum())
+    except Exception as err:
+        str(err)
+        value = cfg.not_available
+    return value
+
+
+# calculate Spectral angle
+# [ arccos( sum(r_i * s_i) / sqrt( sum(r_i**2) * sum(s_i**2) ) ) ]
+def calculate_spectral_angle(values_x, values_y):
+    try:
+        value = np.arccos(
+            (values_x * values_y).sum() / np.sqrt(
+                (values_x ** 2).sum() * (values_y ** 2).sum()
+            )
+        ) * 180 / np.pi
+    except Exception as err:
+        str(err)
+        value = cfg.not_available
+    return value

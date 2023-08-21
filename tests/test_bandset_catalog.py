@@ -162,6 +162,13 @@ class TestBandSetCatalog(TestCase):
         # bandset calculation
         calc = bs(3).calc('"b1" + "b2"')
         self.assertTrue(files_directories.is_file(calc.paths[0]))
+        # bandset calculation
+        catalog.get_bandset(3).calc(
+            '"b1" / "b2"', point_coordinates=[230274, 4674515]
+        )
+        cfg.multiprocess.multiprocess_pixel_value()
+        value = cfg.multiprocess.output
+        self.assertTrue(value > 0)
         # BandSet wavelengths
         self.assertEqual(
             bs(2).get_wavelengths(), catalog.get_bandset(2).get_wavelengths()

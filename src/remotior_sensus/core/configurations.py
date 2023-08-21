@@ -260,7 +260,12 @@ variable_swir1_name = '#SWIR1#'
 variable_swir2_name = '#SWIR2#'
 variable_ndvi_name = '#NDVI#'
 variable_ndvi_expression = '("#NIR#" - "#RED#") / ("#NIR#" + "#RED#")'
-expression_alias = [[variable_ndvi_name, variable_ndvi_expression]]
+variable_evi_name = '#NDVI#'
+variable_evi_expression = (
+    '2.5 * ("#NIR#" - "#RED#") / ("#NIR#" + 6 * "#RED#" - 7.5 * "#BLUE#" + 1)'
+)
+expression_alias = [[variable_ndvi_name, variable_ndvi_expression],
+                    [variable_evi_name, variable_evi_expression]]
 variable_output_name_bandset = '#BANDSET#'
 variable_output_name_date = '#DATE#'
 variable_output_temporary = 'temp'

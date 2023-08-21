@@ -166,6 +166,15 @@ class TestBandCalc(TestCase):
             bandset_catalog=catalog
         )
         self.assertFalse(error_message)
+        # expression alias
+        expression = (
+                cfg.variable_band_quotes + cfg.variable_evi_name
+                + cfg.variable_band_quotes)
+        out_exp, out_name_list, error_message = band_calc._check_expression(
+            expression_string=expression, raster_variables=band_names,
+            bandset_catalog=catalog
+        )
+        self.assertFalse(error_message)
         # iterate band sets
         expression = (
                 cfg.forbandsets + '[1]S ' + cfg.new_line
