@@ -78,7 +78,9 @@ def prepare_input_list(
             (gt, crs, un, xy_count, nd, number_of_bands, block_size,
              scale_offset, data_type) = info
         else:
-            cfg.logger.log.error('unable to get raster info: %s', band_list[i])
+            cfg.logger.log.error(
+                'unable to get raster info: %s' % band_list[i]
+            )
             return [], [], [], [], warped
         information_list.append(
             [gt, crs, un, xy_count, nd, number_of_bands, block_size,

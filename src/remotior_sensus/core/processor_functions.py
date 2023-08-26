@@ -38,14 +38,24 @@ try:
     from scipy.ndimage import label
 except Exception as error:
     str(error)
+
 try:
-    from scipy.ndimage.filters import maximum_filter
-    from scipy.ndimage.filters import minimum_filter
-    from scipy.ndimage.filters import percentile_filter
-    from scipy.ndimage.filters import generic_filter
-    from scipy.ndimage.filters import median_filter
+    from scipy.ndimage import maximum_filter
+    from scipy.ndimage import minimum_filter
+    from scipy.ndimage import percentile_filter
+    from scipy.ndimage import generic_filter
+    from scipy.ndimage import median_filter
 except Exception as error:
     str(error)
+    # for backward compatibility
+    try:
+        from scipy.ndimage.filters import maximum_filter
+        from scipy.ndimage.filters import minimum_filter
+        from scipy.ndimage.filters import percentile_filter
+        from scipy.ndimage.filters import generic_filter
+        from scipy.ndimage.filters import median_filter
+    except Exception as error:
+        str(error)
 
 try:
     import torch

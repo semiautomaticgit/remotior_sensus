@@ -188,7 +188,7 @@ def band_calc(
             bandset_number, output_path
         )
         if output_message is not None:
-            cfg.logger.log.error('expression error: %s', output_message)
+            cfg.logger.log.error('expression error: %s' % output_message)
             return OutputManager(
                 check=False, extra={'message': output_message}
             )
@@ -222,7 +222,7 @@ def band_calc(
             cfg.logger.log.debug('output: %s' % output)
             n += 1
         cfg.progress.update(end=True)
-        cfg.logger.log.info('end; band calc: %s', output_list)
+        cfg.logger.log.info('end; band calc: %s' % str(output_list))
         return OutputManager(paths=output_list)
 
 
@@ -1612,7 +1612,7 @@ def _calculate_bandset(
         expression_string, raster_variables, input_bands
     )
     if output_message is not None:
-        cfg.logger.log.error('expression error: %s', output_message)
+        cfg.logger.log.error('expression error: %s' % output_message)
         return OutputManager(check=False, extra={'message': output_message})
     output_list = []
     # process calculation
@@ -1659,7 +1659,7 @@ def _calculate_bandset(
         cfg.logger.log.debug('output: %s' % output)
         n += 1
     cfg.progress.update(end=True)
-    cfg.logger.log.info('end; band calc: %s', output_list)
+    cfg.logger.log.info('end; band calc: %s' % str(output_list))
     return OutputManager(paths=output_list)
 
 
