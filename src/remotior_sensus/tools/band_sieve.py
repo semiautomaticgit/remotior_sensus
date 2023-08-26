@@ -94,7 +94,6 @@ def band_sieve(
     n_processes = prepared['n_processes']
     nodata_list = prepared['nodata_list']
     output_list = prepared['output_list']
-    print('output_list', output_list)
     # 4 connected pixels
     if connected:
         connected = 8
