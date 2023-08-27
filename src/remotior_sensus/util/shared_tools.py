@@ -46,6 +46,9 @@ def prepare_input_list(
     cfg.logger.log.debug('band_list: %s' % str(band_list))
     information_list = []
     nodata_list = []
+    if len(band_list) == 0:
+        cfg.logger.log.error('empty list')
+        return None
     if reference_raster_crs is None:
         reference_raster_crs = raster_vector.get_crs(band_list[0])
     # get crs from file

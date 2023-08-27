@@ -79,17 +79,23 @@ class SpectralSignaturesCatalog(object):
             macroclass_field = cfg.macroclass_field_name
         if not class_field:
             class_field = cfg.class_field_name
+        # default macroclass field name
         self.macroclass_field = macroclass_field
+        # default class field name
         self.class_field = class_field
         self.geometry_file = geometry_file_path
+        self.crs = None
         # create geometry vector
         if bandset:
-            crs = bandset.crs
-            raster_vector.create_geometry_vector(
-                output_path=self.geometry_file, crs_wkt=crs,
-                macroclass_field_name=self.macroclass_field,
-                class_field_name=self.class_field
-            )
+            self.crs = bandset.crs
+            if self.crs is not None:
+                raster_vector.create_geometry_vector(
+                    output_path=self.geometry_file, crs_wkt=self.crs,
+                    macroclass_field_name=self.macroclass_field,
+                    class_field_name=self.class_field
+                )
+            else:
+                cfg.logger.log.debug('bandset without crs')
 
     # add spectral signature to Spectral Signatures Catalog
     def add_spectral_signature(
@@ -151,8 +157,12 @@ class SpectralSignaturesCatalog(object):
             spec_angle_thr=spec_angle_thr, geometry=geometry,
             signature=signature, color_string=color_string,
             pixel_count=pixel_count, unit=unit
-            )
+        )
         cfg.logger.log.debug('end')
+
+    # sets crs from bandset
+    def set_crs_from_bandset(self, bandset):
+        self.crs = bandset.crs
 
     # sets macroclass color string
     def set_macroclass_color(self, macroclass_id, color_string):
@@ -199,6 +209,11 @@ class SpectralSignaturesCatalog(object):
             self.table['signature_id'] == signature_id].geometry[0]
         # geometry
         if geometry == 1:
+            if not files_directories.is_file(self.geometry_file):
+                cfg.logger.log.error(
+                    'geometry file not found: %s' % self.geometry_file
+                )
+                raise Exception('geometry file not found')
             vector = raster_vector.get_polygon_from_vector(
                 vector_path=self.geometry_file,
                 attribute_filter="%s = '%s'" % (
@@ -269,6 +284,11 @@ class SpectralSignaturesCatalog(object):
             except Exception as err:
                 str(err)
         if geometry == 1:
+            if not files_directories.is_file(self.geometry_file):
+                cfg.logger.log.error(
+                    'geometry file not found: %s' % self.geometry_file
+                )
+                raise Exception('geometry file not found')
             # remove geometry
             raster_vector.remove_polygon_from_vector(
                 vector_path=self.geometry_file,
@@ -308,6 +328,12 @@ class SpectralSignaturesCatalog(object):
                         ].signature[0]
                     # calculate signature
                     if calculate_signature is True and signature_check == 0:
+                        if not files_directories.is_file(self.geometry_file):
+                            cfg.logger.log.error(
+                                'geometry file not found: %s'
+                                % self.geometry_file
+                            )
+                            raise Exception('geometry file not found')
                         vector = raster_vector.get_polygon_from_vector(
                             vector_path=self.geometry_file,
                             attribute_filter="%s = '%s'" % (
@@ -340,7 +366,7 @@ class SpectralSignaturesCatalog(object):
                             signature_id=signature_id, geometry=1, signature=1,
                             color_string=color_string, pixel_count=pixel_count,
                             unit=unit
-                            )
+                        )
                     signature_ids.append(signature_id)
                 # get first element class and macroclass
                 if count == 1:
@@ -351,7 +377,7 @@ class SpectralSignaturesCatalog(object):
                         self.table['signature_id'] == signature_id
                         ].class_id[0]
             except Exception as err:
-                str(err)
+                cfg.logger.log.error(str(err))
         if macroclass_id is not None:
             macroclass_value = macroclass_id
         if macroclass_name is None:
@@ -407,8 +433,50 @@ class SpectralSignaturesCatalog(object):
                 standard_deviation_list=stds_mean.tolist(), geometry=0,
                 signature=1, color_string=color_string, pixel_count=0,
                 unit=unit
-                )
+            )
         cfg.logger.log.debug('end')
+
+    # export signatures as csv
+    def export_signatures_as_csv(
+            self, signature_id_list, output_directory, separator=','
+    ):
+        cfg.logger.log.debug(
+            'export_signatures_as_csv: %s' % str(signature_id_list)
+        )
+        files_directories.create_directory(output_directory)
+        output_list = []
+        for signature_id in signature_id_list:
+            try:
+                values = self.signatures[signature_id].value.tolist()
+                wavelength = self.signatures[signature_id].wavelength.tolist()
+                standard_deviation = (
+                    self.signatures[signature_id].standard_deviation.tolist()
+                )
+                macroclass_id = self.table[
+                    self.table['signature_id'] == signature_id
+                    ].macroclass_id[0]
+                macroclass_name = self.macroclasses[macroclass_id]
+                class_id = self.table[
+                    self.table['signature_id'] == signature_id
+                    ].class_id[0]
+                class_name = self.table[
+                    self.table['signature_id'] == signature_id
+                    ].class_name[0]
+                output_file = '%s/%s_%s_%s_%s.csv' % (
+                    output_directory, macroclass_id, macroclass_name,
+                    class_id, class_name
+                )
+                text = ''
+                for v in range(len(values)):
+                    text += '%s%s%s%s%s\n' % (
+                        values[v], separator, wavelength[v], separator,
+                        standard_deviation[v]
+                    )
+                read_write_files.write_file(text, output_file)
+                output_list.append(output_file)
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+        return output_list
 
     # import spectral signature csv to Spectral Signatures Catalog
     def import_spectral_signature_csv(
@@ -433,8 +501,8 @@ class SpectralSignaturesCatalog(object):
             standard_deviation_list = []
             if 'wavelength' in tm.columns(csv):
                 for b in bandset_wavelength.tolist():
-                    arg_min = np.abs(bandset_wavelength - b).argmin()
-                    wavelength_list.append(bandset_wavelength[arg_min])
+                    arg_min = np.abs(csv.wavelength - b).argmin()
+                    wavelength_list.append(b)
                     value_list.append(csv.value[arg_min])
                     if 'standard_deviation' in tm.columns(csv):
                         standard_deviation_list.append(
@@ -457,11 +525,143 @@ class SpectralSignaturesCatalog(object):
                 standard_deviation_list=standard_deviation_list, geometry=0,
                 signature=1, color_string=color_string, pixel_count=0,
                 unit=unit
-                )
+            )
             cfg.logger.log.debug('end; imported: %s' % csv_path)
         else:
             cfg.logger.log.error('error file not found: %s' % csv_path)
             cfg.messages.error('error file not found: %s' % csv_path)
+
+    # import Spectral Signatures Catalog file
+    def import_file(self, file_path):
+        cfg.logger.log.debug(
+            'import_file: %s' % file_path
+        )
+        # create temporary directory
+        temp_dir = cfg.temp.create_temporary_directory()
+        file_list = files_directories.unzip_file(file_path, temp_dir)
+        # list of new ids
+        signature_ids = {}
+        geometry_file = None
+        table = None
+        for f in file_list:
+            f_name = files_directories.file_name(f, suffix=True)
+            if f_name == 'geometry.gpkg':
+                geometry_file = f
+            elif f_name == 'table':
+                table = np.core.records.fromfile(
+                    f, dtype=cfg.spectral_dtype_list
+                )
+                # remove file
+                files_directories.remove_file(f)
+            elif f_name == 'macroclasses.xml':
+                tree = cElementTree.parse(f)
+                root = tree.getroot()
+                version = root.get('version')
+                if version is None:
+                    cfg.logger.log.error(
+                        'failed loading signatures: %s'
+                        % file_path
+                    )
+                    cfg.messages.error(
+                        'failed loading signatures: %s'
+                        % file_path
+                    )
+                else:
+                    for child in root:
+                        macroclass_id = child.get('id')
+                        macroclass_name = child.get('name')
+                        macroclass_color = child.get('color')
+                        if int(macroclass_id) not in self.macroclasses:
+                            self.macroclasses[int(macroclass_id)] = str(
+                                macroclass_name
+                            )
+                        if (int(macroclass_id)
+                                not in self.macroclasses_color_string):
+                            self.macroclasses_color_string[
+                                int(macroclass_id)] = str(macroclass_color)
+                # remove file
+                files_directories.remove_file(f)
+            else:
+                signature_id = generate_signature_id()
+                signature_ids[f_name] = signature_id
+                f_name = signature_id
+                self.signatures[f_name] = np.core.records.fromfile(
+                    f, dtype=cfg.signature_dtype_list
+                )
+                # remove file
+                files_directories.remove_file(f)
+        cfg.logger.log.debug('signature_ids: %s' % signature_ids)
+        # import table
+        if table is not None:
+            for sig_id in signature_ids:
+                table['signature_id'][
+                    table['signature_id'] == sig_id] = signature_ids[sig_id]
+            self.table = tm.append_tables(self.table, table)
+        # import vector
+        if geometry_file is not None:
+            # get vector crs
+            vector_crs = raster_vector.get_crs(geometry_file)
+            if self.crs is None:
+                cfg.logger.log.error('crs not defined')
+                raise Exception('crs not defined')
+            # check crs
+            catalog_sr = osr.SpatialReference()
+            catalog_sr.ImportFromWkt(self.crs)
+            vector_sr = osr.SpatialReference()
+            vector_sr.ImportFromWkt(vector_crs)
+            # required by GDAL 3 coordinate order
+            try:
+                catalog_sr.SetAxisMappingStrategy(
+                    osr.OAMS_TRADITIONAL_GIS_ORDER
+                )
+                vector_sr.SetAxisMappingStrategy(
+                    osr.OAMS_TRADITIONAL_GIS_ORDER
+                )
+            except Exception as err:
+                str(err)
+            if catalog_sr.IsSame(vector_sr) == 1:
+                coord_transform = None
+            else:
+                # coordinate transformation
+                coord_transform = osr.CoordinateTransformation(
+                    vector_sr, catalog_sr
+                )
+            # open input vector
+            i_vector = ogr.Open(geometry_file)
+            i_layer = i_vector.GetLayer()
+            catalog_vector = ogr.Open(self.geometry_file, 1)
+            catalog_layer = catalog_vector.GetLayer()
+            catalog_layer_definition = catalog_layer.GetLayerDefn()
+            # import geometries
+            i_feature = i_layer.GetNextFeature()
+            while i_feature:
+                if cfg.action is True:
+                    # get geometry
+                    geom = i_feature.GetGeometryRef()
+                    if coord_transform is not None:
+                        # project feature
+                        geom.Transform(coord_transform)
+                    o_feature = ogr.Feature(catalog_layer_definition)
+                    o_feature.SetGeometry(geom)
+                    sig_id = i_feature.GetField(cfg.uid_field_name)
+                    mc_value = i_feature.GetField(self.macroclass_field)
+                    c_value = i_feature.GetField(self.class_field)
+                    o_feature.SetField(
+                        cfg.uid_field_name, signature_ids[sig_id]
+                    )
+                    o_feature.SetField(cfg.class_field_name, int(c_value))
+                    o_feature.SetField(
+                        cfg.macroclass_field_name, int(mc_value)
+                    )
+                    catalog_layer.CreateFeature(o_feature)
+                    o_feature.Destroy()
+                    i_feature.Destroy()
+                    i_feature = i_layer.GetNextFeature()
+                else:
+                    # close files
+                    i_vector.Destroy()
+                    catalog_vector.Destroy()
+                    cfg.logger.log.error('cancel')
 
     # import vector to Spectral Signatures Catalog
     def import_vector(
@@ -476,18 +676,25 @@ class SpectralSignaturesCatalog(object):
             # check geometry vector
             if not files_directories.is_file(self.geometry_file):
                 if self.bandset is None:
+                    cfg.logger.log.error('bandset not found')
                     raise Exception('bandset not found')
-                crs = self.bandset.crs
-                raster_vector.create_geometry_vector(
-                    output_path=self.geometry_file, crs_wkt=crs,
-                    macroclass_field_name=self.macroclass_field,
-                    class_field_name=self.class_field
-                )
+                if self.crs is not None:
+                    raster_vector.create_geometry_vector(
+                        output_path=self.geometry_file, crs_wkt=self.crs,
+                        macroclass_field_name=self.macroclass_field,
+                        class_field_name=self.class_field
+                    )
+                else:
+                    cfg.logger.log.error('crs not defined')
+                    raise Exception('crs not defined')
             # get vector crs
             vector_crs = raster_vector.get_crs(file_path)
+            if self.crs is None:
+                cfg.logger.log.error('crs not defined')
+                raise Exception('crs not defined')
             # check crs
             catalog_sr = osr.SpatialReference()
-            catalog_sr.ImportFromWkt(self.bandset.crs)
+            catalog_sr.ImportFromWkt(self.crs)
             vector_sr = osr.SpatialReference()
             vector_sr.ImportFromWkt(vector_crs)
             unit = self.bandset.get_wavelength_units()[0]
@@ -555,7 +762,7 @@ class SpectralSignaturesCatalog(object):
                             name_suffix=cfg.gpkg_suffix
                         )
                         raster_vector.create_geometry_vector(
-                            output_path=temp_path, crs_wkt=self.bandset.crs,
+                            output_path=temp_path, crs_wkt=self.crs,
                             macroclass_field_name=self.macroclass_field,
                             class_field_name=self.class_field
                         )
@@ -573,14 +780,14 @@ class SpectralSignaturesCatalog(object):
                             signature_id=signature_id, geometry=1, signature=1,
                             color_string=color_string, pixel_count=pixel_count,
                             unit=unit
-                            )
+                        )
                     else:
                         self.signature_to_catalog(
                             signature_id=signature_id, macroclass_id=mc_value,
                             class_id=c_value, macroclass_name=mc_name,
                             class_name=c_name, geometry=1, signature=0,
                             color_string=color_string, unit=unit
-                            )
+                        )
                     o_feature.Destroy()
                     i_feature.Destroy()
                     i_feature = i_layer.GetNextFeature()
@@ -597,7 +804,7 @@ class SpectralSignaturesCatalog(object):
             cfg.logger.log.error('error file not found: %s' % file_path)
             cfg.messages.error('error file not found: %s' % file_path)
 
-    # import vector to Spectral Signatures Catalog
+    # calculate spectral signatures
     def calculate_signature(self, roi_path, n_processes: int = None):
         cfg.logger.log.debug('calculate_signature: %s' % roi_path)
         if n_processes is None:
@@ -672,7 +879,7 @@ class SpectralSignaturesCatalog(object):
         return value_list
 
     # save Spectral Signatures Catalog to file
-    def save(self, output_path):
+    def save(self, output_path, signature_id_list=None):
         cfg.logger.log.debug(
             'save Spectral Signatures Catalog: %s' % output_path
         )
@@ -682,36 +889,50 @@ class SpectralSignaturesCatalog(object):
         temp_dir = cfg.temp.create_temporary_directory()
         # geometry file
         if files_directories.is_file(self.geometry_file):
-            files_directories.copy_file(
-                self.geometry_file, '%s/geometry.gpkg' % temp_dir
-            )
+            if signature_id_list is None:
+                files_directories.copy_file(
+                    self.geometry_file, '%s/geometry.gpkg' % temp_dir
+                )
+            else:
+                self.export_vector(
+                    signature_id_list, '%s/geometry.gpkg' % temp_dir
+                )
             file_list.append('%s/geometry.gpkg' % temp_dir)
         # create xml file
         root = cElementTree.Element('macroclasses')
         root.set('version', str(cfg.version))
         root.set('macroclass_field', str(self.macroclass_field))
         root.set('class_field', str(self.class_field))
+        if self.signatures is not None:
+            for signature_id in self.signatures:
+                if (signature_id_list is None
+                        or signature_id in signature_id_list):
+                    # create file inside temporary directory
+                    self.signatures[signature_id].tofile(
+                        file='%s/%s' % (temp_dir, signature_id)
+                    )
+                    file_list.append('%s/%s' % (temp_dir, signature_id))
+        if signature_id_list is None:
+            macroclass_list = []
+        else:
+            macroclass_list = self.table[
+                np.in1d(self.table['signature_id'], signature_id_list)
+            ].macroclass_id.tolist()
         if self.macroclasses is not None:
             for macroclass in self.macroclasses:
-                macroclass_element = cElementTree.SubElement(
-                    root, 'macroclass'
-                )
-                macroclass_element.set('id', str(macroclass))
-                macroclass_element.set(
-                    'name',
-                    str(self.macroclasses[macroclass])
-                )
-                macroclass_element.set(
-                    'color', str(self.macroclasses_color_string[macroclass])
-                )
-        if self.signatures is not None:
-            for signature in self.signatures:
-                # create file inside temporary directory
-                self.signatures[signature].tofile(
-                    file='%s/%s' %
-                         (temp_dir, signature)
-                )
-                file_list.append('%s/%s' % (temp_dir, signature))
+                if signature_id_list is None or macroclass in macroclass_list:
+                    macroclass_element = cElementTree.SubElement(
+                        root, 'macroclass'
+                    )
+                    macroclass_element.set('id', str(macroclass))
+                    macroclass_element.set(
+                        'name',
+                        str(self.macroclasses[macroclass])
+                    )
+                    macroclass_element.set(
+                        'color',
+                        str(self.macroclasses_color_string[macroclass])
+                    )
         # save to file
         pretty_xml = minidom.parseString(
             cElementTree.tostring(root)
@@ -724,14 +945,19 @@ class SpectralSignaturesCatalog(object):
         file_list.append('%s/macroclasses.xml' % temp_dir)
         # create file inside temporary directory
         if self.table is not None:
-            self.table.tofile(file='%s/table' % temp_dir)
+            if signature_id_list is None:
+                self.table.tofile(file='%s/table' % temp_dir)
+            else:
+                self.table[
+                    np.in1d(self.table['signature_id'], signature_id_list)
+                ].tofile(file='%s/table' % temp_dir)
             file_list.append('%s/table' % temp_dir)
         # zip files
         files_directories.zip_files(
             file_list, output_path,
             compression=zipfile.ZIP_STORED
         )
-        cfg.logger.log.debug('export signature catalog')
+        cfg.logger.log.debug('saved signature catalog')
         return output_path
 
     # load Spectral Signatures Catalog from file
@@ -817,15 +1043,22 @@ class SpectralSignaturesCatalog(object):
                 return False
             # geometry
             else:
-                # calculate signature
-                vector = raster_vector.get_polygon_from_vector(
-                    vector_path=self.geometry_file,
-                    attribute_filter="%s = '%s'" % (
-                        cfg.uid_field_name, signature_id
+                if files_directories.is_file(self.geometry_file):
+                    # calculate signature
+                    vector = raster_vector.get_polygon_from_vector(
+                        vector_path=self.geometry_file,
+                        attribute_filter="%s = '%s'" % (
+                            cfg.uid_field_name, signature_id
+                        )
                     )
-                )
-                (value_list, standard_deviation_list, wavelength_list,
-                 pixel_count) = self.calculate_signature(vector)
+                    (value_list, standard_deviation_list, wavelength_list,
+                     pixel_count) = self.calculate_signature(vector)
+                else:
+                    cfg.logger.log.error(
+                        'geometry file not found: %s'
+                        % self.geometry_file
+                    )
+                    raise Exception('geometry file not found')
         else:
             value_list = self.signatures[signature_id].value
             wavelength_list = self.signatures[signature_id].wavelength
@@ -848,10 +1081,25 @@ class SpectralSignaturesCatalog(object):
             pixel_count=pixel_count, signature_id=signature_id,
             macroclass_id=mc_value, class_id=c_value, macroclass_name=mc_name,
             class_name=c_name, color_string=color_string
-            )
+        )
         if plot_catalog is not None:
             plot_catalog.add_signature(signature_plot)
         return signature_plot
+
+    # export geometries to vector
+    def export_vector(
+            self, signature_id_list, output_path, vector_format=None
+    ):
+        cfg.logger.log.debug(
+            'export_vector: %s' % str(signature_id_list)
+        )
+        if vector_format is None:
+            vector_format = 'GPKG'
+        raster_vector.save_polygons(
+            input_layer=self.geometry_file, value_list=signature_id_list,
+            target_layer=output_path, vector_format=vector_format
+        )
+        return output_path
 
     # display plot of signatures using Matplotlib
     def add_signatures_to_plot_by_id(self, signature_id_list):

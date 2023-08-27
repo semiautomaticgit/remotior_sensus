@@ -26,7 +26,7 @@ class TestSpectralSignatures(TestCase):
             )
         self.assertEqual(signature_catalog.table.shape[0], 2)
         cfg.logger.log.debug('>>> test save Spectral Signature Catalog')
-        temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
+        temp = cfg.temp.temporary_file_path(name_suffix='.scpx')
         signature_catalog.save(output_path=temp)
         self.assertTrue(rs.files_directories.is_file(temp))
         signature_catalog_x = rs.spectral_signatures_catalog()
@@ -104,16 +104,24 @@ class TestSpectralSignatures(TestCase):
         )
         # import vector
         cfg.logger.log.debug('>>> test remove signature')
-        temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
+        temp = cfg.temp.temporary_file_path(name_suffix='.scpx')
         signature_catalog_2.save(output_path=temp)
         self.assertTrue(rs.files_directories.is_file(temp))
         sig_id = signature_catalog_2.table[
             signature_catalog_2.table['macroclass_id'] == 7].signature_id[0]
         signature_catalog_2.remove_signature_by_id(signature_id=sig_id)
-        temp = cfg.temp.temporary_file_path(name_suffix='.sscx')
+        temp = cfg.temp.temporary_file_path(name_suffix='.scpx')
         signature_catalog_2.save(output_path=temp)
         self.assertTrue(rs.files_directories.is_file(temp))
-
+        shape = signature_catalog_2.table.shape[0]
+        signature_catalog_2.import_file(file_path=temp)
+        self.assertEqual(
+            signature_catalog_2.table.shape[0],
+            len(signature_catalog_2.signatures)
+        )
+        self.assertEqual(
+            signature_catalog_2.table.shape[0], shape * 2
+        )
         # region growing
         cfg.logger.log.debug('>>> test region growing')
         catalog_3 = rs.bandset_catalog()
@@ -229,6 +237,25 @@ class TestSpectralSignatures(TestCase):
             signature_id=signature_id, band_x=1, band_y=2, decimal_round=1
         )
         self.assertTrue(histogram is not None)
+
+        # export vector
+        temp_gpkg = cfg.temp.temporary_file_path(name_suffix='.gpkg')
+        signature_catalog_3.export_vector(
+            signature_id_list=[signature_id], output_path=temp_gpkg,
+            vector_format='GPKG'
+        )
+        self.assertTrue(rs.files_directories.is_file(temp_gpkg))
+        temp_shp = cfg.temp.temporary_file_path(name_suffix='.shp')
+        signature_catalog_3.export_vector(
+            signature_id_list=[signature_id], output_path=temp_shp,
+            vector_format='ESRI Shapefile'
+        )
+        self.assertTrue(rs.files_directories.is_file(temp_shp))
+        # export as csv
+        csv = signature_catalog_3.export_signatures_as_csv(
+            signature_id_list=[signature_id], output_directory=cfg.temp.dir
+        )
+        self.assertTrue(rs.files_directories.is_file(csv[0]))
 
         # clear temporary directory
         rs.close()

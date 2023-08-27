@@ -2081,6 +2081,65 @@ def merge_polygons(
     return target_layer
 
 
+# save selected geometries by list of IDs and save them in a new vector
+def save_polygons(
+        input_layer, value_list, target_layer, vector_format=None
+):
+    cfg.logger.log.debug('start')
+    if vector_format is None:
+        vector_format = 'GPKG'
+    # open virtual layer
+    _input_source = ogr.Open(input_layer)
+    _i_layer = _input_source.GetLayer()
+    i_layer_name = _i_layer.GetName()
+    i_layer_sr = _i_layer.GetSpatialRef()
+    i_layer_def = _i_layer.GetLayerDefn()
+    field_count = i_layer_def.GetFieldCount()
+    i_d = ogr.GetDriverByName(vector_format)
+    _output_source = i_d.CreateDataSource(target_layer)
+    _output_name = files_directories.file_name(target_layer)
+    _o_layer = _output_source.CreateLayer(
+        str(_output_name), i_layer_sr, ogr.wkbMultiPolygon
+    )
+    # fields
+    for f_c in range(field_count):
+        field_def = i_layer_def.GetFieldDefn(f_c)
+        _o_layer.CreateField(field_def)
+    o_layer_def = _o_layer.GetLayerDefn()
+    # get unique values
+    sql = 'SELECT * FROM %s WHERE %s IN (%s)' % (
+        i_layer_name, cfg.uid_field_name,
+        str(value_list).replace('[', '').replace(']', '')
+    )
+    output_values = _input_source.ExecuteSQL(sql, dialect='SQLITE')
+    if output_values is not None:
+        uv_feature = output_values.GetNextFeature()
+        while uv_feature:
+            if cfg.action is True:
+                geometry_ref = uv_feature.GetGeometryRef()
+                if geometry_ref is not None:
+                    if not geometry_ref.IsValid():
+                        # try to fix invalid geometry with buffer
+                        geometry_ref = geometry_ref.Buffer(0.0)
+                    _o_layer.StartTransaction()
+                    _o_feature = ogr.Feature(o_layer_def)
+                    _o_feature.SetGeometry(geometry_ref)
+                    for i in range(field_count):
+                        _o_feature.SetField(i, uv_feature.GetField(i))
+                    _o_layer.CreateFeature(_o_feature)
+                    _o_layer.CommitTransaction()
+                    _o_feature = None
+                uv_feature = output_values.GetNextFeature()
+    # release sql results
+    _input_source.ReleaseResultSet(output_values)
+    _i_layer = None
+    _o_layer = None
+    _input_source = None
+    _output_source = None
+    cfg.logger.log.debug('end; target_layer: %s' % target_layer)
+    return target_layer
+
+
 # create a geometry vector for Spectral Signatures
 def create_geometry_vector(
         output_path, crs_wkt, macroclass_field_name,
