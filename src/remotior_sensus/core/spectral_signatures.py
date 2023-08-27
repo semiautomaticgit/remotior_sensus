@@ -541,6 +541,7 @@ class SpectralSignaturesCatalog(object):
         file_list = files_directories.unzip_file(file_path, temp_dir)
         # list of new ids
         signature_ids = {}
+        geometry_ids = {}
         geometry_file = None
         table = None
         for f in file_list:
@@ -591,12 +592,6 @@ class SpectralSignaturesCatalog(object):
                 # remove file
                 files_directories.remove_file(f)
         cfg.logger.log.debug('signature_ids: %s' % signature_ids)
-        # import table
-        if table is not None:
-            for sig_id in signature_ids:
-                table['signature_id'][
-                    table['signature_id'] == sig_id] = signature_ids[sig_id]
-            self.table = tm.append_tables(self.table, table)
         # import vector
         if geometry_file is not None:
             # get vector crs
@@ -646,9 +641,16 @@ class SpectralSignaturesCatalog(object):
                     sig_id = i_feature.GetField(cfg.uid_field_name)
                     mc_value = i_feature.GetField(self.macroclass_field)
                     c_value = i_feature.GetField(self.class_field)
-                    o_feature.SetField(
-                        cfg.uid_field_name, signature_ids[sig_id]
-                    )
+                    if sig_id in signature_ids:
+                        o_feature.SetField(
+                            cfg.uid_field_name, signature_ids[sig_id]
+                        )
+                    else:
+                        signature_id = generate_signature_id()
+                        geometry_ids[sig_id] = signature_id
+                        o_feature.SetField(
+                            cfg.uid_field_name, signature_id
+                        )
                     o_feature.SetField(cfg.class_field_name, int(c_value))
                     o_feature.SetField(
                         cfg.macroclass_field_name, int(mc_value)
@@ -662,6 +664,15 @@ class SpectralSignaturesCatalog(object):
                     i_vector.Destroy()
                     catalog_vector.Destroy()
                     cfg.logger.log.error('cancel')
+        # import table
+        if table is not None:
+            for sig_id in signature_ids:
+                table['signature_id'][
+                    table['signature_id'] == sig_id] = signature_ids[sig_id]
+            for sig_id in geometry_ids:
+                table['signature_id'][
+                    table['signature_id'] == sig_id] = geometry_ids[sig_id]
+            self.table = tm.append_tables(self.table, table)
 
     # import vector to Spectral Signatures Catalog
     def import_vector(
