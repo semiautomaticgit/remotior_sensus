@@ -34,6 +34,7 @@ except Exception as error:
 try:
     from osgeo import ogr
     from osgeo import osr
+    from osgeo import gdal_array
 except Exception as error:
     cfg.logger.log.error(str(error))
 try:
@@ -274,9 +275,11 @@ def image_geotransformation(path):
         '%s; un: %s'
         % (left, top, right, bottom, p_x, p_y, r_p.replace(' ', ''), un)
     )
-    info = {'left': left, 'top': top, 'right': right, 'bottom': bottom,
-            'pixel_size_x': p_x, 'pixel_size_y': p_y,
-            'projection': r_p.replace(' ', ''), 'unit': un}
+    info = {
+        'left': left, 'top': top, 'right': right, 'bottom': bottom,
+        'pixel_size_x': p_x, 'pixel_size_y': p_y,
+        'projection': r_p.replace(' ', ''), 'unit': un
+    }
     return info
 
 
@@ -329,8 +332,10 @@ def create_raster_from_reference(
         else:
             r = y_size
         if not compress:
-            out_raster = t_d.Create(o, c, r, band_number, gdal_format,
-                                    options=['BIGTIFF=YES'])
+            out_raster = t_d.Create(
+                o, c, r, band_number, gdal_format,
+                options=['BIGTIFF=YES']
+                )
         elif compress_format == 'DEFLATE21':
             out_raster = t_d.Create(
                 o, c, r, band_number, gdal_format,
@@ -413,6 +418,43 @@ def read_array_block(
         cfg.logger.log.error(str(err))
         return None
     return a
+
+
+# read a block of band as array
+def band_read_array_block(
+        gdal_band, pixel_start_column, pixel_start_row, block_columns,
+        block_row, calc_data_type=None, numpy_array=None
+):
+    if calc_data_type is None:
+        calc_data_type = np.float32
+    try:
+        offset = gdal_band.GetOffset()
+        scale = gdal_band.GetScale()
+        if offset is None:
+            offset = 0.0
+        if scale is None:
+            scale = 1.0
+    except Exception as err:
+        str(err)
+        offset = 0.0
+        scale = 1.0
+    offset = np.asarray(offset).astype(calc_data_type)
+    scale = np.asarray(scale).astype(calc_data_type)
+    cfg.logger.log.debug(
+        'pixel_start_column: %s; pixel_start_row: %s; block_columns: %s; '
+        'block_row: %s; scale: %s; offset: %s'
+        % (pixel_start_column, pixel_start_row, block_columns, block_row,
+           scale, offset)
+    )
+    try:
+        gdal_array.BandReadAsArray(
+            gdal_band, pixel_start_column, pixel_start_row, block_columns,
+            block_row, buf_obj=numpy_array
+            ) * scale + offset
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        return None
+    return numpy_array.astype(calc_data_type)
 
 
 # read raster
@@ -1644,8 +1686,8 @@ def vector_to_raster(
         x_size = gt[1]
         y_size = abs(gt[5])
     if area_based is True:
-        x_size = x_size/10
-        y_size = y_size/10
+        x_size = x_size / 10
+        y_size = y_size / 10
     # number of x pixels
     grid_columns = int(round(xy_count[0] * gt[1] / x_size))
     # number of y pixels
@@ -2052,9 +2094,9 @@ def merge_polygons(
     # get unique values
     sql = ('SELECT %s, ST_Union(geom) AS merged_geometry FROM %s '
            'WHERE %s IN (%s)') % (
-        cfg.uid_field_name, i_layer_name, cfg.uid_field_name,
-        str(value_list).replace('[', '').replace(']', '')
-    )
+              cfg.uid_field_name, i_layer_name, cfg.uid_field_name,
+              str(value_list).replace('[', '').replace(']', '')
+          )
     output_values = _input_source.ExecuteSQL(sql, dialect='SQLITE')
     if output_values is not None:
         uv_features = output_values.GetNextFeature()
@@ -2144,7 +2186,7 @@ def save_polygons(
 def create_geometry_vector(
         output_path, crs_wkt, macroclass_field_name,
         class_field_name, vector_format='GPKG',
-        ):
+):
     # in case crs_wkt is already as crs format
     try:
         crs_wkt = str(crs_wkt.toWkt())

@@ -94,7 +94,7 @@ def function_initiator(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory)/2))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
@@ -123,6 +123,8 @@ def function_initiator(
         'raster_list: %s; x_size_piece: %s; y_size_piece: %s:'
         % (raster_list, x_size_piece, y_size_piece)
     )
+    # input numpy array
+    _input_array = None
     # iterate over input raster list
     for raster in raster_list:
         # reset section counter
@@ -330,12 +332,22 @@ def function_initiator(
             else:
                 r_b = _r_d.GetRasterBand(single_band_number + 1)
                 gdal_band_list.append(r_b)
-            _input_array = np.zeros(
-                (sec.y_size, sec.x_size, len(gdal_band_list)),
-                dtype=calculation_datatype
-            )
+            if (
+                    _input_array is None
+                    or _input_array.shape != (sec.y_size, sec.x_size,
+                                              len(gdal_band_list))
+                    or _input_array.dtype != calculation_datatype
+            ):
+                _input_array = np.zeros(
+                    (sec.y_size, sec.x_size, len(gdal_band_list)),
+                    dtype=calculation_datatype
+                )
+            else:
+                _input_array[:] = 0
             nodata_mask = None
             nd_val = None
+            # numpy array of one band
+            _a = None
             # read bands
             for b in range(len(gdal_band_list)):
                 cfg.logger.log.debug(
@@ -343,10 +355,30 @@ def function_initiator(
                     'sec.y_size: %s'
                     % (sec.x_min, sec.y_min, sec.x_size, sec.y_size)
                 )
+                data_type = gdal.GetDataTypeName(gdal_band_list[b].DataType)
+                data_types = {
+                    cfg.float64_dt: np.float64, cfg.float32_dt: np.float32,
+                    cfg.int32_dt: np.int32, cfg.uint32_dt: np.uint32,
+                    cfg.int16_dt: np.int16, cfg.uint16_dt: np.uint16,
+                    cfg.byte_dt: np.byte,
+                }
+                if data_type in data_types:
+                    _a_data_type = data_types[data_type]
+                    cfg.logger.log.debug('_a_data_type: %s' % _a_data_type)
+                else:
+                    _a_data_type = calculation_datatype
+                if (_a is None
+                        or _a.shape != (sec.y_size, sec.x_size,
+                                        len(gdal_band_list))
+                        or _a.dtype != _a_data_type):
+                    _a = np.zeros(
+                        (sec.y_size, sec.x_size),
+                        dtype=_a_data_type
+                    )
                 # band array
-                _a = raster_vector.read_array_block(
+                raster_vector.band_read_array_block(
                     gdal_band_list[b], sec.x_min, sec.y_min, sec.x_size,
-                    sec.y_size, calculation_datatype
+                    sec.y_size, calculation_datatype, numpy_array=_a
                 )
                 # get band nodata, scale and offset
                 try:
@@ -402,8 +434,8 @@ def function_initiator(
                         )
                     _input_array[::, ::, b] = _a.astype(calculation_datatype)
                 # set nodata value
-                if calculation_datatype == np.float32 or \
-                        calculation_datatype == np.float64:
+                if (calculation_datatype == np.float32
+                        or calculation_datatype == np.float64):
                     if ndv_band is not None:
                         try:
                             _input_array[::, ::, b][
@@ -418,7 +450,7 @@ def function_initiator(
                             str(err)
                 cfg.logger.log.debug(
                     'gdal_band_list[%s].DataType: %s; nd_val: %s; ndv_band: %s'
-                    % (b, gdal_band_list[b].DataType, nd_val, ndv_band)
+                    % (b, data_type, nd_val, ndv_band)
                 )
                 # apply NoData mask
                 if any_nodata_mask:
@@ -520,8 +552,6 @@ def function_initiator(
                     )
                     # release memory
                     _all_nodata_mask = None
-            # release memory
-            _a = None
             # get function variable
             if function_variable:
                 f_variable = function_variable[raster_count]
@@ -550,8 +580,6 @@ def function_initiator(
                 [x_min_piece, y_min_piece], output_signature_raster,
                 out_class, out_alg
             )
-            # release memory
-            _input_array = None
             # check function output list
             if isinstance(function_output, list):
                 output_argument = function_output[1]
@@ -588,14 +616,12 @@ def function_initiator(
             if (classification is not True
                     and output_raster_list[0] is not None):
                 if specific_output is not None:
-
                     output_array[np.isnan(output_array)] = out_no_data
-
                     y_min_piece_s = specific_output_piece.y_min
                     if boundary_size is None:
                         # output minimum y (section of piece)
                         out_y_min = (specific_output_piece.sections[
-                                        count_section_progress - 1].y_min
+                                         count_section_progress - 1].y_min
                                      - y_min_piece_s)
                     else:
                         # output minimum y (section of piece)
@@ -625,8 +651,10 @@ def function_initiator(
                             if run_separate_process:
                                 pass
                             else:
-                                out_files.append([out_specific,
-                                                  output_argument])
+                                out_files.append(
+                                    [out_specific,
+                                     output_argument]
+                                )
                     except Exception as err:
                         proc_error = 'error output'
                         cfg.logger.log.error(str(err))
@@ -654,8 +682,10 @@ def function_initiator(
                             if run_separate_process:
                                 pass
                             else:
-                                out_files.append([out_generic,
-                                                  output_argument])
+                                out_files.append(
+                                    [out_generic,
+                                     output_argument]
+                                )
                     except Exception as err:
                         proc_error = 'error output'
                         cfg.logger.log.error(str(err))
@@ -669,7 +699,7 @@ def function_initiator(
                     [count_section_progress, len(sections)], False
                 )
             elif (process_id == '1' and elapsed_time > refresh_time
-                    and run_separate_process):
+                  and run_separate_process):
                 start_time = now_time
                 progress_queue.put(
                     [count_section_progress
@@ -1167,8 +1197,10 @@ def raster_sieve_process(
         logger = cfg.logger.stream.getvalue()
         return None, str(err), logger
     # create output raster
-    out_file = cfg.temp.temporary_raster_path(name_suffix=process_id,
-                                              name_prefix=process_id)
+    out_file = cfg.temp.temporary_raster_path(
+        name_suffix=process_id,
+        name_prefix=process_id
+    )
     cfg.logger.log.debug('out_file: %s' % str(out_file))
     # start progress
     progress_queue.put(1, False)
@@ -1280,12 +1312,15 @@ def vector_to_raster(
         logger = cfg.logger.stream.getvalue()
         return None, str(err), logger
     # create output file
-    out_file = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix,
-                                            name_prefix=process_id)
+    out_file = cfg.temp.temporary_file_path(
+        name_suffix=cfg.tif_suffix,
+        name_prefix=process_id
+    )
     cfg.logger.log.debug('out_file: %s' % str(out_file))
     (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_vector.raster_info(
-        reference_raster_path)
+        reference_raster_path
+    )
     orig_x = gt[0]
     orig_y = gt[3]
     cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
@@ -1300,8 +1335,10 @@ def vector_to_raster(
     grid_columns = int(round(xy_count[0] * gt[1] / x_size))
     # number of y pixels
     grid_rows = int(round(xy_count[1] * abs(gt[5]) / y_size))
-    cfg.logger.log.debug('grid_columns, grid_rows: %s,%s'
-                         % (grid_columns, grid_rows))
+    cfg.logger.log.debug(
+        'grid_columns, grid_rows: %s,%s'
+        % (grid_columns, grid_rows)
+    )
     # check crs
     same_crs = raster_vector.compare_crs(reference_crs, vector_crs)
     cfg.logger.log.debug('same_crs: %s' % str(same_crs))
@@ -1317,8 +1354,10 @@ def vector_to_raster(
         cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
         grid_columns = abs(int(round((max_x - min_x) / x_size)))
         grid_rows = abs(int(round((max_y - min_y) / y_size)))
-        cfg.logger.log.debug('grid_columns, grid_rows: %s,%s'
-                             % (grid_columns, grid_rows))
+        cfg.logger.log.debug(
+            'grid_columns, grid_rows: %s,%s'
+            % (grid_columns, grid_rows)
+        )
     driver = gdal.GetDriverByName(output_format)
     temporary_grid = cfg.temp.temporary_raster_path(extension=cfg.tif_suffix)
     # create raster _grid

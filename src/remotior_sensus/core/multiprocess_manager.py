@@ -205,8 +205,10 @@ class Multiprocess(object):
         p_mq = self.manager.Queue()
         results = []
         for p in range(len(pieces)):
-            process_parameters = [p, cfg.temp, available_ram, cfg.gdal_path,
-                                  p_mq, cfg.refresh_time, memory_unit]
+            process_parameters = [
+                p, cfg.temp, int(available_ram / n_processes),
+                cfg.gdal_path, p_mq, cfg.refresh_time, memory_unit
+            ]
             input_parameters = [[raster_path], calc_datatype, boundary_size,
                                 pieces[p], [scale], [offset],
                                 [use_value_as_nodata], None,
@@ -425,20 +427,22 @@ class Multiprocess(object):
                 offs = [None] * len(raster_paths)
             if use_value_as_nodata is None:
                 use_value_as_nodata = [None] * len(raster_paths)
-            process_parameters = [p, cfg.temp, available_ram / n_processes,
-                                  cfg.gdal_path, p_mq, cfg.refresh_time]
-            input_parameters = [raster_paths,
-                                calculation_datatype[ranges[p - 1]: ranges[p]],
-                                boundary_size, None, scl, offs,
-                                use_value_as_nodata[ranges[p - 1]: ranges[p]],
-                                None, input_nodata_as_value, multi_add_factors,
-                                dummy_bands, None]
-            output_parameters = [output_list,
-                                 output_data_type[ranges[p - 1]: ranges[p]],
-                                 compress, compress_format, any_nodata_mask,
-                                 output_nodata_value[ranges[p - 1]: ranges[p]],
-                                 output_band_number, keep_output_array,
-                                 keep_output_argument]
+            process_parameters = [
+                p, cfg.temp, int(available_ram / n_processes),
+                cfg.gdal_path, p_mq, cfg.refresh_time
+            ]
+            input_parameters = [
+                raster_paths, calculation_datatype[ranges[p - 1]: ranges[p]],
+                boundary_size, None, scl, offs,
+                use_value_as_nodata[ranges[p - 1]: ranges[p]], None,
+                input_nodata_as_value, multi_add_factors, dummy_bands, None
+            ]
+            output_parameters = [
+                output_list, output_data_type[ranges[p - 1]: ranges[p]],
+                compress, compress_format, any_nodata_mask,
+                output_nodata_value[ranges[p - 1]: ranges[p]],
+                output_band_number, keep_output_array, keep_output_argument
+            ]
             if function_argument:
                 f_arg = function_argument[ranges[p - 1]: ranges[p]]
             else:
@@ -1505,8 +1509,7 @@ class Multiprocess(object):
                              compress_format, output_nodata_value]
         c = self.pool.apply_async(
             processor.raster_sieve_process,
-            args=(process_parameters, input_parameters,
-                  output_parameters)
+            args=(process_parameters, input_parameters, output_parameters)
         )
         results.append([c, p])
         while True:
@@ -1574,8 +1577,7 @@ class Multiprocess(object):
         p_mq = self.manager.Queue()
         results = []
         p = 0
-        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq,
-                              available_ram]
+        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram]
         input_parameters = [vector_path, field_name, reference_raster_path,
                             nodata_value, background_value, burn_values,
                             x_y_size, all_touched, minimum_extent]
@@ -2333,7 +2335,7 @@ def _compute_raster_pieces(
                                             - int(
                                                 y * specific_output[
                                                     'resize_factor']
-                                                )),
+                                            )),
                                 )
                             )
                         # range variables
@@ -2398,19 +2400,19 @@ def _compute_raster_pieces(
                                     y_max=int(
                                         y_max * specific_output[
                                             'resize_factor']
-                                        ),
+                                    ),
                                     x_size=int(
                                         block_size_x * specific_output[
                                             'resize_factor']
-                                        ),
+                                    ),
                                     y_size=(int(
                                         y_max * specific_output[
                                             'resize_factor']
-                                        )
+                                    )
                                             - int(
                                                 y_min * specific_output[
                                                     'resize_factor']
-                                                )),
+                                            )),
                                     y_min_no_boundary=int(
                                         y_min_no_boundary * specific_output[
                                             'resize_factor']
@@ -2500,23 +2502,23 @@ def _compute_raster_pieces(
                             y_min=int(
                                 y_min_range
                                 * specific_output['resize_factor']
-                                ),
+                            ),
                             x_max=int(
                                 block_size_x
                                 * specific_output['resize_factor']
-                                ),
+                            ),
                             y_max=int(
                                 y_max_range
                                 * specific_output['resize_factor']
-                                ),
+                            ),
                             x_size=int(
                                 block_size_x
                                 * specific_output['resize_factor']
-                                ),
+                            ),
                             y_size=int(
                                 y_size_range
                                 * specific_output['resize_factor']
-                                ),
+                            ),
                             y_min_no_boundary=int(
                                 min(y_min_no_boundary_range_list)
                                 * specific_output['resize_factor']
