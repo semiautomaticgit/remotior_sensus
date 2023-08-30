@@ -94,7 +94,7 @@ def function_initiator(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory)/2))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
