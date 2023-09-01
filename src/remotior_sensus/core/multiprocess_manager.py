@@ -181,11 +181,21 @@ class Multiprocess(object):
             compress = cfg.raster_compression
         if compress_format is None:
             compress_format = cfg.raster_compression_format
-        # calculate block size
-        block_size = _calculate_block_size(
-            raster_path, n_processes, memory_unit, dummy_bands,
-            available_ram=available_ram, multiple=multiple_block
-        )
+        # same_geotransformation is True
+        if type(raster_path) is list:
+            block_size = _calculate_block_size(
+                raster_path[0], n_processes, memory_unit, dummy_bands,
+                available_ram=available_ram, multiple=multiple_block
+            )
+            # use raster files directly (not vrt)
+            same_geotransformation = True
+        else:
+            # calculate block size
+            block_size = _calculate_block_size(
+                raster_path, n_processes, memory_unit, dummy_bands,
+                available_ram=available_ram, multiple=multiple_block
+            )
+            same_geotransformation = False
         if block_size is not False:
             (raster_x_size, raster_y_size, block_size_x, block_size_y,
              list_range_x, list_range_y, tot_blocks,
@@ -213,7 +223,8 @@ class Multiprocess(object):
                                 pieces[p], [scale], [offset],
                                 [use_value_as_nodata], None,
                                 input_nodata_as_value, multi_add_factors,
-                                dummy_bands, specific_output]
+                                dummy_bands, specific_output,
+                                same_geotransformation]
             output_parameters = [[output_raster_path], [output_data_type],
                                  compress, compress_format, any_nodata_mask,
                                  [output_nodata_value], [output_band_number],
@@ -435,7 +446,8 @@ class Multiprocess(object):
                 raster_paths, calculation_datatype[ranges[p - 1]: ranges[p]],
                 boundary_size, None, scl, offs,
                 use_value_as_nodata[ranges[p - 1]: ranges[p]], None,
-                input_nodata_as_value, multi_add_factors, dummy_bands, None
+                input_nodata_as_value, multi_add_factors, dummy_bands, None,
+                None
             ]
             output_parameters = [
                 output_list, output_data_type[ranges[p - 1]: ranges[p]],

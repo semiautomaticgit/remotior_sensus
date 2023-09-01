@@ -196,28 +196,28 @@ def raster_info(path):
     if not files_directories.is_file(path):
         if cfg.logger is not None:
             cfg.logger.log.warning('raster: %s' % path)
-    r_d = gdal.Open(path, gdal.GA_ReadOnly)
-    if r_d is None:
+    _r_d = gdal.Open(path, gdal.GA_ReadOnly)
+    if _r_d is None:
         if cfg.logger is not None:
             cfg.logger.log.error('raster: %s' % path)
         return False
     # x pixel count
-    x_count = r_d.RasterXSize
+    x_count = _r_d.RasterXSize
     # y pixel count
-    y_count = r_d.RasterYSize
+    y_count = _r_d.RasterYSize
     # geo transformation
-    gt = r_d.GetGeoTransform()
-    band = r_d.GetRasterBand(1)
+    gt = _r_d.GetGeoTransform()
+    _band = _r_d.GetRasterBand(1)
     # nodata value
-    nd = band.GetNoDataValue()
+    nd = _band.GetNoDataValue()
     # offset and scale
-    offset = band.GetOffset()
-    scale = band.GetScale()
-    data_type = gdal.GetDataTypeName(band.DataType)
+    offset = _band.GetOffset()
+    scale = _band.GetScale()
+    data_type = gdal.GetDataTypeName(_band.DataType)
     unit = None
     # crs
     try:
-        crs = r_d.GetProjection()
+        crs = _r_d.GetProjection()
         if len(crs) == 0:
             crs = None
         else:
@@ -229,10 +229,12 @@ def raster_info(path):
         if cfg.logger is not None:
             cfg.logger.log.error(str(err))
     # band number and block size
-    number_of_bands = r_d.RasterCount
-    block_size = band.GetBlockSize()
+    number_of_bands = _r_d.RasterCount
+    block_size = _band.GetBlockSize()
     info = [gt, crs, unit, [x_count, y_count], nd, number_of_bands, block_size,
             [scale, offset], data_type]
+    _band = None
+    _r_d = None
     try:
         cfg.logger.log.debug(
             '{} :{}'.format(
@@ -293,8 +295,11 @@ def create_raster_from_reference(
 ):
     if cfg.logger is not None:
         cfg.logger.log.debug('path: %s' % path)
+    # list of rasters with same dimensions
+    if type(path) is list:
+        path = path[0]
     # open input_raster with GDAL
-    gdal_raster_ref = gdal.Open(path, gdal.GA_ReadOnly)
+    _gdal_raster_ref = gdal.Open(path, gdal.GA_ReadOnly)
     if gdal_format == 'Float64':
         gdal_format = gdal.GDT_Float64
     elif gdal_format == 'Float32':
@@ -315,20 +320,20 @@ def create_raster_from_reference(
                 o += cfg.tif_suffix
         # pixel size and origin from reference
         if projection is None:
-            r_p = gdal_raster_ref.GetProjection()
+            r_p = _gdal_raster_ref.GetProjection()
         else:
             r_p = projection
         if geo_transform is None:
-            r_gt = gdal_raster_ref.GetGeoTransform()
+            r_gt = _gdal_raster_ref.GetGeoTransform()
         else:
             r_gt = geo_transform
         t_d = gdal.GetDriverByName(driver)
         if x_size is None:
-            c = gdal_raster_ref.RasterXSize
+            c = _gdal_raster_ref.RasterXSize
         else:
             c = x_size
         if y_size is None:
-            r = gdal_raster_ref.RasterYSize
+            r = _gdal_raster_ref.RasterYSize
         else:
             r = y_size
         if not compress:
@@ -375,6 +380,7 @@ def create_raster_from_reference(
                 _band = out_raster.GetRasterBand(x)
                 _band.SetOffset(offset)
                 _band = None
+    _gdal_raster_ref = None
     if cfg.logger is not None:
         cfg.logger.log.debug('output: %s' % str(output_raster_list))
     return output_raster_list
@@ -423,21 +429,10 @@ def read_array_block(
 # read a block of band as array
 def band_read_array_block(
         gdal_band, pixel_start_column, pixel_start_row, block_columns,
-        block_row, calc_data_type=None, numpy_array=None
+        block_row, calc_data_type=None, numpy_array=None, scale=1, offset=0
 ):
     if calc_data_type is None:
         calc_data_type = np.float32
-    try:
-        offset = gdal_band.GetOffset()
-        scale = gdal_band.GetScale()
-        if offset is None:
-            offset = 0.0
-        if scale is None:
-            scale = 1.0
-    except Exception as err:
-        str(err)
-        offset = 0.0
-        scale = 1.0
     offset = np.asarray(offset).astype(calc_data_type)
     scale = np.asarray(scale).astype(calc_data_type)
     cfg.logger.log.debug(

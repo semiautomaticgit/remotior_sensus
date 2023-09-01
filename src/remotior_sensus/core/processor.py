@@ -71,6 +71,7 @@ def function_initiator(
     multi_add_factors = input_parameters[9]
     dummy_bands = input_parameters[10]
     specific_output = input_parameters[11]
+    same_geotransformation = input_parameters[12]
     if specific_output is not None:
         specific_output_piece = specific_output['pieces'][int(process_id)]
     else:
@@ -94,7 +95,7 @@ def function_initiator(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory)))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
@@ -132,14 +133,18 @@ def function_initiator(
         calculation_datatype = calc_data_type[raster_count]
         cfg.logger.log.debug(
             'process raster: %s; calculation_datatype: %s'
-            % (raster, calculation_datatype)
+            % (str(raster), calculation_datatype)
         )
         if use_value_as_nodata:
             value_as_nodata = use_value_as_nodata[raster_count]
         else:
             value_as_nodata = None
+        if same_geotransformation is True:
+            info_raster = raster[0]
+        else:
+            info_raster = raster
         (r_gt, r_crs, r_un, r_xy_count, r_nd, band_number, r_block_size,
-         r_scale_offset, r_data_type) = raster_vector.raster_info(raster)
+         r_scale_offset, r_data_type) = raster_vector.raster_info(info_raster)
         cfg.logger.log.debug('r_gt: {}'.format(str(r_gt)))
         # pixel size and origin from reference
         t_lx = r_gt[0]
@@ -265,7 +270,7 @@ def function_initiator(
                     algorithm_rasters.append(out_alg)
                 # create rasters
                 raster_vector.create_raster_from_reference(
-                    path=raster, band_number=1,
+                    path=info_raster, band_number=1,
                     output_raster_list=output_classification_raster_list,
                     nodata_value=out_no_data, driver='GTiff',
                     gdal_format=out_data_type, compress=compress,
@@ -300,7 +305,7 @@ def function_initiator(
                     name_suffix=process_id, name_prefix=process_id
                 )
                 file_output = raster_vector.create_raster_from_reference(
-                    raster, 1, [out_specific], out_no_data, 'GTiff',
+                    info_raster, 1, [out_specific], out_no_data, 'GTiff',
                     out_data_type, compress, compress_format,
                     geo_transform=geo_transform, x_size=x_size_piece_s,
                     y_size=y_size_piece_s
@@ -312,7 +317,7 @@ def function_initiator(
                     name_suffix=process_id, name_prefix=process_id
                 )
                 file_output = raster_vector.create_raster_from_reference(
-                    raster, 1, [out_generic], out_no_data, 'GTiff',
+                    info_raster, 1, [out_generic], out_no_data, 'GTiff',
                     out_data_type, compress, compress_format,
                     geo_transform=geo_transform, x_size=x_size_piece,
                     y_size=y_size_piece
@@ -320,119 +325,135 @@ def function_initiator(
                 cfg.logger.log.debug('file_output: %s' % file_output)
         # iterate over sections
         for sec in sections:
-            # open input_raster with GDAL
-            _r_d = gdal.Open(raster, gdal.GA_ReadOnly)
-            cfg.logger.log.debug('raster: %s' % raster)
             # list of bands
-            gdal_band_list = []
-            if single_band_number is None:
-                for b in range(1, band_number + 1):
-                    r_b = _r_d.GetRasterBand(b)
-                    gdal_band_list.append(r_b)
-            else:
-                r_b = _r_d.GetRasterBand(single_band_number + 1)
-                gdal_band_list.append(r_b)
+            ndv_band_list = []
+            # numpy array of one band
+            _a = None
+            _a_data_type_list = []
             if (
                     _input_array is None
                     or _input_array.shape != (sec.y_size, sec.x_size,
-                                              len(gdal_band_list))
+                                              len(raster))
                     or _input_array.dtype != calculation_datatype
             ):
                 _input_array = np.zeros(
-                    (sec.y_size, sec.x_size, len(gdal_band_list)),
+                    (sec.y_size, sec.x_size, len(raster)),
                     dtype=calculation_datatype
                 )
             else:
                 _input_array[:] = 0
+            # if raster with same dimensions
+            if same_geotransformation is True:
+                band_counter = 0
+                for single_raster in raster:
+                    # open input_raster with GDAL
+                    _r_d = gdal.Open(single_raster, gdal.GA_ReadOnly)
+                    cfg.logger.log.debug('single_raster: %s' % single_raster)
+                    if single_band_number is None:
+                        _r_b = _r_d.GetRasterBand(1)
+                    else:
+                        _r_b = _r_d.GetRasterBand(single_band_number + 1)
+                    (_a, _a_data_type_list,
+                     ndv_band_list) = get_raster_band_array(
+                        gdal, _r_b, calculation_datatype, _a, sec
+                    )
+                    if _a is None:
+                        proc_error = 'input raster'
+                    else:
+                        # apply multiplicative and additive factors to array
+                        if multi_add_factors is not None:
+                            _a = array_multiplicative_additive_factors(
+                                _a, multi_add_factors[0][band_counter],
+                                multi_add_factors[1][band_counter]
+                            )
+                        _input_array[::, ::, band_counter] = _a.astype(
+                            calculation_datatype
+                        )
+                    # close GDAL rasters
+                    _r_b.FlushCache()
+                    _r_b = None
+                    _r_d = None
+                    band_counter += 1
+            # rasters with different dimensions or virtual raster
+            else:
+                if (
+                        _input_array is None
+                        or _input_array.shape != (sec.y_size, sec.x_size,
+                                                  band_number)
+                        or _input_array.dtype != calculation_datatype
+                ):
+                    _input_array = np.zeros(
+                        (sec.y_size, sec.x_size, band_number),
+                        dtype=calculation_datatype
+                    )
+                else:
+                    _input_array[:] = 0
+                cfg.logger.log.debug(
+                    '_input_array.shape: %s' % str(_input_array.shape)
+                )
+                # open input_raster with GDAL
+                _r_d = gdal.Open(raster, gdal.GA_ReadOnly)
+                cfg.logger.log.debug(
+                    'raster: %s; band_number: %s' % (raster, band_number)
+                )
+                # all bands
+                if single_band_number is None:
+                    for b in range(0, band_number):
+                        _r_b = _r_d.GetRasterBand(b + 1)
+                        (_a, _a_data_type_list,
+                         ndv_band_list) = get_raster_band_array(
+                            gdal, _r_b, calculation_datatype, _a, sec
+                        )
+                        if _a is None:
+                            proc_error = 'input raster'
+                        else:
+                            # apply multiplicative and additive factors
+                            if multi_add_factors is not None:
+                                _a = array_multiplicative_additive_factors(
+                                    _a, multi_add_factors[0][b],
+                                    multi_add_factors[1][b]
+                                )
+                            _input_array[::, ::, b] = _a.astype(
+                                calculation_datatype
+                            )
+                        # close GDAL rasters
+                        _r_b.FlushCache()
+                        _r_b = None
+                # single band
+                else:
+                    _r_b = _r_d.GetRasterBand(single_band_number + 1)
+                    (_a, _a_data_type_list,
+                     ndv_band_list) = get_raster_band_array(
+                        gdal, _r_b, calculation_datatype, _a, sec
+                    )
+                    if _a is None:
+                        proc_error = 'input raster'
+                    else:
+                        # apply multiplicative and additive factors
+                        if multi_add_factors is not None:
+                            _a = array_multiplicative_additive_factors(
+                                _a, multi_add_factors[0][0],
+                                multi_add_factors[1][0]
+                            )
+                        _input_array[::, ::, 0] = _a.astype(
+                            calculation_datatype
+                        )
+                    # close GDAL rasters
+                    _r_b.FlushCache()
+                    _r_b = None
+                _r_d = None
             nodata_mask = None
-            nd_val = None
-            # numpy array of one band
-            _a = None
-            # read bands
-            for b in range(len(gdal_band_list)):
+            cfg.logger.log.debug(
+                'len(ndv_band_list): %s' % (len(ndv_band_list))
+            )
+            # create input array
+            for b in range(len(ndv_band_list)):
                 cfg.logger.log.debug(
                     'sec.x_min: %s; sec.y_min: %s; sec.x_size: %s; '
                     'sec.y_size: %s'
                     % (sec.x_min, sec.y_min, sec.x_size, sec.y_size)
                 )
-                data_type = gdal.GetDataTypeName(gdal_band_list[b].DataType)
-                data_types = {
-                    cfg.float64_dt: np.float64, cfg.float32_dt: np.float32,
-                    cfg.int32_dt: np.int32, cfg.uint32_dt: np.uint32,
-                    cfg.int16_dt: np.int16, cfg.uint16_dt: np.uint16,
-                    cfg.byte_dt: np.byte,
-                }
-                if data_type in data_types:
-                    _a_data_type = data_types[data_type]
-                    cfg.logger.log.debug('_a_data_type: %s' % _a_data_type)
-                else:
-                    _a_data_type = calculation_datatype
-                if (_a is None
-                        or _a.shape != (sec.y_size, sec.x_size,
-                                        len(gdal_band_list))
-                        or _a.dtype != _a_data_type):
-                    _a = np.zeros(
-                        (sec.y_size, sec.x_size),
-                        dtype=_a_data_type
-                    )
-                # band array
-                raster_vector.band_read_array_block(
-                    gdal_band_list[b], sec.x_min, sec.y_min, sec.x_size,
-                    sec.y_size, calculation_datatype, numpy_array=_a
-                )
-                # get band nodata, scale and offset
-                try:
-                    # if single band
-                    band_b = gdal_band_list[b].GetRasterBand(1)
-                    offs_b = band_b.GetOffset()
-                    scl_b = band_b.GetScale()
-                    if scl_b is not None:
-                        scl_b = scl_b
-                    if offs_b is not None:
-                        offs_b = offs_b
-                    offs_b = np.asarray(offs_b).astype(_a.dtype)
-                    scl_b = np.asarray(scl_b).astype(_a.dtype)
-                    nd_val = band_b.GetNoDataValue()
-                    ndv_band = np.asarray(
-                        nd_val * scl_b + offs_b
-                    ).astype(_a.dtype)
-                except Exception as err:
-                    str(err)
-                    try:
-                        offs_b = gdal_band_list[b].GetOffset()
-                        scl_b = gdal_band_list[b].GetScale()
-                        if scl_b is not None:
-                            scl_b = scl_b
-                        else:
-                            scl_b = 1
-                        if offs_b is not None:
-                            offs_b = offs_b
-                        else:
-                            offs_b = 0
-                        offs_b = np.asarray(offs_b).astype(_a.dtype)
-                        scl_b = np.asarray(scl_b).astype(_a.dtype)
-                        nd_val = gdal_band_list[b].GetNoDataValue()
-                        ndv_band = np.asarray(
-                            nd_val * scl_b + offs_b
-                        ).astype(_a.dtype)
-                    except Exception as err:
-                        str(err)
-                        ndv_band = None
-                if ndv_band is not None:
-                    # adapt NoData to dtype
-                    ndv_band = np.asarray(ndv_band).astype(
-                        calculation_datatype
-                    )
-                if _a is None:
-                    proc_error = 'input raster'
-                else:
-                    # apply multiplicative and additive factors to array
-                    if multi_add_factors is not None:
-                        _a = array_multiplicative_additive_factors(
-                            _a, multi_add_factors[0][b],
-                            multi_add_factors[1][b]
-                        )
-                    _input_array[::, ::, b] = _a.astype(calculation_datatype)
+                ndv_band = ndv_band_list[b]
                 # set nodata value
                 if (calculation_datatype == np.float32
                         or calculation_datatype == np.float64):
@@ -448,10 +469,6 @@ def function_initiator(
                                 np.isnan(_input_array[::, ::, b])] = ndv_band
                         except Exception as err:
                             str(err)
-                cfg.logger.log.debug(
-                    'gdal_band_list[%s].DataType: %s; nd_val: %s; ndv_band: %s'
-                    % (b, data_type, nd_val, ndv_band)
-                )
                 # apply NoData mask
                 if any_nodata_mask:
                     try:
@@ -488,7 +505,7 @@ def function_initiator(
                         pass
                     elif value_as_nodata is not None:
                         value_as_nodata = np.asarray(value_as_nodata).astype(
-                            _a.dtype
+                            _a_data_type_list[b]
                         ).astype(calculation_datatype)
                         try:
                             np.copyto(
@@ -535,7 +552,7 @@ def function_initiator(
                         pass
                     elif value_as_nodata is not None:
                         value_as_nodata = np.asarray(value_as_nodata).astype(
-                            _a.dtype
+                            _a_data_type_list[b]
                         ).astype(calculation_datatype)
                         try:
                             np.copyto(
@@ -552,6 +569,9 @@ def function_initiator(
                     )
                     # release memory
                     _all_nodata_mask = None
+            cfg.logger.log.debug(
+                '_input_array.shape: %s' % str(_input_array.shape)
+            )
             # get function variable
             if function_variable:
                 f_variable = function_variable[raster_count]
@@ -706,11 +726,7 @@ def function_initiator(
                      + len(sections) * raster_count,
                      len(sections) * len(raster_list)], False
                 )
-            # close GDAL rasters
-            for b in range(len(gdal_band_list)):
-                gdal_band_list[b].FlushCache()
-                gdal_band_list[b] = None
-            _r_d = None
+
             gc.collect()
             count_section_progress += 1
         if classification is not True and output_raster_list[0] is not None:
@@ -734,6 +750,66 @@ def function_initiator(
     cfg.logger.log.debug('end')
     logger = cfg.logger.stream.getvalue()
     return output_array_list, out_files, proc_error, logger
+
+
+def get_raster_band_array(gdal, band, calculation_datatype, _a, sec):
+    _a_data_type_list = []
+    ndv_band_list = []
+    data_types = {
+        cfg.float64_dt: np.float64, cfg.float32_dt: np.float32,
+        cfg.int32_dt: np.int32, cfg.uint32_dt: np.uint32,
+        cfg.int16_dt: np.int16, cfg.uint16_dt: np.uint16,
+        cfg.byte_dt: np.byte,
+    }
+    # get raster data type
+    data_type = gdal.GetDataTypeName(band.DataType)
+    if data_type in data_types:
+        _a_data_type = data_types[data_type]
+    else:
+        _a_data_type = calculation_datatype
+    _a_data_type_list.append(_a_data_type)
+    # get band nodata, scale and offset
+    try:
+        offs_b = band.GetOffset()
+        scl_b = band.GetScale()
+        if scl_b is None:
+            scl_b = 1
+        else:
+            scl_b = np.asarray(scl_b).astype(_a_data_type)
+        if offs_b is None:
+            offs_b = 0
+        else:
+            offs_b = np.asarray(offs_b).astype(_a_data_type)
+        nd_val = band.GetNoDataValue()
+        ndv_band = np.asarray(
+            nd_val * scl_b + offs_b
+        ).astype(_a_data_type)
+    except Exception as err:
+        str(err)
+        ndv_band = None
+        offs_b = 0
+        scl_b = 1
+    if ndv_band is not None:
+        # adapt NoData to dtype
+        ndv_band = np.asarray(ndv_band).astype(
+            calculation_datatype
+        )
+    # nodata value for bands
+    ndv_band_list.append(ndv_band)
+    # empty band array
+    if (_a is None
+            or _a.shape != (sec.y_size, sec.x_size)
+            or _a.dtype != _a_data_type):
+        _a = np.zeros(
+            (sec.y_size, sec.x_size),
+            dtype=_a_data_type
+        )
+    # band array
+    raster_vector.band_read_array_block(
+        band, sec.x_min, sec.y_min, sec.x_size, sec.y_size,
+        calculation_datatype, numpy_array=_a, scale=scl_b, offset=offs_b
+    )
+    return _a, _a_data_type_list, ndv_band_list
 
 
 # calculate block size and pixel ranges

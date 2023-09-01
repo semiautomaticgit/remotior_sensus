@@ -316,8 +316,7 @@ def band_combination(
         )
         return OutputManager(
             paths=[out_path, tbl_out], extra={
-                'combinations': rec_combinations_array,
-                'sums': sum_val
+                'combinations': rec_combinations_array, 'sums': sum_val
             }
         )
 

@@ -105,7 +105,7 @@ def vector_to_raster(
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog
     )
-    reference_path = prepared['temporary_virtual_raster']
+    reference_path = prepared['temporary_virtual_raster'][0]
     # prepare output
     temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
     if n_processes is None:

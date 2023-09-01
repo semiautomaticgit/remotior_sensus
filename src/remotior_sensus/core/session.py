@@ -39,9 +39,9 @@ from typing import Optional
 
 from remotior_sensus.core import configurations, messages, table_manager
 from remotior_sensus.core.bandset_catalog import BandSet, BandSetCatalog
-from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.log import Log
 from remotior_sensus.core.multiprocess_manager import Multiprocess
+from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.progress import Progress
 from remotior_sensus.core.spectral_signatures import (
     SpectralSignaturesCatalog, SpectralSignaturePlotCatalog,
@@ -127,7 +127,7 @@ class Session(object):
             directory_prefix: str = None, log_level: int = 20,
             log_time: bool = True, progress_callback=None,
             multiprocess_module=None, messages_callback=None,
-            smtp_server=None, smtp_user=None,  smtp_password=None,
+            smtp_server=None, smtp_user=None, smtp_password=None,
             smtp_recipients=None, smtp_notification=None,
             sound_notification=None
     ):
@@ -213,7 +213,7 @@ class Session(object):
             # create multiprocess instance
             self.configurations.multiprocess = Multiprocess(
                 n_processes, multiprocess_module
-                )
+            )
             # available core tools
             self.bandset = BandSet
             self.bandset_catalog = BandSetCatalog
@@ -228,12 +228,14 @@ class Session(object):
             self.band_calc = band_calc.band_calc
             self.configurations.band_calc = band_calc.band_calc
             self.band_classification = band_classification.band_classification
-            self.configurations.band_classification = \
+            self.configurations.band_classification = (
                 band_classification.band_classification
+            )
             self.classifier = band_classification.Classifier
             self.band_combination = band_combination.band_combination
-            self.configurations.band_combination = \
+            self.configurations.band_combination = (
                 band_combination.band_combination
+            )
             self.band_dilation = band_dilation.band_dilation
             self.configurations.band_dilation = band_dilation.band_dilation
             self.band_erosion = band_erosion.band_erosion
@@ -241,10 +243,12 @@ class Session(object):
             self.band_mask = band_mask.band_mask
             self.configurations.band_mask = band_mask.band_mask
             self.mosaic = mosaic.mosaic
-            self.band_neighbor_pixels = \
+            self.band_neighbor_pixels = (
                 band_neighbor_pixels.band_neighbor_pixels
-            self.configurations.band_neighbor_pixels = \
+            )
+            self.configurations.band_neighbor_pixels = (
                 band_neighbor_pixels.band_neighbor_pixels
+            )
             self.band_pca = band_pca.band_pca
             self.band_clip = band_clip.band_clip
             self.configurations.band_pca = band_pca.band_pca
@@ -254,12 +258,14 @@ class Session(object):
             self.configurations.band_resample = band_resample.band_resample
             self.band_stack = band_stack.band_stack
             self.configurations.band_stack = band_stack.band_stack
-            self.cross_classification = \
+            self.cross_classification = (
                 cross_classification.cross_classification
+            )
             self.download_products = download_products
             self.preprocess_products = preprocess_products
-            self.raster_reclassification = \
+            self.raster_reclassification = (
                 raster_reclassification.raster_reclassification
+            )
             self.raster_report = raster_report.raster_report
             self.raster_split = raster_split.raster_split
             self.raster_to_vector = raster_to_vector.raster_to_vector
@@ -430,7 +436,7 @@ def _check_dependencies(configuration_module: configurations) -> bool:
             configuration_module.messages.warning(
                 'dependency error: matplotlib; spectral signature plots '
                 'are not available'
-                )
+            )
         try:
             import torch
         except Exception as err:

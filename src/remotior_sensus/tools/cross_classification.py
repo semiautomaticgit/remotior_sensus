@@ -175,7 +175,6 @@ def cross_classification(
             background_value=0, available_ram=available_ram,
             minimum_extent=False
         )
-
     combination = band_combination(
         input_bands=[reference_raster, classification_path],
         output_path=out_path, nodata_value=nodata_value,
@@ -260,9 +259,12 @@ def cross_classification(
 # noinspection PyTypeChecker
 def _cross_table(
         table, crs_unit, pixel_size_x, pixel_size_y, regression_raster=False,
-        cross_matrix=False,
-        error_matrix=False
+        cross_matrix=False, error_matrix=False
 ):
+    cfg.logger.log.debug(
+        '_cross_table regression_raster=%s, cross_matrix=%s, error_matrix:%s'
+        % (regression_raster, cross_matrix, error_matrix)
+    )
     slope = ''
     intercept = ''
     text = []

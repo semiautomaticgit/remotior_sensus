@@ -988,8 +988,8 @@ class Classifier(object):
             virtual_raster: if True, create virtual raster output.
             min_progress: minimum progress value for :func:`~remotior_sensus.core.progress.Progress`.
             max_progress: maximum progress value for :func:`~remotior_sensus.core.progress.Progress`.
-                
-                
+
+
         Returns:
             OutputManager object with
                 - path = [output path]
@@ -1002,10 +1002,15 @@ class Classifier(object):
                 ... input_raster_list=['file1.tif', 'file2.tif', 'file3.tif'], 
                 ... output_raster_path='file_path')
         """  # noqa: E501
-        # create virtual raster of input
-        vrt_check = raster_vector.create_temporary_virtual_raster(
-            input_raster_list
-        )
+        prepared = shared_tools.prepare_input_list(input_raster_list)
+        same_geotransformation = prepared['same_geotransformation']
+        if same_geotransformation is True:
+            vrt_check = input_raster_list
+        else:
+            # create virtual raster of input
+            vrt_check = raster_vector.create_temporary_virtual_raster(
+                input_raster_list
+            )
         if n_processes is None:
             n_processes = cfg.n_processes
         # dummy bands for memory calculation

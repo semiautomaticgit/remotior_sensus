@@ -19,8 +19,8 @@
 Shared tools
 """
 
-from os import path
 import re
+from os import path
 from random import randint
 from typing import Union, Optional
 
@@ -56,6 +56,8 @@ def prepare_input_list(
         reference_raster_crs = raster_vector.get_crs(reference_raster_crs)
     input_list = []
     name_list = []
+    gt_list = []
+    xy_count_list = []
     warped = False
     for i in range(len(band_list)):
         name_list.append(files_directories.file_name(band_list[i]))
@@ -71,7 +73,7 @@ def prepare_input_list(
                 raster_path=band_list[i], output_path=t_pmd,
                 output_wkt=str(reference_raster_crs), n_processes=n_processes,
                 src_nodata=src_nodata, dst_nodata=dst_nodata
-                )
+            )
             warped = True
         else:
             reference_raster = band_list[i]
@@ -89,11 +91,25 @@ def prepare_input_list(
             [gt, crs, un, xy_count, nd, number_of_bands, block_size,
              scale_offset, data_type]
         )
+        gt_list.append(gt)
+        xy_count_list.append(xy_count)
         nodata_list.append(nd)
+    check_gt_list = all(g_item == gt_list[0] for g_item in gt_list)
+    check_xy_count_list = all(
+        xy_item == xy_count_list[0] for xy_item in xy_count_list
+    )
+    if (check_gt_list is True and check_xy_count_list is True
+            and warped is False):
+        same_geotransformation = True
+    else:
+        same_geotransformation = False
     cfg.logger.log.debug('end; input_list: %s' % str(input_list))
-    prepared = {'input_list': input_list, 'information_list': information_list,
-                'nodata_list': nodata_list, 'name_list': name_list,
-                'warped': warped}
+    prepared = {
+        'input_list': input_list, 'information_list': information_list,
+        'nodata_list': nodata_list, 'name_list': name_list,
+        'warped': warped,
+        'same_geotransformation': same_geotransformation
+    }
     return prepared
 
 
@@ -120,7 +136,8 @@ def prepare_process_files(
             box_coordinate_list = coord_list
     elif type(input_bands) is int:
         coord_list = bandset_catalog.get_bandset(
-            bandset_number=input_bands).box_coordinate_list
+            bandset_number=input_bands
+        ).box_coordinate_list
         if coord_list is not None:
             box_coordinate_list = coord_list
     # list of inputs
@@ -130,6 +147,7 @@ def prepare_process_files(
     nodata_list = prepared_input['nodata_list']
     name_list = prepared_input['name_list']
     warped = prepared_input['warped']
+    same_geotransformation = prepared_input['same_geotransformation']
     # single output path
     out_path = None
     # multiple output path list
@@ -140,10 +158,12 @@ def prepare_process_files(
         if output_path is None:
             output_path = []
             for _r in input_raster_list:
-                output_path.append(cfg.temp.temporary_raster_path(
-                    name=files_directories.file_name(_r),
-                    extension=cfg.vrt_suffix
-                ))
+                output_path.append(
+                    cfg.temp.temporary_raster_path(
+                        name=files_directories.file_name(_r),
+                        extension=cfg.vrt_suffix
+                    )
+                )
         if type(output_path) is not list and files_directories.is_directory(
                 output_path
         ):
@@ -178,32 +198,36 @@ def prepare_process_files(
         )
     # create virtual raster of input
     if temporary_virtual_raster or box_coordinate_list is not None:
-        if multiple_input:
-            temp_list = []
-            for r in input_raster_list:
+        # if rasters with same dimension don't create virtual raster but list
+        if same_geotransformation is True and box_coordinate_list is None:
+            temporary_virtual_raster = input_raster_list
+        else:
+            if multiple_input:
+                temp_list = []
+                for r in input_raster_list:
+                    temporary_virtual_raster = (
+                        raster_vector.create_temporary_virtual_raster(
+                            input_raster_list=[r],
+                            box_coordinate_list=box_coordinate_list
+                        )
+                    )
+                    temp_list.append(temporary_virtual_raster)
+                input_raster_list = temp_list
+                temporary_virtual_raster = True
+            else:
                 temporary_virtual_raster = (
                     raster_vector.create_temporary_virtual_raster(
-                        input_raster_list=[r],
+                        input_raster_list=input_raster_list,
                         box_coordinate_list=box_coordinate_list
                     )
                 )
-                temp_list.append(temporary_virtual_raster)
-            input_raster_list = temp_list
-            temporary_virtual_raster = True
-        else:
-            temporary_virtual_raster = (
-                raster_vector.create_temporary_virtual_raster(
-                    input_raster_list=input_raster_list,
-                    box_coordinate_list=box_coordinate_list
-                )
-            )
     prepared = {
         'input_raster_list': input_raster_list, 'raster_info': raster_info,
         'nodata_list': nodata_list, 'name_list': name_list, 'warped': warped,
         'output_path': out_path, 'virtual_output': virtual_output,
         'temporary_virtual_raster': temporary_virtual_raster,
         'n_processes': n_processes, 'output_list': output_list,
-        'vrt_list': vrt_list
+        'vrt_list': vrt_list, 'same_geotransformation': same_geotransformation
     }
     return prepared
 
@@ -297,7 +321,8 @@ def region_growing_polygon(
             box_coordinate_list = coord_list
     elif type(input_bands) is int:
         coord_list = bandset_catalog.get_bandset(
-            bandset_number=input_bands).box_coordinate_list
+            bandset_number=input_bands
+        ).box_coordinate_list
         if coord_list is not None:
             box_coordinate_list = coord_list
     # get input list
@@ -333,16 +358,16 @@ def region_growing_polygon(
     abs_seed_y = abs(int((top - abs(coordinate_y)) / p_y))
     seed_y_max = top - abs_seed_y * p_y
     seed_y_min = top - (abs_seed_y + 1) * p_y
-    region_min_x = seed_x_min - int(max_width/2) * p_x
+    region_min_x = seed_x_min - int(max_width / 2) * p_x
     if region_min_x < left:
         region_min_x = left
-    region_max_x = seed_x_max + int(max_width/2) * p_x
+    region_max_x = seed_x_max + int(max_width / 2) * p_x
     if region_max_x > right:
         region_max_x = right
-    region_min_y = seed_y_min - int(max_width/2) * p_y
+    region_min_y = seed_y_min - int(max_width / 2) * p_y
     if region_min_y < bottom:
         region_min_y = bottom
-    region_max_y = seed_y_max + int(max_width/2) * p_y
+    region_max_y = seed_y_max + int(max_width / 2) * p_y
     if region_max_y > top:
         region_max_y = top
     seed_x = abs(int((abs(coordinate_x) - region_min_x) / p_x))

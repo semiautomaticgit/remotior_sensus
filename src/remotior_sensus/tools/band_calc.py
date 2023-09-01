@@ -317,6 +317,7 @@ def _run_expression(
         n_processes=n_processes
     )
     input_raster_list = prepared['input_list']
+    same_geotransformation = prepared['same_geotransformation']
     # get extent and resolution
     xy_resolution = xy_resolution_list
     p_x, p_y = None, None
@@ -328,12 +329,16 @@ def _run_expression(
                        info['bottom']]
     if align_raster is not None:
         xy_resolution = [p_x, p_y]
-    # create virtual raster of input
-    vrt_check = raster_vector.create_temporary_virtual_raster(
-        input_raster_list, intersection=extent_intersection,
-        box_coordinate_list=extent_list, pixel_size=xy_resolution,
-        grid_reference=align_raster
-    )
+    if (same_geotransformation is True
+            and extent_list is None and align_raster is None):
+        vrt_check = input_raster_list
+    else:
+        # create virtual raster of input
+        vrt_check = raster_vector.create_temporary_virtual_raster(
+            input_raster_list, intersection=extent_intersection,
+            box_coordinate_list=extent_list, pixel_size=xy_resolution,
+            grid_reference=align_raster
+        )
     cfg.logger.log.debug('vrt_check: %s' % vrt_check)
     # dummy bands for memory calculation as twice the number of input raster
     dummy_bands = len(input_raster_list) + 1
