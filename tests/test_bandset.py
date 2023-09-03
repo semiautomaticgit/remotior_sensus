@@ -73,8 +73,6 @@ class TestBandSet(TestCase):
             [data_directory, 'tif'], wavelengths=['Sentinel-2'],
             dates=cfg.date_auto, catalog=catalog
         )
-
-        """
         # BandSet date
         self.assertEqual(str(bandset.date), date)
         # unit
@@ -175,7 +173,6 @@ class TestBandSet(TestCase):
         for i in range(len(bandset.bands[0])):
             if str(bandset.bands[0][i]) != 'NaT':
                 self.assertEqual(bandset.bands[0][i], bandset2.bands[0][i])
-        """
 
         """ commented because time consuming
         cfg.logger.log.debug('>>> test tools')

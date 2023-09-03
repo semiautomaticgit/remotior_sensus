@@ -182,12 +182,11 @@ def query_sentinel_2_database(
             )
         # download json
         json_file = cfg.temp.temporary_file_path(name_suffix='.json')
-        check, output_download = download_tools.download_file(
-            url=url, output_path=json_file, message='submitting request',
-            progress=False, timeout=10
+        check = cfg.multiprocess.multi_download_file(
+            url_list=[url], output_path_list=[json_file],
+            message='submitting request', progress=False, timeout=10
         )
-        # cfg.progress.update(start=True)
-        if check:
+        if check is not False:
             try:
                 with open(json_file) as json_search:
                     doc = json.load(json_search)
@@ -248,8 +247,9 @@ def query_sentinel_2_database(
                     )
                 # download metadata xml
                 xml_file = cfg.temp.temporary_file_path(name_suffix='.xml')
-                check_2, output_download = download_tools.download_file(
-                    url=url_2, output_path=xml_file, progress=False, timeout=1
+                check_2 = cfg.multiprocess.multi_download_file(
+                    url_list=[url_2], output_path_list=[xml_file],
+                    progress=False, timeout=1
                 )
                 if check_2:
                     try:
@@ -491,8 +491,8 @@ def download(
             output_directory_list.append(base_output_dir)
             # check connection downloading metadata xml
             temp_file = cfg.temp.temporary_file_path(name_suffix='.xml')
-            check, output_download = download_tools.download_file(
-                url=metadata_msi_url, output_path=temp_file,
+            check = cfg.multiprocess.multi_download_file(
+                url_list=[metadata_msi_url], output_path_list=[temp_file],
                 proxy_host=proxy_host,
                 proxy_port=proxy_port, proxy_user=proxy_user,
                 proxy_password=proxy_password, progress=False, timeout=1
@@ -506,16 +506,18 @@ def download(
                     files_directories.move_file(
                         in_path=temp_file, out_path=metadata_msi
                     )
-                    download_tools.download_file(
-                        url=metadata_tl_url, output_path=metadata_tl,
+                    cfg.multiprocess.multi_download_file(
+                        url_list=[metadata_tl_url],
+                        output_path_list=[metadata_tl],
                         proxy_host=proxy_host,
                         proxy_port=proxy_port, proxy_user=proxy_user,
                         proxy_password=proxy_password, progress=False,
                         timeout=2
                     )
                     if cloud_mask_gml:
-                        download_tools.download_file(
-                            url=cloud_mask_gml_url, output_path=cloud_mask_gml,
+                        cfg.multiprocess.multi_download_file(
+                            url_list=[cloud_mask_gml_url],
+                            output_path_list=[cloud_mask_gml],
                             proxy_host=proxy_host, proxy_port=proxy_port,
                             proxy_user=proxy_user,
                             proxy_password=proxy_password, progress=False,
@@ -547,6 +549,7 @@ def download(
             if product_table['product'][i] == cfg.sentinel2_hls:
                 top_url = 'https://data.lpdaac.earthdatacloud.nasa.gov/' \
                           'lp-prod-protected'
+                # noinspection SpellCheckingInspection
                 product_url = '%s/HLSS30.020/%s/%s' % (
                     top_url, image_name, image_name)
             elif product_table['product'][i] == cfg.landsat_hls:
@@ -574,8 +577,9 @@ def download(
                         output_file = '%s/%s_B%s%s' % (
                             base_output_dir, product_name.replace('.', '_'),
                             str(band).zfill(2), cfg.tif_suffix)
-                        download_tools.download_file(
-                            url=url, output_path=output_file,
+                        cfg.multiprocess.multi_download_file(
+                            url_list=[url],
+                            output_path_list=[output_file],
                             authentication_uri=authentication_uri,
                             user=nasa_user, password=nasa_password,
                             proxy_host=proxy_host, proxy_port=proxy_port,
@@ -708,8 +712,9 @@ def _check_sentinel_2_bands(
             )
         else:
             output_file += '.jp2'
-            download_tools.download_file(
-                url=band_url, output_path=output_file, proxy_host=proxy_host,
+            cfg.multiprocess.multi_download_file(
+                url_list=[band_url], output_path_list=[output_file],
+                proxy_host=proxy_host,
                 proxy_port=proxy_port, proxy_user=proxy_user,
                 proxy_password=proxy_password, timeout=2,
                 progress=progress, message='downloading band %s' % band_number,
@@ -732,6 +737,7 @@ def _download_virtual_image(url, output_path, extent_list=None):
     """Downloads virtual image."""
     cfg.logger.log.debug('url: %s' % str(url))
     try:
+        # noinspection SpellCheckingInspection
         raster_vector.create_virtual_raster(
             input_raster_list=['/vsicurl/%s' % url], output=output_path,
             box_coordinate_list=extent_list

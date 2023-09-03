@@ -2176,6 +2176,75 @@ class Multiprocess(object):
         cfg.logger.log.debug('end; output: %s' % str(output))
         return output
 
+    # download file
+    def multi_download_file(
+            self, url_list, output_path_list, authentication_uri=None,
+            user=None, password=None, proxy_host=None, proxy_port=None,
+            proxy_user=None, proxy_password=None, progress=None, message=None,
+            min_progress=0, max_progress=100, retried=False, timeout=20
+    ):
+        cfg.logger.log.debug('start')
+        if progress is None:
+            progress = False
+        if message is None:
+            message = 'downloading'
+        input_parameters = [
+            url_list, output_path_list, authentication_uri, user, password,
+            proxy_host, proxy_port, proxy_user, proxy_password, retried,
+            timeout
+        ]
+        # progress queue
+        p_mq = self.manager.Queue()
+        p = 0
+        process_parameters = [p, cfg.temp, p_mq, cfg.refresh_time]
+        cfg.logger.log.debug(str(process_parameters))
+        results = []
+        c = self.pool.apply_async(
+            processor.download_file_processor, args=(
+                input_parameters, process_parameters)
+        )
+        results.append([c, p])
+        while True:
+            if cfg.action is True:
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                if progress is not False:
+                    # progress message
+                    try:
+                        p_m_qp = p_mq.get(False)
+                        progress = round(p_m_qp)
+                        cfg.progress.update(
+                            message=message, step=progress, steps=100,
+                            minimum=min_progress, maximum=max_progress,
+                            percentage=progress
+                        )
+                    except Exception as err:
+                        str(err)
+                        cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.error('cancel multiprocess')
+                cfg.messages.error('cancel multiprocess')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return False
+        for r in results:
+            res = r[0].get()
+            # log
+            cfg.logger.log.debug(res[3])
+            # error
+            if res[2] is not False:
+                cfg.logger.log.error(
+                    'Error proc %s-%s' % (str(p), str(res[1]))
+                )
+                return False
+        cfg.logger.log.debug('end; output: %s' % str(output_path_list))
+        return output_path_list
+
 
 # calculate block size and pixel ranges
 def _calculate_block_size(

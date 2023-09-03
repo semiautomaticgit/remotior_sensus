@@ -25,7 +25,9 @@ from numpy.lib import recfunctions as rfn
 
 from remotior_sensus.core import configurations as cfg, table_manager as tm
 from remotior_sensus.core.log import Log
-from remotior_sensus.util import files_directories, raster_vector
+from remotior_sensus.util import (
+    files_directories, raster_vector, download_tools
+)
 
 
 def function_initiator(
@@ -1519,6 +1521,52 @@ def vector_to_raster(
     progress_queue.put(100, False)
     logger = cfg.logger.stream.getvalue()
     return [[output_path]], False, logger
+
+
+# download file processor
+def download_file_processor(input_parameters, process_parameters=None):
+    process_id = process_parameters[0]
+    cfg.temp = process_parameters[1]
+    progress_queue = process_parameters[2]
+    refresh_time = process_parameters[3]
+    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0')
+    cfg.logger.log.debug('start')
+    url_list = input_parameters[0]
+    output_path_list = input_parameters[1]
+    authentication_uri = input_parameters[2]
+    user = input_parameters[3]
+    password = input_parameters[4]
+    proxy_host = input_parameters[5]
+    proxy_port = input_parameters[6]
+    proxy_user = input_parameters[7]
+    proxy_password = input_parameters[8]
+    retried = input_parameters[9]
+    timeout = input_parameters[10]
+    start_time = datetime.datetime.now()
+    cfg.logger.log.debug('url_list: %s' % str(url_list))
+    for url in range(len(url_list)):
+        now_time = datetime.datetime.now()
+        elapsed_time = (now_time - start_time).total_seconds()
+        if process_id == 0 and elapsed_time > refresh_time:
+            start_time = now_time
+            progress_queue.put([url, len(url_list)], False)
+        check, output_path = download_tools.download_file(
+            url=url_list[url], output_path=output_path_list[url],
+            authentication_uri=authentication_uri, user=user,
+            password=password, proxy_host=proxy_host, proxy_port=proxy_port,
+            proxy_user=proxy_user, proxy_password=proxy_password,
+            progress=False, retried=retried, timeout=timeout
+        )
+        if check is False:
+            cfg.logger.log.debug('error downloading: %s' % output_path)
+            logger = cfg.logger.stream.getvalue()
+            return (
+                False, output_path_list,
+                'error downloading: %s' % output_path, logger
+            )
+    cfg.logger.log.debug('end; output_path_list: %s' % output_path_list)
+    logger = cfg.logger.stream.getvalue()
+    return False, output_path_list, False, logger
 
 
 # class to create a raster piece from raster sections

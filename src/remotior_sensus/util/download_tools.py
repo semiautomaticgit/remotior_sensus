@@ -200,5 +200,5 @@ def download_file(
             )
         else:
             cfg.logger.log.error('%s; url: %s' % (err, url))
-            cfg.messages.error('%s; url: %s' % (err, url))
+            # cfg.messages.error('%s; url: %s' % (err, url))
             return False, str(err)
