@@ -226,8 +226,12 @@ def query_sentinel_2_database(
                 y_list = []
                 for pair in footprint_coord.split(','):
                     c = pair.lstrip().split(' ')
-                    x_list.append(float(c[0]))
-                    y_list.append(float(c[1]))
+                    x_list.append(
+                        float(c[0].replace('(', '').replace(')', ''))
+                    )
+                    y_list.append(
+                        float(c[1].replace('(', '').replace(')', ''))
+                    )
                 min_lon = min(x_list)
                 max_lon = max(x_list)
                 min_lat = min(y_list)

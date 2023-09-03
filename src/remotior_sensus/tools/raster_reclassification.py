@@ -202,6 +202,10 @@ def unique_values_table(
     )
     # calculate sum of values
     cfg.multiprocess.multiprocess_sum_array()
+    if cfg.multiprocess.output is False:
+        cfg.logger.log.error('unable to calculate')
+        cfg.messages.error('unable to calculate')
+        return False
     values = cfg.multiprocess.output
     # add old value field
     if not incremental:

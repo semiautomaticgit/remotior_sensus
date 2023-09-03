@@ -496,6 +496,17 @@ class Classifier(object):
                     function_list=function_list, argument_list=argument_list,
                     min_progress=min_progress, max_progress=max_progress
                 )
+                if cfg.multiprocess.output is False:
+                    cfg.logger.log.error('unable to calculate')
+                    cfg.messages.error('unable to calculate')
+                    return cls(
+                        algorithm_name=None,
+                        spectral_signatures=None,
+                        covariance_matrices=None,
+                        model_classifier=None,
+                        input_normalization=None,
+                        normalization_values=None
+                    )
                 results = cfg.multiprocess.output
                 # fit classifiers
                 score_list = []
@@ -624,6 +635,17 @@ class Classifier(object):
                     function_list=function_list, argument_list=argument_list,
                     min_progress=min_progress, max_progress=max_progress
                 )
+                if cfg.multiprocess.output is False:
+                    cfg.logger.log.error('unable to calculate')
+                    cfg.messages.error('unable to calculate')
+                    return cls(
+                        algorithm_name=None,
+                        spectral_signatures=None,
+                        covariance_matrices=None,
+                        model_classifier=None,
+                        input_normalization=None,
+                        normalization_values=None
+                    )
                 results = cfg.multiprocess.output
                 # fit classifiers
                 score_list = []
@@ -719,6 +741,17 @@ class Classifier(object):
                     function_list=function_list, argument_list=argument_list,
                     min_progress=min_progress, max_progress=max_progress
                 )
+                if cfg.multiprocess.output is False:
+                    cfg.logger.log.error('unable to calculate')
+                    cfg.messages.error('unable to calculate')
+                    return cls(
+                        algorithm_name=None,
+                        spectral_signatures=None,
+                        covariance_matrices=None,
+                        model_classifier=None,
+                        input_normalization=None,
+                        normalization_values=None
+                    )
                 results = cfg.multiprocess.output
                 # fit classifier
                 score_list = []
@@ -847,6 +880,17 @@ class Classifier(object):
                     function_list=function_list, argument_list=argument_list,
                     min_progress=min_progress, max_progress=max_progress
                 )
+                if cfg.multiprocess.output is False:
+                    cfg.logger.log.error('unable to calculate')
+                    cfg.messages.error('unable to calculate')
+                    return cls(
+                        algorithm_name=None,
+                        spectral_signatures=None,
+                        covariance_matrices=None,
+                        model_classifier=None,
+                        input_normalization=None,
+                        normalization_values=None
+                    )
                 results = cfg.multiprocess.output
                 # fit classifier
                 score_list = []
@@ -1214,6 +1258,8 @@ def band_classification(
             n_processes=n_processes, available_ram=available_ram,
             min_progress=1, max_progress=5, algorithm_name=algorithm_name
         )
+        if x_y_matrices.check is False:
+            return OutputManager(check=False)
         x_matrix = x_y_matrices.extra['x']
         y = x_y_matrices.extra['y']
         covariance_matrices_dict = x_y_matrices.extra['covariance_matrices']
@@ -1293,6 +1339,10 @@ def _perform_cross_validation_scikit(
             min_progress=5, max_progress=40, n_processes=n_processes,
             available_ram=available_ram
         )
+        if cfg.multiprocess.output is False:
+            cfg.logger.log.error('unable to calculate')
+            cfg.messages.error('unable to calculate')
+            return False
         classifiers_fitted = cfg.multiprocess.output
         fitted_classifier_list = shared_tools.expand_list(classifiers_fitted)
         # score test
@@ -1301,6 +1351,10 @@ def _perform_cross_validation_scikit(
             list_train_argument_dictionaries=test_arg_dict_list,
             n_processes=n_processes, available_ram=available_ram
         )
+        if cfg.multiprocess.output is False:
+            cfg.logger.log.error('unable to calculate')
+            cfg.messages.error('unable to calculate')
+            return False
         test_scores = cfg.multiprocess.output
         score_list = shared_tools.expand_list(test_scores)
         scores = np.array(score_list)
@@ -1342,6 +1396,8 @@ def _get_x_y_arrays_from_rois(
     )
     # array for each roi
     cfg.multiprocess.multiprocess_roi_arrays()
+    if cfg.multiprocess.output is False:
+        return OutputManager(check=False)
     array_dictionary = cfg.multiprocess.output
     x_matrix = y = normalization = means = stds = max_s = min_s = None
     covariance_matrices_dict = {}
@@ -1447,6 +1503,8 @@ def _collect_x_y_matrices(
             input_normalization=input_normalization, min_progress=min_progress,
             max_progress=max_progress
         )
+        if x_y_arrays.check is False:
+            return OutputManager(check=False)
         x_matrix = x_y_arrays.extra['x']
         y = x_y_arrays.extra['y']
         covariance_matrices = x_y_arrays.extra['covariance_matrices']

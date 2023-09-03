@@ -109,6 +109,10 @@ def raster_report(
     cfg.progress.update(message='output table', step=99)
     # calculate sum of values
     cfg.multiprocess.multiprocess_sum_array(nodata_value)
+    if cfg.multiprocess.output is False:
+        cfg.logger.log.error('unable to calculate')
+        cfg.messages.error('unable to calculate')
+        return OutputManager(check=False)
     unique_val = cfg.multiprocess.output
     # create table
     table = _report_table(

@@ -261,8 +261,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -493,8 +492,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -1028,8 +1026,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -1331,8 +1328,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -1437,8 +1433,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -1545,8 +1540,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -1621,8 +1615,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -1979,8 +1972,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -2079,8 +2071,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -2157,8 +2148,7 @@ class Multiprocess(object):
                     str(err)
                     cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
@@ -2226,20 +2216,25 @@ class Multiprocess(object):
                         str(err)
                         cfg.progress.update(ping=True)
             else:
-                cfg.logger.log.error('cancel multiprocess')
-                cfg.messages.error('cancel multiprocess')
+                cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
                 return False
         for r in results:
-            res = r[0].get()
-            # log
-            cfg.logger.log.debug(res[3])
-            # error
-            if res[2] is not False:
+            try:
+                res = r[0].get()
+                # log
+                cfg.logger.log.debug(res[3])
+                # error
+                if res[2] is not False:
+                    cfg.logger.log.error(
+                        'Error proc %s-%s' % (str(p), str(res[1]))
+                    )
+                    return False
+            except Exception as err:
                 cfg.logger.log.error(
-                    'Error proc %s-%s' % (str(p), str(res[1]))
+                    'Error proc %s-%s' % (str(p), str(err))
                 )
                 return False
         cfg.logger.log.debug('end; output: %s' % str(output_path_list))

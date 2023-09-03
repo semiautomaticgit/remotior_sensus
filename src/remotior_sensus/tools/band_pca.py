@@ -125,6 +125,11 @@ def band_pca(
         progress_message='pixel count', min_progress=1, max_progress=20
     )
     cfg.multiprocess.get_dictionary_sum()
+
+    if cfg.multiprocess.output is False:
+        cfg.logger.log.error('unable to calculate')
+        cfg.messages.error('unable to calculate')
+        return OutputManager(check=False)
     band_dict = cfg.multiprocess.output
     # calculate mean
     max_pixel_count = 0
@@ -154,6 +159,10 @@ def band_pca(
         min_progress=21, max_progress=40
     )
     cfg.multiprocess.get_dictionary_sum()
+    if cfg.multiprocess.output is False:
+        cfg.logger.log.error('unable to calculate')
+        cfg.messages.error('unable to calculate')
+        return OutputManager(check=False)
     cov_dict = cfg.multiprocess.output
     # calculate covariance matrix
     cov_matrix = np.zeros((len(input_raster_list), len(input_raster_list)))
@@ -249,7 +258,10 @@ def band_pca(
                 return OutputManager(check=False)
     cfg.progress.update(end=True)
     cfg.logger.log.info('end; pca: %s' % str(output_raster_path_list))
-    return OutputManager(paths=output_raster_path_list, extra={'table': tbl_out})
+    return OutputManager(
+        paths=output_raster_path_list,
+        extra={'table': tbl_out}
+        )
 
 
 def _pca_table(

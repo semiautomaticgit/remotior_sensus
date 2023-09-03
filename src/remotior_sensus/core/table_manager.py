@@ -125,6 +125,8 @@ def _open_dbf(file_path, field_name_list=None, progress_message=True):
     # fields
     dtype_list = []
     for c in range(field_count):
+        if cfg.action is False:
+            break
         tp = i_layer_def.GetFieldDefn(c).GetTypeName()
         width = i_layer_def.GetFieldDefn(c).GetWidth()
         if tp == 'Integer':
@@ -161,6 +163,8 @@ def _open_dbf(file_path, field_name_list=None, progress_message=True):
                 row.append(f)
             mat_list.append(row)
             i_feature = i_layer.GetNextFeature()
+        else:
+            i_feature = False
     array_ml = np.array(mat_list)
     rec_array = np.rec.fromarrays(array_ml.T, dtype=dtype_list)
     cfg.logger.log.info('end')
@@ -191,6 +195,8 @@ def _open_csv(
         max_progress = 80
         i = 0
         for line in split_new_line:
+            if cfg.action is False:
+                break
             i += 1
             if progress_message:
                 cfg.progress.update(
@@ -216,6 +222,8 @@ def _open_csv(
                     else:
                         data_list.append(feature_list)
                         for f in range(1, len(feature_list) + 1):
+                            if cfg.action is False:
+                                break
                             field_list.append('field%s' % f)
                 else:
                     data_list.append(feature_list)
@@ -226,6 +234,8 @@ def _open_csv(
     max_progress = 99
     field_count = len(field_list)
     for t in range(len(field_list)):
+        if cfg.action is False:
+            break
         if progress_message:
             cfg.progress.update(
                 message='processing data', step=t + 1, steps=field_count,
@@ -393,6 +403,8 @@ def pivot_matrix(
     # primary rows
     if secondary_row_field_list is None:
         for column_function in column_function_list:
+            if cfg.action is False:
+                break
             out_column_name = '%s_%s' % (
                 column_function[0], column_function[1])
             # output columns
@@ -402,11 +414,17 @@ def pivot_matrix(
     # secondary rows
     else:
         for column_function in column_function_list:
+            if cfg.action is False:
+                break
             for combination in secondary_row_list:
+                if cfg.action is False:
+                    break
                 out_column_name = '%s_%s' % (
                     column_function[0], column_function[1].replace('.', ''))
                 function_string = ['[ ']
                 for n in range(len(secondary_row_field_list)):
+                    if cfg.action is False:
+                        break
                     try:
                         try:
                             float(combination[n])
@@ -469,6 +487,8 @@ def pivot_matrix(
     # populate table
     row_value_count = len(row_value_list)
     for v in range(row_value_count):
+        if cfg.action is False:
+            break
         if progress_message:
             cfg.progress.update(
                 message='processing data',
@@ -484,6 +504,8 @@ def pivot_matrix(
         assert r.shape
         d = 0
         for column in range(len(column_function_list)):
+            if cfg.action is False:
+                break
             operator = replace_numpy_operators(column_function_list[column][1])
             try:
                 datatype = column_function_list[column][2]
@@ -503,6 +525,8 @@ def pivot_matrix(
                 pivot[output_column_list[column + 1][0]][v] = s
             else:
                 for _ in secondary_row_list:
+                    if cfg.action is False:
+                        break
                     try:
                         s = eval(
                             '%s((r["%s"]%s).astype("%s"))'
@@ -558,6 +582,8 @@ def get_values(
 # replace variables in expression for calculation
 def replace_variables(matrix, expression_string):
     for field in columns(matrix):
+        if cfg.action is False:
+            break
         expression_string = expression_string.replace(
             '%s%s%s' % (
                 cfg.variable_band_quotes, field, cfg.variable_band_quotes),
@@ -711,6 +737,8 @@ def calculate_multi(
     _nan = nan
     expression_count = len(expression_string_list)
     for e in range(expression_count):
+        if cfg.action is False:
+            break
         if progress_message:
             cfg.progress.update(
                 message='processing data',
@@ -764,6 +792,8 @@ def redefine_matrix_columns(
     field_list = []
     c = 0
     for field in input_field_names:
+        if cfg.action is False:
+            break
         if field in matrix.dtype.names:
             data_type = matrix[field].dtype
             field_list.append((field, data_type))
@@ -773,6 +803,8 @@ def redefine_matrix_columns(
     matrix_f = define_fields(matrix, field_list)
     if output_field_names is not None:
         for f in range(len(output_field_names)):
+            if cfg.action is False:
+                break
             try:
                 matrix_f = rename_field(
                     matrix_f, input_field_names[f], output_field_names[f]
@@ -818,6 +850,8 @@ def matrix_to_csv(
         separator = cfg.tab_delimiter
     dtypes = []
     for name in matrix.dtype.names:
+        if cfg.action is False:
+            break
         data_type = matrix[name].dtype
         if 'int' in str(data_type).lower() or '<i' in str(data_type).lower():
             data_type = np.dtype('int64')
@@ -834,6 +868,8 @@ def matrix_to_csv(
     header = []
     # iterate fields
     for field in fields:
+        if cfg.action is False:
+            break
         cfg.logger.log.debug('field: %s' % str(field))
         # header
         header.append(field)
@@ -888,6 +924,8 @@ def matrix_to_csv(
             s = decimal_separator
         if type(field_decimals) is list:
             for fd in field_decimals[c]:
+                if cfg.action is False:
+                    break
                 csv = csv.replace(
                     '%s%s%s' % (cfg.nodata_val_Int64, s, '0' * fd),
                     str(nodata_value_output)

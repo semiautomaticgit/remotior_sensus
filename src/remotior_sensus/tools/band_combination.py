@@ -146,6 +146,10 @@ def band_combination(
         progress_message='unique values', min_progress=2, max_progress=50
     )
     cfg.multiprocess.multiprocess_unique_values()
+    if cfg.multiprocess.output is False:
+        cfg.logger.log.error('unable to calculate')
+        cfg.messages.error('unable to calculate')
+        return OutputManager(check=False)
     cmb = cfg.multiprocess.output
     cfg.logger.log.debug('len(cmb): %s; cmb[0]: %s' % (len(cmb), str(cmb[0])))
     # random variable list
@@ -182,37 +186,38 @@ def band_combination(
             rnd_var_list = []
             expression_comb = []
             for y in range(len(input_raster_list)):
-                if method == 1:
-                    exp_r = int(np.random.random() * 10) + 1
-                    if exp_r > max_dig:
-                        exp_r = max_dig
-                    const_v = int(10 ** exp_r)
-                    method += 1
-                elif method == 2:
-                    const_v = int(10 ** max_dig)
-                    method += 1
-                else:
-                    exp_r = int(np.random.random() * 10) + 1
-                    if exp_r > 8:
-                        exp_r = 8
-                    const_v = int(10 ** exp_r)
-                    method = 1
-                if const_v < 1:
-                    const_v = 3
-                rnd_var = int(const_v * np.random.random())
-                if rnd_var == 0:
-                    rnd_var = 1
-                # avoid too large numbers
-                while np.sum(
-                        rnd_var * (np.array(max_v, dtype=np.float32) + add_c)
-                ) > calc_nodata:
-                    rnd_var = int(rnd_var / 2)
-                rnd_var_list.append(rnd_var)
-                # expression combination
-                expression_comb.append(
-                    '("f%s" + %s) * %s' % (str(y), str(add_c), str(rnd_var))
-                )
-                expression_comb.append(' + ')
+                if cfg.action is True:
+                    if method == 1:
+                        exp_r = int(np.random.random() * 10) + 1
+                        if exp_r > max_dig:
+                            exp_r = max_dig
+                        const_v = int(10 ** exp_r)
+                        method += 1
+                    elif method == 2:
+                        const_v = int(10 ** max_dig)
+                        method += 1
+                    else:
+                        exp_r = int(np.random.random() * 10) + 1
+                        if exp_r > 8:
+                            exp_r = 8
+                        const_v = int(10 ** exp_r)
+                        method = 1
+                    if const_v < 1:
+                        const_v = 3
+                    rnd_var = int(const_v * np.random.random())
+                    if rnd_var == 0:
+                        rnd_var = 1
+                    # avoid too large numbers
+                    while np.sum(
+                            rnd_var * (np.array(max_v, dtype=np.float32) + add_c)
+                    ) > calc_nodata:
+                        rnd_var = int(rnd_var / 2)
+                    rnd_var_list.append(rnd_var)
+                    # expression combination
+                    expression_comb.append(
+                        '("f%s" + %s) * %s' % (str(y), str(add_c), str(rnd_var))
+                    )
+                    expression_comb.append(' + ')
             expression_comb.pop(-1)
             joined_expression_comb = ''.join(expression_comb)
             rec_combinations_array = tm.calculate(
@@ -236,12 +241,13 @@ def band_combination(
             return OutputManager(check=False)
     expression = []
     for r in range(len(rnd_var_list)):
-        expression.append(
-            '(%s[::, ::, %s] + %s) * %s' % (
-                cfg.array_function_placeholder, str(r), str(add_c),
-                str(rnd_var_list[r]))
-        )
-        expression.append(' + ')
+        if cfg.action is True:
+            expression.append(
+                '(%s[::, ::, %s] + %s) * %s' % (
+                    cfg.array_function_placeholder, str(r), str(add_c),
+                    str(rnd_var_list[r]))
+            )
+            expression.append(' + ')
     expression.pop(-1)
     joined_expression = ''.join(expression)
     cfg.logger.log.debug('joined_expression: %s' % joined_expression)
@@ -263,6 +269,10 @@ def band_combination(
     cfg.progress.update(message='output table', step=90)
     # calculate sum of values
     cfg.multiprocess.multiprocess_sum_array(nodata_value)
+    if cfg.multiprocess.output is False:
+        cfg.logger.log.error('unable to calculate')
+        cfg.messages.error('unable to calculate')
+        return OutputManager(check=False)
     sum_val = cfg.multiprocess.output
     if not output_table:
         return OutputManager(

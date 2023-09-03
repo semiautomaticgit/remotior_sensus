@@ -410,6 +410,9 @@ def region_growing_polygon(
         progress_message='region growing'
     )
     cfg.multiprocess.multiprocess_region_growing()
+    if cfg.multiprocess.output is False:
+        cfg.logger.log.error('unable to calculate')
+        return False
     regions = cfg.multiprocess.output
     if len(regions) > 0:
         region = None

@@ -428,6 +428,10 @@ def perform_preprocess(
             progress_message='unique values', min_progress=1, max_progress=30
         )
         cfg.multiprocess.find_minimum_dn()
+        if cfg.multiprocess.output is False:
+            cfg.logger.log.error('unable to calculate')
+            cfg.messages.error('unable to calculate')
+            return OutputManager(check=False)
         min_dn = cfg.multiprocess.output
         for i in range(len(dos1_expressions)):
             expressions.append(
@@ -458,7 +462,6 @@ def perform_preprocess(
                 cfg.logger.log.error('unable to process file: %s' % str(i))
                 cfg.messages.error('unable to process file: %s' % str(i))
                 return OutputManager(check=False)
-
     # add output to BandSet
     if add_bandset is not None and bandset_catalog is not None:
         product = product_table.product[0]
