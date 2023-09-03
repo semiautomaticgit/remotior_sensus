@@ -304,6 +304,15 @@ spectral_dtype_list = [('signature_id', 'U64'), ('macroclass_id', 'int16'),
 # spectral signature dtype
 signature_dtype_list = [('value', 'float64'), ('wavelength', 'float64'),
                         ('standard_deviation', 'float64')]
+# product table dtype
+product_dtype_list = [
+    ('product', 'U512'), ('image', 'U1024'), ('product_id', 'U512'),
+    ('acquisition_date', 'datetime64[D]'), ('cloud_cover', 'int8'),
+    ('zone_path', 'U8'), ('row', 'U8'), ('min_lat', 'float64'),
+    ('min_lon', 'float64'), ('max_lat', 'float64'), ('max_lon', 'float64'),
+    ('collection', 'U1024'), ('size', 'U512'), ('preview', 'U1024'),
+    ('uid', 'U1024')
+]
 # variables used in spectral signatures
 uid_field_name = 'roi_id'
 macroclass_field_name = 'macroclass_id'

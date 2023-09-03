@@ -23,6 +23,7 @@ and Sentinel-2 datasets.
 import datetime
 import json
 from xml.dom import minidom
+from xml.etree import cElementTree
 
 from remotior_sensus.core import configurations as cfg, table_manager as tm
 from remotior_sensus.core.output_manager import OutputManager
@@ -428,8 +429,9 @@ def download(
     for i in range(total_products):
         cloud_mask_gml = None
         if product_table['product'][i] == cfg.sentinel2:
-            top_url = \
+            top_url = (
                 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
+            )
             product_name = product_table['product_id'][i]
             acquisition_date = product_table['acquisition_date'][i]
             image_name = product_table['image'][i]
@@ -600,10 +602,14 @@ def download(
                                 'downloaded file %s' % output_file
                             )
                         else:
-                            cfg.messages.error('failed download %s_B%s'
-                                               % (image_name[0:-7], band))
-                            cfg.logger.log.error('failed download %s_B%s'
-                                                 % (image_name[0:-7], band))
+                            cfg.messages.error(
+                                'failed download %s_B%s'
+                                % (image_name[0:-7], band)
+                            )
+                            cfg.logger.log.error(
+                                'failed download %s_B%s'
+                                % (image_name[0:-7], band)
+                            )
                 min_progress += progress_step
                 max_progress += progress_step
     if exporter:
@@ -870,21 +876,26 @@ def query_nasa_cmr(
                     for add_attr_name in add_attr_names:
                         add_attr_name_c = add_attr_name.firstChild.data
                         if add_attr_name_c == 'CLOUD_COVERAGE':
-                            add_attr_values = \
+                            add_attr_values = (
                                 add_attr.getElementsByTagName('Values')[0]
-                            add_attr_val = \
+                            )
+                            add_attr_val = (
                                 add_attr_values.getElementsByTagName('Value')[
                                     0]
-                            cloud_cover_percentage = \
+                            )
+                            cloud_cover_percentage = (
                                 add_attr_val.firstChild.data
+                            )
                             if path:
                                 break
                         elif add_attr_name_c == 'MGRS_TILE_ID':
-                            add_attr_values = \
+                            add_attr_values = (
                                 add_attr.getElementsByTagName('Values')[0]
-                            add_attr_val = \
+                            )
+                            add_attr_val = (
                                 add_attr_values.getElementsByTagName('Value')[
                                     0]
+                            )
                             path = add_attr_val.firstChild.data
                             if cloud_cover_percentage:
                                 break
@@ -934,3 +945,88 @@ def query_nasa_cmr(
             cfg.logger.log.error('error: search failed')
             cfg.messages.error('error: search failed')
             return OutputManager(check=False)
+
+
+def export_product_table_as_xml(product_table, output_path=None):
+    """Exports product table as xml.
+
+    Exports a product table and attributes.
+    """  # noqa: E501
+    cfg.logger.log.debug('export product table: %s' % str(output_path))
+    root = cElementTree.Element('product_table')
+    root.set('version', str(cfg.version))
+    total_products = product_table.shape[0]
+    for i in range(total_products):
+        if cfg.action is False:
+            break
+        product_element = cElementTree.SubElement(root, 'product')
+        product_element.set('uid', str(product_table['uid'][i]))
+        for attribute in product_table.dtype.names:
+            if attribute != 'uid':
+                element = cElementTree.SubElement(
+                    product_element,
+                    attribute
+                )
+                element.text = str(product_table[attribute][i])
+    if output_path is None:
+        return cElementTree.tostring(root)
+    else:
+        # save to file
+        pretty_xml = minidom.parseString(
+            cElementTree.tostring(root)
+        ).toprettyxml()
+        read_write_files.write_file(pretty_xml, output_path)
+        return output_path
+
+
+def import_as_xml(xml_path):
+    """Imports a product table as xml.
+
+    Imports a product table and attributes.
+    """  # noqa: E501
+    cfg.logger.log.debug('import product table: %s' % xml_path)
+    tree = cElementTree.parse(xml_path)
+    root = tree.getroot()
+    version = root.get('version')
+    if version is None:
+        cfg.logger.log.error('failed importing product table: %s' % xml_path)
+        cfg.messages.error('failed importing product table: %s' % xml_path)
+        return OutputManager(check=False)
+    else:
+        product_table_list = []
+        for child in root:
+            if cfg.action is False:
+                break
+            uid = child.get('uid')
+            attributes = {}
+            for attribute in cfg.product_dtype_list:
+                if attribute[0] != 'uid':
+                    element = child.find(attribute[0]).text
+                    if element == 'None':
+                        element = None
+                    attributes[attribute[0]] = element
+            product_table_list.append(
+                tm.create_product_table(
+                    product=attributes['product'],
+                    product_id=attributes['product_id'],
+                    acquisition_date=attributes['acquisition_date'],
+                    cloud_cover=float(attributes['cloud_cover']),
+                    zone_path=attributes['zone_path'],
+                    row=attributes['row'],
+                    min_lat=float(attributes['min_lat']),
+                    min_lon=float(attributes['min_lon']),
+                    max_lat=float(attributes['max_lat']),
+                    max_lon=float(attributes['max_lon']),
+                    collection=attributes['collection'],
+                    size=attributes['size'],
+                    preview=attributes['preview'], uid=uid,
+                    image=attributes['image']
+                )
+            )
+        return OutputManager(
+            extra={
+                'product_table': tm.stack_product_table(
+                    product_list=product_table_list
+                )
+            }
+        )

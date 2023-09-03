@@ -1075,24 +1075,15 @@ def add_product_to_preprocess(
 # create product table
 def create_product_table(
         product=None, product_id=None, acquisition_date=None, cloud_cover=None,
-        zone_path=None,
-        row=None, min_lat=None, min_lon=None, max_lat=None, max_lon=None,
-        collection=None, size=None,
-        preview=None, uid=None, image=None
+        zone_path=None, row=None, min_lat=None, min_lon=None, max_lat=None,
+        max_lon=None, collection=None, size=None, preview=None, uid=None,
+        image=None
 ):
-    dtype_list = [
-        ('product', 'U512'), ('image', 'U1024'), ('product_id', 'U512'),
-        ('acquisition_date', 'datetime64[D]'), ('cloud_cover', 'int8'),
-        ('zone_path', 'U8'), ('row', 'U8'), ('min_lat', 'float64'),
-        ('min_lon', 'float64'), ('max_lat', 'float64'), ('max_lon', 'float64'),
-        ('collection', 'U1024'), ('size', 'U512'), ('preview', 'U1024'),
-        ('uid', 'U1024')
-    ]
     rec_array = np.rec.fromrecords(
         [(
             product, image, product_id, acquisition_date, cloud_cover,
             zone_path, row, min_lat, min_lon, max_lat, max_lon,
-            collection, size, preview, uid)], dtype=dtype_list
+            collection, size, preview, uid)], dtype=cfg.product_dtype_list
     )
     cfg.logger.log.debug('rec_array.shape: %s' % rec_array.shape)
     return rec_array

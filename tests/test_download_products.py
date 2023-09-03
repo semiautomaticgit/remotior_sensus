@@ -9,7 +9,7 @@ class TestDownloadProducts(TestCase):
     def test_download_products(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         cfg.logger.log.debug('test')
         cfg.logger.log.debug('>>> test query database Sentinel-2')
@@ -20,6 +20,14 @@ class TestDownloadProducts(TestCase):
             name_filter='L2A'
         )
         product_table = output_manager.extra['product_table']
+        temp = cfg.temp.temporary_file_path(name_suffix='.xml')
+        rs.download_products.export_product_table_as_xml(
+            product_table=product_table, output_path=temp
+        )
+        self.assertTrue(rs.files_directories.is_file(temp))
+        imported_table = rs.download_products.import_as_xml(xml_path=temp)
+        product_table_i = imported_table.extra['product_table']
+        self.assertTrue(product_table_i[0] == product_table[0])
         self.assertEqual(product_table['product'][0], cfg.sentinel2)
         cfg.logger.log.debug('>>> test search')
         output_manager = rs.download_products.search(
@@ -41,7 +49,7 @@ class TestDownloadProducts(TestCase):
         output_manager = rs.download_products.download(
             product_table=product_table, output_path=cfg.temp.dir,
             exporter=True
-            )
+        )
         self.assertTrue(rs.files_directories.is_file(output_manager.path))
         time.sleep(1)
         # download Sentinel-2 bands
@@ -49,7 +57,7 @@ class TestDownloadProducts(TestCase):
         output_manager = rs.download_products.download(
             product_table=product_table[product_table['cloud_cover'] < 10],
             output_path=cfg.temp.dir + '/test_1', band_list=['01']
-            )
+        )
         self.assertTrue(rs.files_directories.is_file(output_manager.paths[0]))
         time.sleep(1)
         # download Sentinel-2 virtual bands
@@ -58,19 +66,19 @@ class TestDownloadProducts(TestCase):
             product_table=product_table[product_table['cloud_cover'] < 10],
             output_path=cfg.temp.dir + '/test_2', band_list=['01'],
             virtual_download=True
-            )
+        )
         self.assertTrue(rs.files_directories.is_file(output_manager.paths[0]))
         time.sleep(1)
         # download Sentinel-2 virtual bands with subset
         cfg.logger.log.debug(
             '>>> test download sentinel-2 virtual bands with subset'
-            )
+        )
         output_manager = rs.download_products.download(
             product_table=product_table[product_table['cloud_cover'] < 10],
             output_path=cfg.temp.dir + '/test_3', band_list=['01'],
             virtual_download=True,
             extent_coordinate_list=[494000, 4175000, 501000, 4169000]
-            )
+        )
         self.assertTrue(rs.files_directories.is_file(output_manager.paths[0]))
 
         cfg.logger.log.debug('>>> test query Sentinel HLS')
@@ -86,7 +94,7 @@ class TestDownloadProducts(TestCase):
         output_manager = rs.download_products.download(
             product_table=product_table_2, output_path=cfg.temp.dir,
             exporter=True
-            )
+        )
         self.assertTrue(rs.files_directories.is_file(output_manager.path))
 
         """# user and password required
