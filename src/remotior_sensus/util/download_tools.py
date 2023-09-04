@@ -93,7 +93,7 @@ def download_file(
         url, output_path, authentication_uri=None, user=None, password=None,
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
         progress=True, message=None, min_progress=0, max_progress=100,
-        retried=False, timeout=20
+        retried=False, timeout=20, callback=None
 ):
     cfg.logger.log.debug('url: %s' % url)
     if authentication_uri is None:
@@ -157,36 +157,39 @@ def download_file(
                                 block_size = block_size + 1024 * 1024
                                 start_time = end_time
                                 speed = new_speed
-                        if progress:
-                            if message is None:
-                                message = '({}/{} MB) {}'.format(
-                                    downloaded_part_size, total_size, url
+                        if progress is True:
+                            try:
+                                downloaded_part_size = round(
+                                    int(stat(output_path).st_size) / 1048576, 2
                                 )
-                            downloaded_part_size = round(
-                                int(stat(output_path).st_size) / 1048576, 2
-                            )
-                            step = int(
-                                (max_progress - min_progress)
-                                * downloaded_part_size / total_size
-                                + min_progress
-                            )
-                            percentage = int(
-                                100 * downloaded_part_size / total_size
-                            )
-                            cfg.progress.update(
-                                message=message, step=step,
-                                percentage=percentage, ping=True
-                            )
+                                if message is None:
+                                    message = '({}/{} MB) {}'.format(
+                                        downloaded_part_size, total_size, url
+                                    )
+                                step = int(
+                                    (max_progress - min_progress)
+                                    * downloaded_part_size / total_size
+                                    + min_progress
+                                )
+                                percentage = int(
+                                    100 * downloaded_part_size / total_size
+                                )
+                                if callback is None:
+                                    cfg.progress.update(
+                                        message=message, step=step,
+                                        percentage=percentage, ping=True
+                                    )
+                                else:
+                                    callback(percentage, False)
+                            except Exception as err:
+                                str(err)
                         # write file
                         file.write(block_read)
                     else:
-                        cfg.logger.log.error('cancel url: %s' % url)
-                        cfg.messages.error('cancel url: %s' % url)
                         return False, 'cancel'
         return True, output_path
     except Exception as err:
         if retried is False and '403' not in str(err):
-            cfg.logger.log.debug('retry url: %s' % url)
             sleep(2)
             download_file(
                 url=url, output_path=output_path,
@@ -199,6 +202,4 @@ def download_file(
                 max_progress=max_progress, retried=True, timeout=timeout*2
             )
         else:
-            cfg.logger.log.error('%s; url: %s' % (err, url))
-            # cfg.messages.error('%s; url: %s' % (err, url))
             return False, str(err)

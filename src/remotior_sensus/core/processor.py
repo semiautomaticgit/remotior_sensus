@@ -143,8 +143,10 @@ def function_initiator(
             value_as_nodata = None
         if same_geotransformation is True:
             info_raster = raster[0]
+            z_size = len(raster)
         else:
             info_raster = raster
+            z_size = len(raster_list)
         (r_gt, r_crs, r_un, r_xy_count, r_nd, band_number, r_block_size,
          r_scale_offset, r_data_type) = raster_vector.raster_info(info_raster)
         cfg.logger.log.debug('r_gt: {}'.format(str(r_gt)))
@@ -334,12 +336,11 @@ def function_initiator(
             _a_data_type_list = []
             if (
                     _input_array is None
-                    or _input_array.shape != (sec.y_size, sec.x_size,
-                                              len(raster))
+                    or _input_array.shape != (sec.y_size, sec.x_size, z_size)
                     or _input_array.dtype != calculation_datatype
             ):
                 _input_array = np.zeros(
-                    (sec.y_size, sec.x_size, len(raster)),
+                    (sec.y_size, sec.x_size, z_size),
                     dtype=calculation_datatype
                 )
             else:
@@ -1555,7 +1556,8 @@ def download_file_processor(input_parameters, process_parameters=None):
             authentication_uri=authentication_uri, user=user,
             password=password, proxy_host=proxy_host, proxy_port=proxy_port,
             proxy_user=proxy_user, proxy_password=proxy_password,
-            progress=False, retried=retried, timeout=timeout
+            progress=True, retried=retried, timeout=timeout,
+            callback=progress_queue.put
         )
         if check is False:
             cfg.logger.log.debug('error downloading: %s' % output_path)
