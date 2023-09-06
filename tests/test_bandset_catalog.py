@@ -66,6 +66,34 @@ class TestBandSetCatalog(TestCase):
             date=cfg.date_auto, bandset_number=1, bandset_name='bandset_1'
         )
         self.assertEqual(catalog.get_bandset_count(), 2)
+
+        catalog.set_satellite_wavelength(
+            satellite_name=cfg.no_satellite, bandset_number=1
+        )
+        self.assertEqual(catalog.get(1).bands[0].wavelength, 1)
+        wavelength_list = [
+            0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2
+        ]
+        catalog.set_wavelength(
+            wavelength_list=wavelength_list, unit=cfg.wl_micro,
+            bandset_number=1
+        )
+        self.assertEqual(catalog.get(1).bands[0].wavelength, 0.1)
+        catalog.set_satellite_wavelength(
+            satellite_name=cfg.satSentinel2, bandset_number=1
+        )
+        self.assertEqual(
+            catalog.get(1).bands[0].wavelength,
+            cfg.satellites[cfg.satSentinel2][0][0]
+        )
+        file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
+                     'S2_2020-01-01/S2_B04.tif', 'files/file1.csv']
+        date = '2021-01-01'
+        root_directory = './data'
+        catalog.create_bandset(
+            file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=2,
+            root_directory=root_directory
+        )
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
         date = '2021-01-01'

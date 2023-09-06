@@ -1104,9 +1104,14 @@ def create_bandset_table(band_list):
     if band_list is None:
         return None
     table = rfn.stack_arrays(band_list, asrecarray=True, usemask=False)
-    table.sort(order='band_number')
-    cfg.logger.log.debug('table.shape: %s' % table.shape)
-    return table
+    try:
+        table.sort(order='band_number')
+        cfg.logger.log.debug('table.shape: %s' % table.shape)
+        return table
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        return None
+
 
 
 # add spectral signature to catalog table

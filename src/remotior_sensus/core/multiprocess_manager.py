@@ -2174,6 +2174,7 @@ class Multiprocess(object):
             min_progress=0, max_progress=100, retried=False, timeout=20
     ):
         cfg.logger.log.debug('start')
+        cfg.logger.log.debug('url_list: %s' % str(url_list))
         if progress is None:
             progress = False
         if message is None:

@@ -367,6 +367,11 @@ class Session(object):
             self.configurations.temp = temp.create_root_temporary_directory(
                 prefix=directory_prefix, directory=temporary_directory
             )
+            if log_level is None:
+                self.configurations.logger = Log(
+                    directory=self.configurations.temp.dir,
+                    level=self.log_level, time=log_time
+                )
         if log_level:
             self.log_level = log_level
             if log_time is None:

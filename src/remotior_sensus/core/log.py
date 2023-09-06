@@ -73,6 +73,8 @@ class Log(object):
                 '|%(lineno)s|%(message)s', '%Y-%m-%dT%H:%M:%S'
             )
             fh.setFormatter(fhf)
+            if logger.hasHandlers():
+                logger.handlers.clear()
             logger.addHandler(fh)
             # create console handler
             ch = logging.StreamHandler()
@@ -114,6 +116,8 @@ class Log(object):
                     '|%(message)s'.format(multiprocess)
                 )
             ch.setFormatter(chf)
+            if logger.hasHandlers():
+                logger.handlers.clear()
             logger.addHandler(ch)
             logger.propagate = False
             self.log = logger

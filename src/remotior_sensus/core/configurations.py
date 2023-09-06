@@ -120,8 +120,10 @@ satLandsat13 = 'Landsat 1-3 MSS [bands 4, 5, 6, 7]'
 satRapidEye = 'RapidEye [bands 1, 2, 3, 4, 5]'
 satSentinel1 = 'Sentinel-1 [bands VV, VH]'
 satSentinel2 = 'Sentinel-2 [bands 1, 2, 3, 4, 5, 6, 7, 8, 8A, 9, 10, 11, 12]'
-satSentinel3 = 'Sentinel-3 [bands 1, 2, 3, 4, 5, 6, 7, 8, 9, ' \
-               '10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]'
+satSentinel3 = (
+    'Sentinel-3 [bands 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, '
+    '16, 17, 18, 19, 20, 21]'
+)
 satASTER = 'ASTER [bands 1, 2, 3N, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]'
 satMODIS = 'MODIS [bands 3, 4, 1, 2, 5, 6, 7]'
 satMODIS2 = 'MODIS [bands 1, 2]'

@@ -820,7 +820,6 @@ class BandSet(object):
                 if satellite is not None and satellite != cfg.no_satellite:
                     # get band number from names
                     try:
-                        wl = sat_wl[f]
                         unit = sat_unit
                         # numbers in format 01, 02, ...
                         b = band_name.lower()[-2:]
@@ -854,14 +853,16 @@ class BandSet(object):
                     if additive_factors is None:
                         additive_factors = [0] * len(file_list)
                     new_band = _create_table_of_bands(
-                        path, band_number=counter, raster_band=1, name=band_name,
+                        path, band_number=counter, raster_band=1,
+                        name=band_name,
                         multiplicative_factor=multiplicative_factors[f],
                         additive_factor=additive_factors[f], date=date,
                         root_directory=root_directory, wavelength=wl,
                         wavelength_unit=unit
                     )
-                    bands_list.append(new_band)
-                    counter += 1
+                    if new_band is not None:
+                        bands_list.append(new_band)
+                        counter += 1
                 # multi band raster
                 else:
                     # multiplicative factors
@@ -883,13 +884,16 @@ class BandSet(object):
                             root_directory=root_directory, wavelength=wl,
                             wavelength_unit=unit
                         )
-                        bands_list.append(new_band)
-                        counter += 1
+                        if new_band is not None:
+                            bands_list.append(new_band)
+                            counter += 1
         if len(bands_list) > 0:
-            crs = bands_list[0]['crs'][0]
+            if bands_list[0] is None:
+                crs = bands_list = None
+            else:
+                crs = bands_list[0]['crs'][0]
         else:
-            crs = None
-            bands_list = None
+            crs = bands_list = None
         cfg.logger.log.info('end; file list: %s' % file_list)
         return cls(
             bands_list=bands_list, name=name, date=date,
@@ -2850,33 +2854,27 @@ class BandSetCatalog(object):
             if sat_wl is not None:
                 if sat_wl == cfg.no_satellite:
                     unit = cfg.no_unit
+                    counter = 1
                     for band in bands:
                         if cfg.action is False:
                             break
-                        band_name = band['name']
-                        wl = band['band_number']
-                        # get band number from names
-                        try:
-                            # numbers in format 01, 02, ...
-                            b = band_name.lower()[-2:]
-                            wl = float(b)
-                        except Exception as err:
-                            str(err)
-                            try:
-                                # numbers in format 1, 2, ...
-                                b = band_name.lower()[-2:].lstrip('0')
-                                wl = float(b)
-                            except Exception as err:
-                                str(err)
+                        wl = counter
+                        counter += 1
                         band['wavelength'] = wl
                         band['wavelength_unit'] = unit
                 else:
                     unit = sat_unit
+                    counter = 1
                     for band in bands:
                         if cfg.action is False:
                             break
+                        wl = counter
+                        counter += 1
                         band_name = band['name']
-                        wl = sat_wl[band['band_number'] - 1]
+                        try:
+                            wl = sat_wl[band['band_number'] - 1]
+                        except Exception as err:
+                            str(err)
                         # get band number from names
                         try:
                             # numbers in format 01, 02, ...
@@ -2893,6 +2891,42 @@ class BandSetCatalog(object):
                         band['wavelength'] = wl
                         band['wavelength_unit'] = unit
                 bandset_x.sort_bands_by_wavelength()
+
+    # set band wavelengths
+    def set_wavelength(
+            self, wavelength_list, unit, bandset_number=None
+    ):
+        """Sets BandSet center wavelength based on satellite.
+
+        Sets BandSet center wavelength based on satellite name.
+
+        Args:
+            wavelength_list: list of wavelength values.
+            bandset_number: number of BandSet; if None, current BandSet is used.
+            unit: wavelength unit.
+
+        Examples:
+            Set BandSet 1 satellite wavelengths.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.set_satellite_wavelength(
+                ... bandset_number=1, satellite_name='Sentinel-2'
+                ... )
+        """  # noqa: E501
+        if bandset_number is None:
+            bandset_number = self.current_bandset
+        bandset_x = self.get_bandset_by_number(bandset_number)
+        bands = bandset_x.bands
+        if bands is not None:
+            for band in bands:
+                if cfg.action is False:
+                    break
+                try:
+                    wl = wavelength_list[band['band_number'] - 1]
+                    band['wavelength'] = wl
+                    band['wavelength_unit'] = unit
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+            bandset_x.sort_bands_by_wavelength()
 
     def get_root_directory(self, bandset_number: Optional[int] = None) -> str:
         """Gets BandSet root directory.

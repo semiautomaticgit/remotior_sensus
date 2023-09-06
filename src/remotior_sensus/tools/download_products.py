@@ -185,7 +185,7 @@ def query_sentinel_2_database(
         json_file = cfg.temp.temporary_file_path(name_suffix='.json')
         check = cfg.multiprocess.multi_download_file(
             url_list=[url], output_path_list=[json_file],
-            message='submitting request', progress=False, timeout=10
+            message='submitting request', progress=False, timeout=30
         )
         if check is not False:
             try:

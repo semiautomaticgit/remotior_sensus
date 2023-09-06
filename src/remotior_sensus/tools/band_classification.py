@@ -65,8 +65,6 @@ try:
 except Exception as error:
     if cfg.logger is not None:
         cfg.logger.log.error(str(error))
-    else:
-        print(str(error))
 
 try:
     from sklearn import svm

@@ -37,8 +37,6 @@ except Exception as error:
     nn_module = Module
     if cfg.logger is not None:
         cfg.logger.log.error(str(error))
-    else:
-        print(str(error))
 
 
 class PyTorchNeuralNetwork(nn_module):

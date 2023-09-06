@@ -19,15 +19,15 @@
 Tools to download files
 """
 
+import urllib.request
 from datetime import datetime
+from http.cookiejar import CookieJar
 from os import stat
 from time import sleep
-import urllib.request
-from http.cookiejar import CookieJar
 
 from remotior_sensus.core import configurations as cfg
-from remotior_sensus.util.read_write_files import write_file
 from remotior_sensus.util.files_directories import create_parent_directory
+from remotior_sensus.util.read_write_files import write_file
 
 
 # get proxy handler
@@ -93,7 +93,7 @@ def download_file(
         url, output_path, authentication_uri=None, user=None, password=None,
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
         progress=True, message=None, min_progress=0, max_progress=100,
-        retried=False, timeout=20, callback=None
+        retried=False, timeout=20, callback=None, log=None
 ):
     cfg.logger.log.debug('url: %s' % url)
     if authentication_uri is None:
@@ -122,6 +122,8 @@ def download_file(
     urllib.request.install_opener(opener)
     try:
         url_request = urllib.request.urlopen(url, timeout=timeout)
+        if log is not None:
+            log.debug('url_request: %s' % str(url_request))
         try:
             file_size = int(url_request.headers['Content-Length'])
             # size megabyte
@@ -134,6 +136,11 @@ def download_file(
         # set initial speed for adaptive block size
         speed = 0
         adaptive_block_size = True
+        if log is not None:
+            log.debug(
+                'block_size: %s; file_size: %s'
+                % (str(block_size), str(file_size))
+                )
         # small files
         if block_size >= file_size:
             response = url_request.read()
@@ -150,13 +157,18 @@ def download_file(
                             break
                         # adapt block size
                         if adaptive_block_size:
-                            end_time = datetime.now()
-                            time_delta = end_time - start_time
-                            new_speed = block_size / time_delta.microseconds
-                            if new_speed >= speed:
-                                block_size = block_size + 1024 * 1024
-                                start_time = end_time
-                                speed = new_speed
+                            try:
+                                end_time = datetime.now()
+                                time_delta = end_time - start_time
+                                new_speed = (
+                                        block_size / time_delta.microseconds
+                                )
+                                if new_speed >= speed:
+                                    block_size = block_size + 1024 * 1024
+                                    start_time = end_time
+                                    speed = new_speed
+                            except Exception as err:
+                                str(err)
                         if progress is True:
                             try:
                                 downloaded_part_size = round(
@@ -199,7 +211,7 @@ def download_file(
                 proxy_user=proxy_user,
                 proxy_password=proxy_password,
                 progress=progress, message=message, min_progress=min_progress,
-                max_progress=max_progress, retried=True, timeout=timeout*2
+                max_progress=max_progress, retried=True, timeout=timeout * 2
             )
         else:
             return False, str(err)

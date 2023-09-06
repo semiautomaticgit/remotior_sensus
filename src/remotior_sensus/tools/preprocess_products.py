@@ -479,12 +479,15 @@ def perform_preprocess(
             elif '9' in spacecraft:
                 product = cfg.satLandsat9
         if add_bandset is True:
+            bandset_number = bandset_catalog.get_bandset_count() + 1
             # create bandset
-            bandset_catalog.create_bandset(
-                paths=output_raster_path_list,
-                wavelengths=[product],
-                date=str(product_table.date[0])
+            bandset_x = bandset_catalog.create_bandset(
+                paths=output_raster_path_list, wavelengths=[product],
+                insert=True, date=str(product_table.date[0]),
+                bandset_number=bandset_number
             )
+            bandset_catalog.get_bandset(
+                bandset_number).sort_bands_by_wavelength()
         else:
             for path in output_raster_path_list:
                 # add to current bandset

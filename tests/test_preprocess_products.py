@@ -58,8 +58,8 @@ class TestPreprocessProducts(TestCase):
             dos1_correction=True, add_bandset=True, bandset_catalog=catalog
             )
         self.assertTrue(out_5.check)
-        self.assertEqual(catalog.get_bandset_count(), 1)
-        self.assertEqual(catalog.get_bandset(1).get_band_count(), 4)
+        self.assertEqual(catalog.get_bandset_count(), 2)
+        self.assertEqual(catalog.get_bandset(2).get_band_count(), 4)
 
         # create BandSet Catalog
         catalog2 = rs.bandset_catalog()
@@ -70,8 +70,8 @@ class TestPreprocessProducts(TestCase):
             dos1_correction=True, add_bandset=False, bandset_catalog=catalog2
             )
         self.assertTrue(out_6.check)
-        self.assertEqual(catalog.get_bandset_count(), 1)
-        self.assertEqual(catalog.get_bandset(1).get_band_count(), 4)
+        self.assertEqual(catalog.get_bandset_count(), 2)
+        self.assertEqual(catalog.get_bandset(2).get_band_count(), 4)
 
         # clear temporary directory
         rs.close()
