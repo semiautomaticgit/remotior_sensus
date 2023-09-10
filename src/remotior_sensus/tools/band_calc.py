@@ -297,7 +297,7 @@ def _run_expression(
     elif calc_datatype == cfg.uint16_dt:
         data_type = np.uint16
     elif calc_datatype == cfg.byte_dt:
-        data_type = np.byte
+        data_type = np.uint8
     else:
         data_type = np.float32
     # get function from expression

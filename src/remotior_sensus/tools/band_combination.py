@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -91,7 +91,7 @@ def band_combination(
     Returns:
         If output_table is True returns the :func:`~remotior_sensus.core.output_manager.OutputManager` object with
             - paths = [output raster path, output table path]
-        
+
         If output_table is False returns the :func:`~remotior_sensus.core.output_manager.OutputManager` object with
             - paths = [virtual raster path]
             - extra = {'combinations': array of combinations, 'sums': array of the sums of values}
@@ -99,7 +99,7 @@ def band_combination(
     Examples:
         Combination using two rasters having paths path_1 and path_2
             >>> combination = band_combination(input_bands=['path_1', 'path_2'],output_path='output_path')
-            
+
         The combination raster and the table are finally created; the paths can be retrieved from the output that is an :func:`~remotior_sensus.core.output_manager.OutputManager` object
             >>> raster_path, table_path = combination.paths
             >>> print(raster_path)
@@ -137,11 +137,56 @@ def band_combination(
     vrt_r = prepared['virtual_output']
     vrt_path = prepared['temporary_virtual_raster']
     n_processes = prepared['n_processes']
+    raster_info = prepared['raster_info']
+    type_list = []
+    for info in raster_info:
+        type_list.append(info[8])
+    if cfg.float64_dt in type_list:
+        calc_data_type = np.float64
+        output_data_type = cfg.float64_dt
+        calc_nodata = cfg.nodata_val_Int64
+    elif cfg.float32_dt in type_list:
+        calc_data_type = np.float32
+        output_data_type = cfg.float32_dt
+        calc_nodata = cfg.nodata_val_Float32
+    elif cfg.int32_dt in type_list and cfg.uint32_dt in type_list:
+        calc_data_type = np.int64
+        output_data_type = cfg.float64_dt
+        calc_nodata = cfg.nodata_val_Int64
+    elif cfg.int32_dt in type_list:
+        calc_data_type = np.int64
+        output_data_type = cfg.int32_dt
+        calc_nodata = cfg.nodata_val_Int32
+    elif cfg.uint32_dt in type_list:
+        calc_data_type = np.int64
+        output_data_type = cfg.uint32_dt
+        calc_nodata = cfg.nodata_val_UInt32
+    elif cfg.int16_dt in type_list and cfg.uint16_dt in type_list:
+        calc_data_type = np.int32
+        output_data_type = cfg.int32_dt
+        calc_nodata = cfg.nodata_val_Int32
+    elif cfg.int16_dt in type_list:
+        calc_data_type = np.int32
+        output_data_type = cfg.int32_dt
+        calc_nodata = cfg.nodata_val_Int32
+    elif cfg.uint16_dt in type_list:
+        calc_data_type = np.uint32
+        output_data_type = cfg.uint32_dt
+        calc_nodata = cfg.nodata_val_UInt32
+    elif cfg.byte_dt in type_list:
+        calc_data_type = np.uint32
+        output_data_type = cfg.uint32_dt
+        calc_nodata = cfg.nodata_val_UInt32
+    else:
+        calc_data_type = np.float32
+        output_data_type = cfg.float32_dt
+        calc_nodata = cfg.nodata_val_Float32
     # dummy bands for memory calculation as the number of input raster
     dummy_bands = len(input_raster_list) + 1
     cfg.multiprocess.run(
         raster_path=vrt_path, function=raster_unique_values,
         keep_output_argument=True, n_processes=n_processes,
+        calculation_datatype=calc_data_type,
         available_ram=available_ram, dummy_bands=dummy_bands,
         progress_message='unique values', min_progress=2, max_progress=50
     )
@@ -157,21 +202,14 @@ def band_combination(
     # array of combinations
     dtype_list = []
     for c in range(len(input_raster_list)):
-        dtype_list.append(('f%s' % str(c), 'int64'))
+        dtype_list.append(('f%s' % str(c), calc_data_type))
     cmb_arr = np.rec.fromarrays(np.asarray(cmb).T, dtype=dtype_list)
     cmb_arr_ravel = np.asarray(cmb).ravel()
     max_v = np.nanmax(cmb_arr_ravel)
     if np.sum(cmb_arr_ravel <= 0) < 1:
-        # calculation data type
-        calc_data_type = np.uint32
-        output_data_type = cfg.uint32_dt
-        calc_nodata = cfg.nodata_val_UInt32
         add_c = 1
     else:
         add_c = 1 - np.nanmin(cmb_arr_ravel)
-        calc_data_type = np.int32
-        output_data_type = cfg.int32_dt
-        calc_nodata = cfg.nodata_val_Int32
     # expression builder
     max_dig = 10 - len(str(np.sum(max_v)))
     if max_dig < 0:
@@ -205,17 +243,22 @@ def band_combination(
                     if const_v < 1:
                         const_v = 3
                     rnd_var = int(const_v * np.random.random())
+
                     if rnd_var == 0:
                         rnd_var = 1
                     # avoid too large numbers
-                    while np.sum(
-                            rnd_var * (np.array(max_v, dtype=np.float32) + add_c)
-                    ) > calc_nodata:
-                        rnd_var = int(rnd_var / 2)
+                    if add_c < calc_nodata and t < 4999:
+                        while np.sum(
+                                rnd_var * (np.array(
+                                    max_v, dtype=calc_data_type
+                                    ) + add_c)
+                        ) > calc_nodata:
+                            rnd_var = int(rnd_var / 2)
                     rnd_var_list.append(rnd_var)
                     # expression combination
                     expression_comb.append(
-                        '("f%s" + %s) * %s' % (str(y), str(add_c), str(rnd_var))
+                        '("f%s" + %s) * %s' % (
+                            str(y), str(add_c), str(rnd_var))
                     )
                     expression_comb.append(' + ')
             expression_comb.pop(-1)
@@ -338,7 +381,7 @@ def _combination_table(
 ) -> str:
     """Creation of combination table.
 
-    Creates text for table where each value corresponds to a combination 
+    Creates text for table where each value corresponds to a combination
     of class values, and the area statistics of each combination,
     if the input bands are in cartographic coordinates.
 
@@ -348,7 +391,7 @@ def _combination_table(
         crs_unit: unit of crs used for area calculation.
         pixel_size_x: pixel size along x.
         pixel_size_y: pixel size along y.
-        
+
     Returns:
         The text of the combination table.
     """

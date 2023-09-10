@@ -607,11 +607,12 @@ def calculate(
     :param output_field_name: string of output field name
     :param progress_message: optional, if True display process message
     """
-    cfg.logger.log.info('start')
     if progress_message:
+        cfg.logger.log.info('start')
         cfg.progress.update(
             process='calculate', message='starting', start=True
         )
+    cfg.logger.log.debug('expression_string: %s' % expression_string)
     # alias for field in expression
     field = matrix
     expression_string = replace_variables(matrix, expression_string)
@@ -670,7 +671,7 @@ def calculate(
         cfg.logger.log.error(str(err))
     if progress_message:
         cfg.progress.update(end=True)
-    cfg.logger.log.info('end')
+        cfg.logger.log.info('end')
     return matrix1
 
 
@@ -1111,7 +1112,6 @@ def create_bandset_table(band_list):
     except Exception as err:
         cfg.logger.log.error(str(err))
         return None
-
 
 
 # add spectral signature to catalog table

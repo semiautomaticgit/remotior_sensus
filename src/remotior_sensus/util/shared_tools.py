@@ -275,7 +275,7 @@ def data_type_conversion(data_type):
         cfg.float64_dt: np.float64, cfg.float32_dt: np.float32,
         cfg.int32_dt: np.int32, cfg.uint32_dt: np.uint32,
         cfg.int16_dt: np.int16, cfg.uint16_dt: np.uint16,
-        cfg.byte_dt: np.byte,
+        cfg.byte_dt: np.uint8,
     }
     if data_type in data_types:
         return data_types[data_type]
