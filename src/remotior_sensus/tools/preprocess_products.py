@@ -31,7 +31,7 @@ from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
     band_calculation, raster_unique_values_with_sum
 )
-from remotior_sensus.util import files_directories
+from remotior_sensus.util import files_directories, raster_vector
 
 
 # create product table and preprocess
@@ -440,9 +440,20 @@ def perform_preprocess(
             input_list.append(input_dos1_list[i])
     # dummy bands for memory calculation
     dummy_bands = 2
+
+    # create virtual raster of input
+    vrt_check = raster_vector.create_temporary_virtual_raster(
+        input_list
+    )
+    raster_path_list = []
+    for n in range(len(input_list)):
+        virtual_band = raster_vector.create_temporary_virtual_raster(
+            [vrt_check], band_number_list=[[n + 1]]
+        )
+        raster_path_list.append(virtual_band)
     # run calculation
     cfg.multiprocess.run_separated(
-        raster_path_list=input_list, function=band_calculation,
+        raster_path_list=raster_path_list, function=band_calculation,
         function_argument=expressions,
         calculation_datatype=calculation_datatype,
         use_value_as_nodata=nodata_list, dummy_bands=dummy_bands,
@@ -481,7 +492,7 @@ def perform_preprocess(
         if add_bandset is True:
             bandset_number = bandset_catalog.get_bandset_count() + 1
             # create bandset
-            bandset_x = bandset_catalog.create_bandset(
+            bandset_catalog.create_bandset(
                 paths=output_raster_path_list, wavelengths=[product],
                 insert=True, date=str(product_table.date[0]),
                 bandset_number=bandset_number

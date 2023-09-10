@@ -779,12 +779,8 @@ def get_raster_band_array(gdal, band, calculation_datatype, _a, sec):
         scl_b = band.GetScale()
         if scl_b is None:
             scl_b = 1
-        else:
-            scl_b = np.asarray(scl_b).astype(_a_data_type)
         if offs_b is None:
             offs_b = 0
-        else:
-            offs_b = np.asarray(offs_b).astype(_a_data_type)
         nd_val = band.GetNoDataValue()
         ndv_band = np.asarray(
             nd_val * scl_b + offs_b
@@ -810,9 +806,9 @@ def get_raster_band_array(gdal, band, calculation_datatype, _a, sec):
         )
     # band array
     raster_vector.band_read_array_block(
-        band, sec.x_min, sec.y_min, sec.x_size, sec.y_size,
-        calculation_datatype, numpy_array=_a, scale=scl_b, offset=offs_b
+        band, sec.x_min, sec.y_min, sec.x_size, sec.y_size, numpy_array=_a
     )
+    _a = _a * scl_b + offs_b
     return _a.astype(calculation_datatype), _a_data_type, ndv_band
 
 

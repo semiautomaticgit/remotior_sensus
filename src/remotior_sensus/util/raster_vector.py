@@ -429,27 +429,21 @@ def read_array_block(
 # read a block of band as array
 def band_read_array_block(
         gdal_band, pixel_start_column, pixel_start_row, block_columns,
-        block_row, calc_data_type=None, numpy_array=None, scale=1, offset=0
+        block_row, numpy_array=None
 ):
-    if calc_data_type is None:
-        calc_data_type = np.float32
-    offset = np.asarray(offset).astype(calc_data_type)
-    scale = np.asarray(scale).astype(calc_data_type)
     cfg.logger.log.debug(
         'pixel_start_column: %s; pixel_start_row: %s; block_columns: %s; '
-        'block_row: %s; scale: %s; offset: %s'
-        % (pixel_start_column, pixel_start_row, block_columns, block_row,
-           scale, offset)
+        'block_row: %s'
+        % (pixel_start_column, pixel_start_row, block_columns, block_row)
     )
     try:
         gdal_array.BandReadAsArray(
             gdal_band, pixel_start_column, pixel_start_row, block_columns,
             block_row, buf_obj=numpy_array
-            ) * scale + offset
+            )
     except Exception as err:
         cfg.logger.log.error(str(err))
         return None
-    return numpy_array.astype(calc_data_type)
 
 
 # read raster
@@ -891,6 +885,10 @@ def create_virtual_raster(
     # create virtual raster
     drv = gdal.GetDriverByName('vrt')
     # number of pixels for x and y pixel size
+    if i_right == i_left:
+        i_right = i_left + pixel_x_size
+    if i_top == i_bottom:
+        i_top = i_bottom + pixel_y_size
     r_x = abs(int(round((i_right - i_left) / pixel_x_size)))
     r_y = abs(int(round((i_top - i_bottom) / pixel_y_size)))
     # create virtual raster
@@ -1728,6 +1726,10 @@ def vector_to_raster(
         v_layer = layer_copy
     else:
         min_x, max_x, min_y, max_y = v_layer.GetExtent()
+    if (max_x - min_x) < x_size:
+        max_x = min_x + x_size
+    if abs(max_y - min_y) < abs(y_size):
+        max_y = min_y + abs(y_size)
     # calculate minimum extent
     if not extent:
         orig_x = gt[0] + x_size * int(round((min_x - gt[0]) / x_size))
