@@ -125,8 +125,13 @@ def mosaic(
             # list of band sets
             if type(i) is BandSet or type(i) is int:
                 # get input list
-                band_list = BandSetCatalog.get_band_list(i, bandset_catalog)
-                combination_band_list.append(band_list)
+                if i is None:
+                    cfg.logger.log.error('input None:%s' % str(i))
+                else:
+                    band_list = BandSetCatalog.get_band_list(
+                        i, bandset_catalog
+                    )
+                    combination_band_list.append(band_list)
             # list of raster paths
             else:
                 raster_list.append(i)

@@ -2533,7 +2533,11 @@ class BandSetCatalog(object):
         # number of BandSet
         elif bandset_catalog is not None:
             b = bandset_catalog.get_bandset(bandset)
-            band_list = b.get_absolute_paths()
+            if b is None:
+                band_list = []
+                cfg.logger.log.error('b is None')
+            else:
+                band_list = b.get_absolute_paths()
         else:
             band_list = None
         cfg.logger.log.debug('band list: %s' % str(band_list))
@@ -2896,9 +2900,9 @@ class BandSetCatalog(object):
     def set_wavelength(
             self, wavelength_list, unit, bandset_number=None
     ):
-        """Sets BandSet center wavelength based on satellite.
+        """Sets BandSet center wavelength based on list.
 
-        Sets BandSet center wavelength based on satellite name.
+        Sets BandSet center wavelength based on list.
 
         Args:
             wavelength_list: list of wavelength values.
@@ -2909,7 +2913,7 @@ class BandSetCatalog(object):
             Set BandSet 1 satellite wavelengths.
                 >>> catalog = BandSetCatalog()
                 >>> catalog.set_satellite_wavelength(
-                ... bandset_number=1, satellite_name='Sentinel-2'
+                ... bandset_number=1, wavelength_list=[1, 2, 3], unit='µm (1 E-6m)'
                 ... )
         """  # noqa: E501
         if bandset_number is None:
@@ -2927,6 +2931,39 @@ class BandSetCatalog(object):
                 except Exception as err:
                     cfg.logger.log.error(str(err))
             bandset_x.sort_bands_by_wavelength()
+
+    # set band path
+    def set_paths(
+            self, path_list, bandset_number=None
+    ):
+        """Sets BandSet band path.
+
+        Sets BandSet band path based on list of paths.
+
+        Args:
+            path_list: list of string paths.
+            bandset_number: number of BandSet; if None, current BandSet is used.
+
+        Examples:
+            Set BandSet 1 satellite wavelengths.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.set_satellite_wavelength(
+                ... bandset_number=1, path_list=['path_1', 'path_2']
+                ... )
+        """  # noqa: E501
+        if bandset_number is None:
+            bandset_number = self.current_bandset
+        bandset_x = self.get_bandset_by_number(bandset_number)
+        bands = bandset_x.bands
+        if bands is not None:
+            for band in bands:
+                if cfg.action is False:
+                    break
+                try:
+                    path = path_list[band['band_number'] - 1]
+                    band['path'] = path
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
 
     def get_root_directory(self, bandset_number: Optional[int] = None) -> str:
         """Gets BandSet root directory.

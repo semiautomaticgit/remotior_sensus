@@ -146,6 +146,8 @@ def band_calculation(*argv):
             str(_o.dtype)
         )
     )
+    if _o.dtype == bool:
+        _o = _o.astype(int)
     if nodata_mask is not None:
         np.copyto(
             _o, nodata_mask.reshape(_o.shape),
@@ -1362,9 +1364,10 @@ def score_classifier(*argv):
 
 # score classifier with stratified k fold
 def score_classifier_stratified(
-        process, progress_queue, argument_list, logger
+        process, progress_queue, argument_list, logger, temp
 ):
     cfg.logger = logger
+    cfg.temp = temp
     results = []
     n = 0
     errors = False
@@ -1387,9 +1390,10 @@ def score_classifier_stratified(
 
 # clip_raster
 def clip_raster(
-        process, progress_queue, argument_list, logger
+        process, progress_queue, argument_list, logger, temp
 ):
     cfg.logger = logger
+    cfg.temp = temp
     results = []
     n = 0
     errors = False
@@ -1415,34 +1419,67 @@ def clip_raster(
             str(err)
         try:
             _r_d = gdal.Open(d['input_raster'], gdal.GA_ReadOnly)
+            input_band = _r_d.GetRasterBand(1)
+            no_data = input_band.GetNoDataValue()
             sr = osr.SpatialReference()
             sr.ImportFromWkt(_r_d.GetProjectionRef())
             if d['extent_list'] is not None:
                 # copy raster band
                 op = ' -co BIGTIFF=YES -co COMPRESS=%s' % d['compress_format']
                 op += ' -of %s' % 'GTiff'
+                if no_data is not None:
+                    op += ' -srcnodata %s -dstnodata %s' % (no_data, no_data)
                 to = gdal.WarpOptions(gdal.ParseCommandLine(op))
             else:
-                _vector = ogr.Open(d['vector_path'])
+                cutline = d['vector_path']
+                _vector = ogr.Open(cutline)
                 _v_layer = _vector.GetLayer()
-                v_sr = _v_layer.GetSpatialRef()
-                if sr.IsSame(v_sr) == 1:
-                    pass
-                else:
-                    c_t = osr.CoordinateTransformation(v_sr, sr)
-                    _v_layer.Transform(c_t)
                 extent = _v_layer.GetExtent()
+                v_sr = _v_layer.GetSpatialRef()
+                if sr.IsSame(v_sr) != 1:
+                    c_t = osr.CoordinateTransformation(v_sr, sr)
+                    driver = ogr.GetDriverByName('GPKG')
+                    # create temp vector
+                    cutline = cfg.temp.temporary_file_path(
+                        name_suffix=cfg.gpkg_suffix
+                        )
+                    _data_source = driver.CreateDataSource(cutline)
+                    spatial_reference = osr.SpatialReference()
+                    spatial_reference.ImportFromWkt(_r_d.GetProjectionRef())
+                    temp_layer = _data_source.CreateLayer(
+                        'temp', spatial_reference, ogr.wkbPolygon
+                    )
+                    _v_layerDefn = _v_layer.GetLayerDefn()
+                    for i in range(0, _v_layerDefn.GetFieldCount()):
+                        field_def = _v_layerDefn.GetFieldDefn(i)
+                        temp_layer.CreateField(field_def)
+                    temp_layer_def = temp_layer.GetLayerDefn()
+                    input_feature = _v_layer.GetNextFeature()
+                    while input_feature:
+                        geom = input_feature.GetGeometryRef()
+                        geom.Transform(c_t)
+                        _out_feature = ogr.Feature(temp_layer_def)
+                        _out_feature.SetGeometry(geom)
+                        for i in range(0, temp_layer_def.GetFieldCount()):
+                            _out_feature.SetField(
+                                temp_layer_def.GetFieldDefn(i).GetNameRef(),
+                                input_feature.GetField(i)
+                                )
+                        temp_layer.CreateFeature(_out_feature)
+                        _out_feature = None
+                        input_feature = _v_layer.GetNextFeature()
+                _vector = None
                 crop = True
                 op = ' -co BIGTIFF=YES -co COMPRESS=%s' % d['compress_format']
                 # op += ' -wo CUTLINE_ALL_TOUCHED = TRUE'
                 to = gdal.WarpOptions(
                     gdal.ParseCommandLine(op),
                     format='GTiff', outputBounds=extent,
-                    dstSRS=sr.ExportToWkt(), cutlineDSName=d['vector_path'],
-                    cropToCutline=crop, cutlineWhere=d['where']
+                    dstSRS=sr.ExportToWkt(), cutlineDSName=cutline,
+                    cropToCutline=crop, cutlineWhere=d['where'],
+                    srcNodata=no_data, dstNodata=no_data
                     )
             gdal.Warp(d['output'], d['input_raster'], options=to)
-            _vector = None
             _r_d = None
             results.append([d['output']])
             if progress_queue is not None:

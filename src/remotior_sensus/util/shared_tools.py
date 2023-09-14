@@ -48,7 +48,7 @@ def prepare_input_list(
     nodata_list = []
     if len(band_list) == 0:
         cfg.logger.log.error('empty list')
-        return None
+        return {'input_list': []}
     if reference_raster_crs is None:
         reference_raster_crs = raster_vector.get_crs(band_list[0])
     # get crs from file
@@ -86,7 +86,7 @@ def prepare_input_list(
             cfg.logger.log.error(
                 'unable to get raster info: %s' % band_list[i]
             )
-            return [], [], [], [], warped
+            return {'input_list': []}
         information_list.append(
             [gt, crs, un, xy_count, nd, number_of_bands, block_size,
              scale_offset, data_type]
@@ -143,6 +143,8 @@ def prepare_process_files(
     # list of inputs
     prepared_input = prepare_input_list(band_list, n_processes=n_processes)
     input_raster_list = prepared_input['input_list']
+    if len(input_raster_list) == 0:
+        return {'input_raster_list': []}
     raster_info = prepared_input['information_list']
     nodata_list = prepared_input['nodata_list']
     name_list = prepared_input['name_list']

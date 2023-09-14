@@ -110,6 +110,16 @@ class TestBandSetCatalog(TestCase):
             names=name_list, exact_match=True
         )
         self.assertEqual(len(bandset_list), 1)
+        b_paths = catalog.get_band_list(bandset=2, bandset_catalog=catalog)
+        d_paths = ['1', '2', '3']
+        catalog.set_paths(path_list=d_paths, bandset_number=2)
+        self.assertNotEqual(
+            catalog.get_band_list(bandset=2, bandset_catalog=catalog), b_paths
+        )
+        catalog.set_paths(path_list=file_list, bandset_number=2)
+        self.assertEqual(
+            catalog.get_band_list(bandset=2, bandset_catalog=catalog), b_paths
+        )
         # box coordinate list
         coordinate_list = [230250, 4674550, 230320, 4674440]
         catalog.create_bandset(

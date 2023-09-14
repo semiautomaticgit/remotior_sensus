@@ -23,7 +23,7 @@ if __name__ == '__main__':
     test_dir = '.'
     # units to test
     pattern = 'test*.py'
-    # pattern = 'test_download_products.py'
+    # pattern = 'test_bandset_catalog.py'
     d = testLoader.discover(test_dir, pattern=pattern)
     textTestRunner = unittest.TextTestRunner(verbosity=2)
     textTestRunner.run(d)

@@ -2045,7 +2045,8 @@ class Multiprocess(object):
                 progress_queue = None
             c = self.pool.apply_async(
                 function_list[p], args=(
-                    p, progress_queue, argument_dict_list[p], cfg.logger)
+                    p, progress_queue, argument_dict_list[p], cfg.logger,
+                    cfg.temp)
             )
             results.append([c, p])
         while True:

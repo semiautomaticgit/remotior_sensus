@@ -31,7 +31,7 @@ from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
     band_calculation, raster_unique_values_with_sum
 )
-from remotior_sensus.util import files_directories, raster_vector
+from remotior_sensus.util import files_directories
 
 
 # create product table and preprocess
@@ -163,8 +163,8 @@ def perform_preprocess(
     if len(sentinel_product) > 0:
         if dos1_correction:
             # exclude Level-2A
-            sentinel_product_2a = sentinel_product[
-                sentinel_product.processing_level != 'level-2a']
+            sentinel_product_1c = sentinel_product[
+                np.char.lower(sentinel_product.processing_level) != 'level-2a']
             # calculate DOS1 corrected reflectance approximating path
             # radiance to path reflectance
             # land surface reflectance = TOA reflectance - p =
@@ -172,16 +172,46 @@ def perform_preprocess(
             # raster and dnm are variables in the calculation
             string_1 = np.char.add(
                 'np.clip(( %s * ' % cfg.array_function_placeholder,
-                sentinel_product_2a.scale.astype('<U16')
+                sentinel_product_1c.scale.astype('<U16')
             )
             string_2 = np.char.add(string_1, ' - (')
             string_3 = np.char.add(
-                string_2, sentinel_product_2a.scale.astype('<U16')
+                string_2, sentinel_product_1c.scale.astype('<U16')
             )
             dos1_expressions.extend(
                 np.char.add(string_3, ' * dnm - 0.01)), 0, 1)').tolist()
             )
-            input_dos1_list.extend(sentinel_product_2a.product_path.tolist())
+            input_dos1_list.extend(sentinel_product_1c.product_path.tolist())
+            # output raster list
+            output_string_1 = np.char.add(
+                '%s/%s' % (output_path, output_prefix),
+                sentinel_product_1c.band_name
+            )
+            output_raster_path_list.extend(
+                np.char.add(output_string_1, cfg.tif_suffix).tolist()
+            )
+            nodata_list.extend(sentinel_product_1c.nodata.tolist())
+            dos1_nodata_list.extend(sentinel_product_1c.nodata.tolist())
+            calculation_datatype.extend(
+                [np.float32] * len(sentinel_product_1c)
+            )
+            output_datatype.extend([cfg.uint16_dt] * len(sentinel_product_1c))
+            scale_list.extend([0.0001] * len(sentinel_product_1c))
+            offset_list.extend([0] * len(sentinel_product_1c))
+            output_nodata.extend(
+                [cfg.nodata_val_UInt16] * len(sentinel_product_1c)
+            )
+            # get Level-2A if any and perform conversion without DOS1
+            sentinel_product_2a = sentinel_product[
+                np.char.lower(sentinel_product.processing_level) == 'level-2a']
+            # calculate reflectance = DN / quantificationValue = DN * scale
+            # raster is interpreted as variable in the calculation
+            string_1 = np.char.add(
+                'np.clip( ( %s * ' % cfg.array_function_placeholder,
+                sentinel_product_2a.scale.astype('<U16')
+            )
+            expressions.extend(np.char.add(string_1, ') , 0, 1)').tolist())
+            input_list.extend(sentinel_product_2a.product_path.tolist())
             # output raster list
             output_string_1 = np.char.add(
                 '%s/%s' % (output_path, output_prefix),
@@ -191,7 +221,6 @@ def perform_preprocess(
                 np.char.add(output_string_1, cfg.tif_suffix).tolist()
             )
             nodata_list.extend(sentinel_product_2a.nodata.tolist())
-            dos1_nodata_list.extend(sentinel_product_2a.nodata.tolist())
             calculation_datatype.extend(
                 [np.float32] * len(sentinel_product_2a)
             )
@@ -303,7 +332,7 @@ def perform_preprocess(
         if dos1_correction:
             # exclude level 2 products and temperature
             landsat_product_l1 = landsat_product[
-                (landsat_product.processing_level == 'l1tp') & (
+                (np.char.lower(landsat_product.processing_level) == 'l1tp') & (
                         landsat_product.band_number != '10') &
                 (landsat_product.k1 == 0)]
             # calculate DOS1 corrected reflectance approximating path
@@ -343,7 +372,7 @@ def perform_preprocess(
         else:
             # level 1 products
             landsat_1_product = landsat_product[
-                (landsat_product.processing_level == 'l1tp') & (
+                (np.char.lower(landsat_product.processing_level) == 'l1tp') & (
                         landsat_product.band_number != '10')
                 & (landsat_product.k1 == 0)]
             # calculate reflectance = (raster * scale
@@ -383,7 +412,7 @@ def perform_preprocess(
             )
             # level 2 products
             landsat_2_product = landsat_product[
-                (landsat_product.processing_level == 'l2sp') & (
+                (np.char.lower(landsat_product.processing_level) == 'l2sp') & (
                         landsat_product.band_number != '10')]
             # calculate reflectance = (raster * scale
             #  + offset) / sin(Sun elevation)
@@ -440,20 +469,9 @@ def perform_preprocess(
             input_list.append(input_dos1_list[i])
     # dummy bands for memory calculation
     dummy_bands = 2
-
-    # create virtual raster of input
-    vrt_check = raster_vector.create_temporary_virtual_raster(
-        input_list
-    )
-    raster_path_list = []
-    for n in range(len(input_list)):
-        virtual_band = raster_vector.create_temporary_virtual_raster(
-            [vrt_check], band_number_list=[[n + 1]]
-        )
-        raster_path_list.append(virtual_band)
     # run calculation
     cfg.multiprocess.run_separated(
-        raster_path_list=raster_path_list, function=band_calculation,
+        raster_path_list=input_list, function=band_calculation,
         function_argument=expressions,
         calculation_datatype=calculation_datatype,
         use_value_as_nodata=nodata_list, dummy_bands=dummy_bands,
@@ -603,12 +621,14 @@ def create_product_table(
         if metadata_doc:
             try:
                 # get date in the format YYYY-MM-DD
-                product_date = \
-                    metadata_doc.getElementsByTagName('PRODUCT_START_TIME')[
-                        0].firstChild.data.split('T')[0]
-                processing_level = \
-                    metadata_doc.getElementsByTagName('PROCESSING_LEVEL')[
-                        0].firstChild.data
+                product_date = (
+                    metadata_doc.getElementsByTagName(
+                        'PRODUCT_START_TIME')[0].firstChild.data.split('T')[0]
+                )
+                processing_level = (
+                    metadata_doc.getElementsByTagName(
+                        'PROCESSING_LEVEL')[0].firstChild.data
+                )
                 # L2A products
                 if '2a' in processing_level.lower():
                     scale_value = 1 / int(
@@ -651,6 +671,11 @@ def create_product_table(
                 input_path, sort_files=True, suffix_filter='.jp2'
             )
         )
+        file_list.extend(
+            files_directories.files_in_directory(
+                input_path, sort_files=True, suffix_filter='.vrt'
+            )
+        )
         for f in file_list:
             # check band number
             if f[-6:-4].lower() in sentinel2_bands:
@@ -668,9 +693,10 @@ def create_product_table(
         if metadata_doc:
             sensor_id = metadata_doc.getElementsByTagName('SENSOR_ID')[
                 0].firstChild.data
-            processing_level = \
-                metadata_doc.getElementsByTagName('PROCESSING_LEVEL')[
-                    0].firstChild.data.lower()
+            processing_level = (
+                metadata_doc.getElementsByTagName(
+                    'PROCESSING_LEVEL')[0].firstChild.data.lower()
+            )
             spacecraft_id = metadata_doc.getElementsByTagName('SPACECRAFT_ID')[
                 0].firstChild.data.lower()
             # get date in the format YYYY-MM-DD
@@ -678,9 +704,10 @@ def create_product_table(
                 0].firstChild.data
             sun_elevation = metadata_doc.getElementsByTagName('SUN_ELEVATION')[
                 0].firstChild.data
-            earth_sun_distance = \
-                metadata_doc.getElementsByTagName('EARTH_SUN_DISTANCE')[
-                    0].firstChild.data
+            earth_sun_distance = (
+                metadata_doc.getElementsByTagName(
+                    'EARTH_SUN_DISTANCE')[0].firstChild.data
+            )
             if sensor_id.lower() == cfg.sensor_oli:
                 band_list = cfg.satellites[cfg.satLandsat8][2]
             elif sensor_id.lower() == cfg.sensor_etm:
@@ -714,8 +741,8 @@ def create_product_table(
                     scale_offset_dict[str(b)] = [1, 0]
             # temperature
             # Landsat 8-9
-            if sensor_id.lower() == cfg.sensor_oli and processing_level == \
-                    'l2sp':
+            if (sensor_id.lower() == cfg.sensor_oli
+                    and processing_level == 'l2sp'):
                 scale_offset_dict['10'] = [float(
                     metadata_doc.getElementsByTagName(
                         'TEMPERATURE_MULT_BAND_ST_B10'
@@ -726,8 +753,8 @@ def create_product_table(
                     )[0].firstChild.data
                 )]
             # Landsat 7 level 1
-            elif sensor_id.lower() == cfg.sensor_etm and processing_level == \
-                    'l1tp':
+            elif (sensor_id.lower() == cfg.sensor_etm
+                  and processing_level == 'l1tp'):
                 k_dict['6_VCID_1'] = [float(
                     metadata_doc.getElementsByTagName(
                         'K1_CONSTANT_BAND_6_VCID_1'
@@ -763,8 +790,8 @@ def create_product_table(
                     )[0].firstChild.data
                 )]
             # Landsat 7 level 2
-            elif sensor_id.lower() == cfg.sensor_tm and processing_level == \
-                    'l2sp':
+            elif (sensor_id.lower() == cfg.sensor_tm
+                  and processing_level == 'l2sp'):
                 scale_offset_dict['6'] = [float(
                     metadata_doc.getElementsByTagName(
                         'TEMPERATURE_MULT_BAND_ST_B6'
@@ -775,8 +802,8 @@ def create_product_table(
                     )[0].firstChild.data
                 )]
             # Landsat 5 level 1
-            elif sensor_id.lower() == cfg.sensor_tm and processing_level == \
-                    'l1tp':
+            elif (sensor_id.lower() == cfg.sensor_tm
+                  and processing_level == 'l1tp'):
                 k_dict['6'] = [float(
                     metadata_doc.getElementsByTagName('K1_CONSTANT_BAND_6')[
                         0].firstChild.data
@@ -791,8 +818,8 @@ def create_product_table(
                         0].firstChild.data
                 )]
             # Landsat 5 level 2
-            elif sensor_id.lower() == cfg.sensor_tm and processing_level == \
-                    'l2sp':
+            elif (sensor_id.lower() == cfg.sensor_tm
+                  and processing_level == 'l2sp'):
                 scale_offset_dict['6'] = [float(
                     metadata_doc.getElementsByTagName(
                         'TEMPERATURE_MULT_BAND_ST_B6'

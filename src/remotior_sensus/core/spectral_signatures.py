@@ -808,6 +808,13 @@ class SpectralSignaturesCatalog(object):
                              pixel_count) = self.calculate_signature(temp_path)
                         except Exception as err:
                             cfg.logger.log.error(str(err))
+                            self.signature_to_catalog(
+                                signature_id=signature_id,
+                                macroclass_id=mc_value,
+                                class_id=c_value, macroclass_name=mc_name,
+                                class_name=c_name, geometry=1, signature=0,
+                                color_string=color_string, unit=unit
+                            )
                             return False
                         self.add_spectral_signature(
                             value_list=value_list, macroclass_id=mc_value,

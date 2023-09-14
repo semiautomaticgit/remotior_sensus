@@ -104,6 +104,8 @@ def band_clip(
         virtual_output=virtual_output
     )
     input_raster_list = prepared['input_raster_list']
+    if len(input_raster_list) == 0:
+        return OutputManager(check=False)
     output_list = prepared['output_list']
     # build function argument list of dictionaries
     argument_list = []

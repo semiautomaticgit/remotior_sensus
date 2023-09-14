@@ -139,6 +139,10 @@ def band_resample(
         virtual_output=virtual_output
     )
     input_raster_list = prepared['input_raster_list']
+    if len(input_raster_list) == 0:
+        cfg.logger.log.error('no input')
+        cfg.messages.error('no input')
+        return OutputManager(check=False)
     raster_info = prepared['raster_info']
     n_processes = prepared['n_processes']
     nodata_list = prepared['nodata_list']
