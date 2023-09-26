@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.abspath('../../src/'))
 project = 'Remotior Sensus'
 copyright = '2022-2023, Luca Congedo'
 author = 'Luca Congedo'
-release = '0.0.60'
-version = '0.0.60.1'
+release = '0.0.87'
+version = '0.0.87.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,6 +35,7 @@ html_show_sourcelink = False
 html_static_path = ['_static']
 html_favicon = "_static/favicon.ico"
 html_show_sphinx = False
+html_css_files = ['html_css.css']
 
 # -- Options for LaTeX output ---------------------------------------------
 

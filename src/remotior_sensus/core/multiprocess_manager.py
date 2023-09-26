@@ -66,6 +66,7 @@ class Multiprocess(object):
         try:
             self.pool.close()
             self.pool.terminate()
+            self.manager.shutdown()
         except Exception as err:
             str(err)
 
