@@ -340,7 +340,7 @@ def create_raster_from_reference(
             out_raster = t_d.Create(
                 o, c, r, band_number, gdal_format,
                 options=['BIGTIFF=YES']
-                )
+            )
         elif compress_format == 'DEFLATE21':
             out_raster = t_d.Create(
                 o, c, r, band_number, gdal_format,
@@ -440,7 +440,7 @@ def band_read_array_block(
         gdal_array.BandReadAsArray(
             gdal_band, pixel_start_column, pixel_start_row, block_columns,
             block_row, buf_obj=numpy_array
-            )
+        )
     except Exception as err:
         cfg.logger.log.error(str(err))
         return None
@@ -602,18 +602,10 @@ def create_virtual_raster(
     p_x_sizes = []
     p_y_sizes = []
     all_band_number_list = []
-    r_p = None
-    r_epsg = None
-    x_counts = None
-    y_counts = None
-    data_types = None
-    x_block_sizes = None
-    y_block_sizes = None
-    offsets = None
-    scales = None
-    multiplicative_factors = None
-    additive_factors = None
-    nodata_values = None
+    r_p = r_epsg = x_counts = y_counts = data_types = None
+    x_block_sizes = y_block_sizes = None
+    offsets = scales = multiplicative_factors = additive_factors = None
+    nodata_values = wavelengths = wavelength_units = None
     if bandset is None:
         # iterate input_raster
         for i in input_raster_list:
@@ -668,6 +660,8 @@ def create_virtual_raster(
         rights = bandset.get_band_attributes('right')
         bottoms = bandset.get_band_attributes('bottom')
         crs_s = bandset.get_band_attributes('crs')
+        wavelengths = bandset.get_wavelengths()
+        wavelength_units = bandset.get_wavelength_units()
         # check projections
         for r_p in crs_s:
             try:
@@ -1109,12 +1103,12 @@ def create_virtual_raster(
                     <DstRect xOff="%i" yOff="%i" xSize="%i" ySize="%i" />
                 </ComplexSource>
                     '''
-                    source = xml % (relative_to_vrt, source_path,
-                                    band_number,
-                                    ir_x_size, ir_y_size, data_type_s, x_block,
-                                    y_block,
-                                    s_off_x, s_off_y, s_r_x, s_r_y,
-                                    d_off_x, d_off_y, d_r_x, d_r_y)
+                    source = xml % (
+                        relative_to_vrt, source_path,
+                        band_number, ir_x_size, ir_y_size, data_type_s,
+                        x_block, y_block, s_off_x, s_off_y, s_r_x, s_r_y,
+                        d_off_x, d_off_y, d_r_x, d_r_y
+                    )
                 else:
                     xml = '''
                 <ComplexSource>
@@ -1127,13 +1121,25 @@ def create_virtual_raster(
                     <NODATA>%i</NODATA>
                 </ComplexSource>
                     '''
-                    source = xml % (relative_to_vrt, source_path, band_number,
-                                    ir_x_size, ir_y_size, data_type_s, x_block,
-                                    y_block, s_off_x, s_off_y, s_r_x, s_r_y,
-                                    d_off_x, d_off_y, d_r_x, d_r_y, no_data)
+                    source = xml % (
+                        relative_to_vrt, source_path, band_number,
+                        ir_x_size, ir_y_size, data_type_s, x_block,
+                        y_block, s_off_x, s_off_y, s_r_x, s_r_y,
+                        d_off_x, d_off_y, d_r_x, d_r_y, no_data
+                    )
                 band.SetMetadataItem(
                     'ComplexSource', source, 'new_vrt_sources'
                 )
+                if wavelengths is not None:
+                    if wavelength_units[raster] != cfg.no_unit:
+                        band.SetDescription(
+                            '%s%s' % (
+                                str(wavelengths[raster]).ljust(6),
+                                str(wavelength_units[raster]).replace(
+                                    ' (1 E-6m)', ''
+                                    )
+                            )
+                        )
                 if nodata_value is True:
                     if no_data is not None:
                         band.SetNoDataValue(int(no_data))

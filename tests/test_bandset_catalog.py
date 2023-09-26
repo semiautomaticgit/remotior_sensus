@@ -87,14 +87,6 @@ class TestBandSetCatalog(TestCase):
             cfg.satellites[cfg.satSentinel2][0][0]
         )
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
-                     'S2_2020-01-01/S2_B04.tif', 'files/file1.csv']
-        date = '2021-01-01'
-        root_directory = './data'
-        catalog.create_bandset(
-            file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=2,
-            root_directory=root_directory
-        )
-        file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
         date = '2021-01-01'
         root_directory = './data'
@@ -366,5 +358,6 @@ class TestBandSetCatalog(TestCase):
         self.assertTrue(files_directories.is_file(virtual))
         stack = catalog.create_bandset_stack(bandset_number=1)
         self.assertTrue(files_directories.is_file(stack))
+
         # clear temporary directory
         rs.close()

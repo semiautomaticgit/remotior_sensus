@@ -15,19 +15,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
 
-from copy import deepcopy
-from xml.etree import cElementTree
-from xml.dom import minidom
 import random
+from copy import deepcopy
 from typing import Union, Optional
+from xml.dom import minidom
+from xml.etree import cElementTree
 
 import numpy as np
 
 from remotior_sensus.core import configurations as cfg, table_manager as tm
-from remotior_sensus.util import (
-    dates_times, files_directories, raster_vector, read_write_files)
 from remotior_sensus.core.processor_functions import (
     get_values_for_scatter_plot
+)
+from remotior_sensus.util import (
+    dates_times, files_directories, raster_vector, read_write_files
 )
 
 """BandSet manager.
@@ -298,8 +299,10 @@ class BandSet(object):
                             path[0], self.root_directory
                         )
                     )
-        cfg.logger.log.debug('absolute_path: %s%s'
-                             % (str(absolute_path), str(band_number)))
+        cfg.logger.log.debug(
+            'absolute_path: %s%s'
+            % (str(absolute_path), str(band_number))
+            )
         return absolute_path
 
     def get_wavelengths(self) -> list:
@@ -483,8 +486,10 @@ class BandSet(object):
                 band_element.set('band_number', str(band['band_number']))
                 for attribute in self.bands.dtype.names:
                     if attribute != 'band_number':
-                        element = cElementTree.SubElement(band_element,
-                                                          attribute)
+                        element = cElementTree.SubElement(
+                            band_element,
+                            attribute
+                            )
                         element.text = str(band[attribute])
         cfg.logger.log.debug('export bandset')
         if output_path is None:
@@ -492,7 +497,8 @@ class BandSet(object):
         else:
             # save to file
             pretty_xml = minidom.parseString(
-                cElementTree.tostring(root)).toprettyxml()
+                cElementTree.tostring(root)
+            ).toprettyxml()
             read_write_files.write_file(pretty_xml, output_path)
             return output_path
 
@@ -512,18 +518,28 @@ class BandSet(object):
         sep = '│ '
         text.append('name: %s %s' % (str(self.name), nl))
         text.append('date: %s %s' % (str(self.date), nl))
-        text.append('root directory: %s %s'
-                    % (str(self.root_directory), nl))
+        text.append(
+            'root directory: %s %s'
+            % (str(self.root_directory), nl)
+            )
         text.append('crs: %s %s' % (str(self.crs), nl))
         if self.box_coordinate_list is not None:
-            text.append('box coordinate left %s %s %s'
-                        % (sep, str(self.box_coordinate_list[0]), nl))
-            text.append('box coordinate top %s %s %s'
-                        % (sep, str(self.box_coordinate_list[1]), nl))
-            text.append('box coordinate right %s %s %s'
-                        % (sep, str(self.box_coordinate_list[2]), nl))
-            text.append('box coordinate bottom %s %s %s'
-                        % (sep, str(self.box_coordinate_list[3]), nl))
+            text.append(
+                'box coordinate left %s %s %s'
+                % (sep, str(self.box_coordinate_list[0]), nl)
+                )
+            text.append(
+                'box coordinate top %s %s %s'
+                % (sep, str(self.box_coordinate_list[1]), nl)
+                )
+            text.append(
+                'box coordinate right %s %s %s'
+                % (sep, str(self.box_coordinate_list[2]), nl)
+                )
+            text.append(
+                'box coordinate bottom %s %s %s'
+                % (sep, str(self.box_coordinate_list[3]), nl)
+                )
         if self.bands is not None:
             max_widths = {}
             for attribute in self.bands.dtype.names:
@@ -532,7 +548,8 @@ class BandSet(object):
                 max_widths[attribute] = len(attribute)
                 for band in self.bands:
                     max_widths[attribute] = max(
-                        max_widths[attribute], len(str(band[attribute])))
+                        max_widths[attribute], len(str(band[attribute]))
+                    )
             attributes = []
             for band in self.bands:
                 if cfg.action is False:
@@ -542,7 +559,8 @@ class BandSet(object):
                     attributes.append(
                         '%s %s'
                         % (str(band[attribute]).ljust(
-                            max_widths[attribute]), sep)
+                            max_widths[attribute]
+                        ), sep)
                     )
                 attributes.append(nl)
             # field names
@@ -553,14 +571,22 @@ class BandSet(object):
             for attribute in self.bands.dtype.names:
                 if cfg.action is False:
                     break
-                names.append('%s %s'
-                             % (attribute.ljust(max_widths[attribute]), sep))
-                first_line.append('%s%s'
-                                  % ('─' * (max_widths[attribute] + 2), '┬'))
-                lines.append('%s%s'
-                             % ('─' * (max_widths[attribute] + 2), '┼'))
-                last_line.append('%s%s'
-                                 % ('─' * (max_widths[attribute] + 2), '┴'))
+                names.append(
+                    '%s %s'
+                    % (attribute.ljust(max_widths[attribute]), sep)
+                    )
+                first_line.append(
+                    '%s%s'
+                    % ('─' * (max_widths[attribute] + 2), '┬')
+                    )
+                lines.append(
+                    '%s%s'
+                    % ('─' * (max_widths[attribute] + 2), '┼')
+                    )
+                last_line.append(
+                    '%s%s'
+                    % ('─' * (max_widths[attribute] + 2), '┴')
+                    )
             names.append(nl)
             first_line[-1] = first_line[-1][:-1]
             first_line.append('%s %s' % ('┐', nl))
@@ -1127,7 +1153,7 @@ class BandSet(object):
                     band_list.append(attr)
         return band_list
 
-# Tools #######################################################################
+    # Tools #######################################################################
 
     def execute(self, function, *args, **kwargs):
         """Executes a function.
@@ -2212,8 +2238,10 @@ class BandSetCatalog(object):
             bandset_number = self.current_bandset
         self.get_bandset(bandset_number).sort_bands_by_wavelength()
 
-    def sort_bands_by_name(self, bandset_number: Optional[int] = None,
-                           keep_wavelength_order: Optional[bool] = True):
+    def sort_bands_by_name(
+            self, bandset_number: Optional[int] = None,
+            keep_wavelength_order: Optional[bool] = True
+            ):
         """Sorts bands by name.
 
          This function numerically sorts bands in a BandSet by name.
@@ -2231,7 +2259,8 @@ class BandSetCatalog(object):
         if bandset_number is None:
             bandset_number = self.current_bandset
         self.get_bandset(bandset_number).sort_bands_by_name(
-            keep_wavelength_order=keep_wavelength_order)
+            keep_wavelength_order=keep_wavelength_order
+        )
 
     def add_bandset(
             self, bandset: BandSet, bandset_number: Optional[int] = None,
@@ -2499,7 +2528,7 @@ class BandSetCatalog(object):
     def get_band_list(
             bandset: Union[int, list, BandSet] = None,
             bandset_catalog: Optional = None
-            ) -> list:
+    ) -> list:
         """Gets band list.
 
         This function gets band list from several types of input.
@@ -3141,7 +3170,8 @@ class BandSetCatalog(object):
         bandset = self.get(bandset_number)
         if output_path is None:
             output_path = cfg.temp.temporary_file_path(
-                name_suffix=cfg.vrt_suffix)
+                name_suffix=cfg.vrt_suffix
+            )
         raster_vector.create_virtual_raster(
             output=output_path, nodata_value=nodata_value,
             intersection=intersection, bandset=bandset
@@ -3181,8 +3211,10 @@ class BandSetCatalog(object):
             output=virtual_path, nodata_value=nodata_value,
             intersection=intersection, bandset=bandset
         )
-        raster_vector.gdal_copy_raster(input_raster=virtual_path,
-                                       output=output_path)
+        raster_vector.gdal_copy_raster(
+            input_raster=virtual_path,
+            output=output_path
+            )
         cfg.logger.log.debug('output_path: %s' % str(output_path))
         return output_path
 
