@@ -9,7 +9,7 @@ Subpackages
 
    remotior_sensus.core
    remotior_sensus.tools
-   remotior_sensus.util
+
 
 Module contents
 ---------------

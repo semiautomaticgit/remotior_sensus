@@ -1480,10 +1480,6 @@ def _get_x_y_arrays_from_rois(
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error('covariance matrix')
-    cfg.logger.log.error(
-        'covariance_matrices_dict: %s'
-        % str(covariance_matrices_dict)
-    )
     return OutputManager(
         extra={
             'x': x_matrix.T, 'y': y,

@@ -1,7 +1,7 @@
-remotior\_sensus.tools.band\_clip module
+remotior\_sensus.util.plot\_tools module
 ========================================
 
-.. automodule:: remotior_sensus.tools.band_clip
+.. automodule:: remotior_sensus.util.plot_tools
    :members:
    :undoc-members:
    :show-inheritance:
