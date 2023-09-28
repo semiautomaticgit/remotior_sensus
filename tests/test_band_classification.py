@@ -41,6 +41,17 @@ class TestBandClassification(TestCase):
             spectral_signatures=signature_catalog_2,
             signature_raster=False
             )
+        temp_sig = cfg.temp.temporary_file_path(
+            name_suffix='.scpx'
+            )
+        signature_catalog_2.save(temp_sig)
+        temp_class_sig = cfg.temp.temporary_file_path(
+            name='class', name_suffix=cfg.tif_suffix
+            )
+        rs.band_classification(
+            input_bands=catalog.get(1), output_path=temp_class_sig,
+            spectral_signatures=temp_sig
+            )
         self.assertTrue(files_directories.is_file(temp))
         cfg.logger.log.debug(
             '>>> test semiautomatic classification with signature rasters'

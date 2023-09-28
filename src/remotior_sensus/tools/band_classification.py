@@ -1081,7 +1081,8 @@ class Classifier(object):
 def band_classification(
         input_bands: Union[list, int, BandSet],
         output_path: Optional[str] = None, overwrite: Optional[bool] = False,
-        spectral_signatures: Optional[SpectralSignaturesCatalog] = None,
+        spectral_signatures: Optional[
+            Union[str, SpectralSignaturesCatalog]] = None,
         algorithm_name: Optional[str] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
         macroclass: Optional[bool] = True,
@@ -1208,7 +1209,7 @@ def band_classification(
     Returns:
         If only_fit is True returns :func:`~remotior_sensus.core.output_manager.OutputManager` object with
             - extra = {'classifier': classifier, 'model_path': output model path}
-        
+
         If only_fit is False returns :func:`~remotior_sensus.core.output_manager.OutputManager` object with
             - path = classification path
             - extra = {'model_path': output model path}
@@ -1246,6 +1247,17 @@ def band_classification(
             cfg.messages.error('failed loading classifier')
             return OutputManager(check=False)
     else:
+        # get spectral signature file
+        if type(spectral_signatures) is str:
+            if type(input_bands) is BandSet:
+                bandset_signature = input_bands
+            else:
+                bandset_signature = None
+            signature_catalog = SpectralSignaturesCatalog(
+                bandset=bandset_signature
+            )
+            signature_catalog.load(file_path=spectral_signatures)
+            spectral_signatures = signature_catalog
         # collect x and y matrices
         x_y_matrices = _collect_x_y_matrices(
             x_matrix=x_input, y=y_input,

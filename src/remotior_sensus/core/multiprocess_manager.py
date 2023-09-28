@@ -86,8 +86,7 @@ class Multiprocess(object):
             signature_raster=False, virtual_raster=False,
             multi_add_factors=None, separate_bands=False,
             progress_message=None, device=None, multiple_block=None,
-            specific_output=None,
-            min_progress=None, max_progress=None
+            specific_output=None, min_progress=None, max_progress=None
     ):
         """
         :param device: processing device 'cpu' or 'cuda' if available.
