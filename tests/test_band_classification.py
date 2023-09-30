@@ -73,7 +73,7 @@ class TestBandClassification(TestCase):
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
-            algorithm_name=cfg.maximum_likelihood, signature_raster=False
+            algorithm_name=cfg.maximum_likelihood_a, signature_raster=False
             )
         self.assertTrue(files_directories.is_file(temp))
         cfg.logger.log.debug('>>> test minimum distance')
@@ -83,7 +83,7 @@ class TestBandClassification(TestCase):
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
-            algorithm_name=cfg.minimum_distance, signature_raster=False
+            algorithm_name=cfg.minimum_distance_a, signature_raster=False
             )
         self.assertTrue(files_directories.is_file(temp))
         cfg.logger.log.debug('>>> test spectral angle mapping')
@@ -93,7 +93,7 @@ class TestBandClassification(TestCase):
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
-            algorithm_name=cfg.spectral_angle_mapping,
+            algorithm_name=cfg.spectral_angle_mapping_a,
             signature_raster=True
             )
         self.assertTrue(files_directories.is_file(temp))
@@ -104,9 +104,8 @@ class TestBandClassification(TestCase):
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
-            algorithm_name=cfg.random_forest, signature_raster=False,
-            rf_max_features=5,
-            rf_number_trees=20, rf_min_samples_split=2
+            algorithm_name=cfg.random_forest_a, signature_raster=False,
+            rf_max_features=5, rf_number_trees=20, rf_min_samples_split=2
             )
         self.assertTrue(files_directories.is_file(temp))
         cfg.logger.log.debug('>>> test random forest ovr')
@@ -116,7 +115,7 @@ class TestBandClassification(TestCase):
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
-            algorithm_name=cfg.random_forest_ovr, signature_raster=False
+            algorithm_name=cfg.random_forest_ovr_a, signature_raster=False
             )
         self.assertTrue(files_directories.is_file(temp))
         cfg.logger.log.debug('>>> test support vector machine')
@@ -134,7 +133,7 @@ class TestBandClassification(TestCase):
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
-            algorithm_name=cfg.support_vector_machine, macroclass=True,
+            algorithm_name=cfg.support_vector_machine_a, macroclass=True,
             signature_raster=False
             )
         self.assertTrue(files_directories.is_file(temp))
@@ -145,7 +144,7 @@ class TestBandClassification(TestCase):
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
-            algorithm_name=cfg.multi_layer_perceptron,
+            algorithm_name=cfg.multi_layer_perceptron_a,
             classification_confidence=True,
             signature_raster=False, cross_validation=True, mlp_max_iter=5
             )
@@ -158,9 +157,8 @@ class TestBandClassification(TestCase):
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
             algorithm_name=cfg.multi_layer_perceptron, signature_raster=False,
-            find_best_estimator=True,
-            pytorch_loss_function=None, mlp_hidden_layer_sizes=[100, 50],
-            mlp_alpha=0.0001,
+            find_best_estimator=True, pytorch_loss_function=None,
+            mlp_hidden_layer_sizes=[100, 50], mlp_alpha=0.0001,
             mlp_learning_rate_init=0.001, mlp_max_iter=5, mlp_batch_size=10,
             mlp_activation='relu'
             )
@@ -170,7 +168,7 @@ class TestBandClassification(TestCase):
         classification = rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
             spectral_signatures=signature_catalog_2,
-            algorithm_name=cfg.pytorch_multi_layer_perceptron, only_fit=True,
+            algorithm_name=cfg.pytorch_multi_layer_perceptron_a, only_fit=True,
             save_classifier=True, class_weight='balanced',
             mlp_hidden_layer_sizes=[100, 50], mlp_max_iter=5,
             pytorch_device='cpu'

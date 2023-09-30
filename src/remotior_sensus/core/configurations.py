@@ -336,17 +336,29 @@ algorithm_name_framework = 'algorithm_name'
 input_normalization_framework = 'input_normalization'
 # classification algorithm names
 minimum_distance = 'minimum distance'
+minimum_distance_a = 'md'
 maximum_likelihood = 'maximum likelihood'
+maximum_likelihood_a = 'ml'
 spectral_angle_mapping = 'spectral angle mapping'
+spectral_angle_mapping_a = 'sam'
 random_forest = 'random forest'
+random_forest_a = 'rf'
 random_forest_ovr = 'random forest ovr'
+random_forest_ovr_a = 'rf_ovr'
 support_vector_machine = 'support vector machine'
+support_vector_machine_a = 'svm'
 multi_layer_perceptron = 'multi-layer perceptron'
+multi_layer_perceptron_a = 'mlp'
 pytorch_multi_layer_perceptron = 'pytorch multi-layer perceptron'
+pytorch_multi_layer_perceptron_a = 'pytorch_mlp'
 classification_algorithms = [
-    minimum_distance, maximum_likelihood, spectral_angle_mapping,
-    random_forest, random_forest_ovr, support_vector_machine,
-    multi_layer_perceptron, pytorch_multi_layer_perceptron
+    minimum_distance, minimum_distance_a,
+    maximum_likelihood, maximum_likelihood_a,
+    spectral_angle_mapping, spectral_angle_mapping_a,
+    random_forest, random_forest_a, random_forest_ovr, random_forest_ovr_a,
+    support_vector_machine, support_vector_machine_a,
+    multi_layer_perceptron, multi_layer_perceptron_a,
+    pytorch_multi_layer_perceptron, pytorch_multi_layer_perceptron_a
 ]
 # name used in raster conversion to vector for area field
 area_field_name = 'area'

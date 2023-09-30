@@ -156,8 +156,11 @@ class Classifier(object):
         self.classification_function = None
         # spectral signatures catalog
         if (algorithm_name == cfg.minimum_distance
+                or algorithm_name == cfg.minimum_distance_a
                 or algorithm_name == cfg.spectral_angle_mapping
-                or algorithm_name == cfg.maximum_likelihood):
+                or algorithm_name == cfg.spectral_angle_mapping_a
+                or algorithm_name == cfg.maximum_likelihood
+                or algorithm_name == cfg.maximum_likelihood_a):
             if spectral_signatures.signatures is None:
                 # import vector
                 spectral_signatures.import_vector(
@@ -177,25 +180,34 @@ class Classifier(object):
         else:
             spectral_signatures_catalog = spectral_signatures
         # minimum distance
-        if algorithm_name == cfg.minimum_distance:
+        if (algorithm_name == cfg.minimum_distance
+                or algorithm_name == cfg.minimum_distance_a):
             self.classification_function = classification_minimum_distance
         # spectral angle mapping
-        elif algorithm_name == cfg.spectral_angle_mapping:
-            self.classification_function = \
+        elif (algorithm_name == cfg.spectral_angle_mapping
+              or algorithm_name == cfg.spectral_angle_mapping_a):
+            self.classification_function = (
                 classification_spectral_angle_mapping
+            )
         # maximum likelihood
-        elif algorithm_name == cfg.maximum_likelihood:
+        elif (algorithm_name == cfg.maximum_likelihood
+              or algorithm_name == cfg.maximum_likelihood_a):
             self.classification_function = classification_maximum_likelihood
         # scikit framework
         elif (
-                algorithm_name == cfg.random_forest or algorithm_name ==
-                cfg.random_forest_ovr or algorithm_name ==
-                cfg.support_vector_machine or algorithm_name ==
-                cfg.multi_layer_perceptron):
+                algorithm_name == cfg.random_forest
+                or algorithm_name == cfg.random_forest_a
+                or algorithm_name == cfg.random_forest_ovr
+                or algorithm_name == cfg.random_forest_ovr_a
+                or algorithm_name == cfg.support_vector_machine
+                or algorithm_name == cfg.support_vector_machine_a
+                or algorithm_name == cfg.multi_layer_perceptron
+                or algorithm_name == cfg.multi_layer_perceptron_a):
             self.classification_function = classification_scikit
             self.framework_name = cfg.scikit_framework
         # pytorch framework
-        elif algorithm_name == cfg.pytorch_multi_layer_perceptron:
+        elif (algorithm_name == cfg.pytorch_multi_layer_perceptron
+              or algorithm_name == cfg.pytorch_multi_layer_perceptron_a):
             self.classification_function = classification_pytorch
             self.framework_name = cfg.pytorch_framework
         self.function_argument = {
@@ -443,7 +455,8 @@ class Classifier(object):
         if available_ram is None:
             available_ram = cfg.available_ram
         # random forest scikit
-        if algorithm_name == cfg.random_forest:
+        if (algorithm_name == cfg.random_forest
+                or algorithm_name == cfg.random_forest_a):
             if (find_best_estimator is not None
                     and find_best_estimator is not False):
                 if type(find_best_estimator) is int:
@@ -579,7 +592,8 @@ class Classifier(object):
                         str(model_classifier.oob_score_))
                 )
         # random forest ovr scikit
-        elif algorithm_name == cfg.random_forest_ovr:
+        elif (algorithm_name == cfg.random_forest_ovr
+              or algorithm_name == cfg.random_forest_ovr_a):
             if (
                     find_best_estimator is not None and find_best_estimator
                     is not False):
@@ -695,7 +709,8 @@ class Classifier(object):
                     'OneVsRestClassifier: RandomForestClassifier'
                 )
         # support vector machine scikit
-        elif algorithm_name == cfg.support_vector_machine:
+        elif (algorithm_name == cfg.support_vector_machine
+              or algorithm_name == cfg.support_vector_machine_a):
             if svc_classification_confidence is None:
                 svc_classification_confidence = False
             if (
@@ -801,7 +816,8 @@ class Classifier(object):
                 cfg.progress.update(message='fitting')
                 model_classifier.fit(x_matrix, y)
         # multilayer perceptron scikit
-        elif algorithm_name == cfg.multi_layer_perceptron:
+        elif (algorithm_name == cfg.multi_layer_perceptron
+              or algorithm_name == cfg.multi_layer_perceptron_a):
             if mlp_training_portion is None:
                 mlp_training_portion = 0.9
             elif mlp_training_portion > 1:
@@ -954,7 +970,8 @@ class Classifier(object):
                 cfg.progress.update(message='fitting')
                 model_classifier.fit(x_matrix, y)
         # multilayer perceptron pytorch
-        elif algorithm_name == cfg.pytorch_multi_layer_perceptron:
+        elif (algorithm_name == cfg.pytorch_multi_layer_perceptron
+              or algorithm_name == cfg.pytorch_multi_layer_perceptron_a):
             if mlp_training_portion is None:
                 mlp_training_portion = 0.9
             elif mlp_training_portion > 1:
@@ -1454,7 +1471,8 @@ def _get_x_y_arrays_from_rois(
                 x_matrix[b, ::] = (x_matrix[b, ::] - minimum) / (
                         maximum - minimum)
                 normalization.append(expression)
-    if algorithm_name == cfg.maximum_likelihood:
+    if (algorithm_name == cfg.maximum_likelihood
+            or algorithm_name == cfg.maximum_likelihood_a):
         for s in array_dictionary:
             cfg.logger.log.error('s: %s' % str(s))
             matrix = np.stack(array_dictionary[s])
@@ -1594,13 +1612,18 @@ def _load_model(model_path):
                 input_normalization = None
             # scikit framework
             if (
-                    algorithm_name == cfg.random_forest or algorithm_name ==
-                    cfg.random_forest_ovr or algorithm_name ==
-                    cfg.support_vector_machine or algorithm_name ==
-                    cfg.multi_layer_perceptron):
+                    algorithm_name == cfg.random_forest
+                    or algorithm_name == cfg.random_forest_a
+                    or algorithm_name == cfg.random_forest_ovr
+                    or algorithm_name == cfg.random_forest_ovr_a
+                    or algorithm_name == cfg.support_vector_machine
+                    or algorithm_name == cfg.support_vector_machine_a
+                    or algorithm_name == cfg.multi_layer_perceptron
+                    or algorithm_name == cfg.multi_layer_perceptron_a):
                 framework_name = cfg.scikit_framework
             # pytorch framework
-            elif algorithm_name == cfg.pytorch_multi_layer_perceptron:
+            elif (algorithm_name == cfg.pytorch_multi_layer_perceptron
+                  or algorithm_name == cfg.pytorch_multi_layer_perceptron_a):
                 framework_name = cfg.pytorch_framework
         elif f_name == cfg.spectral_signatures_framework:
             spectral_signatures = pickle.load(open(f, 'rb'))
