@@ -975,10 +975,15 @@ def create_product_table(
                 if '10' in scale_offset_dict:
                     scale_value_list.append(scale_offset_dict['10'][0])
                     offset_value_list.append(scale_offset_dict['10'][1])
+                else:
+                    scale_value_list.append(1)
+                    offset_value_list.append(0)
                 k1_list.append(0)
                 k2_list.append(0)
         product_name_list = [cfg.landsat] * len(band_names)
         spacecraft_list = [spacecraft_id] * len(band_names)
+    # if empty, apply default scaling factors  from
+    # https://www.usgs.gov/landsat-missions/landsat-collection-2-level-2-science-products
     if len(scale_value_list) == 0:
         scale_value_list = [0.0000275] * len(band_names)
     if len(offset_value_list) == 0:
