@@ -75,7 +75,7 @@ def preprocess(
     Surface reflectance = DN / QUANTIFICATION VALUE + OFFSET
 
     Args:
-        input_path:
+        input_path: path containing the raster bands.
         output_path: string of output path directory.
         metadata_file_path:
         dos1_correction: if True, perform DOS1 correction.
@@ -369,6 +369,39 @@ def perform_preprocess(
             output_nodata.extend(
                 [cfg.nodata_val_UInt16] * len(landsat_product_l1)
             )
+            # get level 2 if any and perform conversion without DOS1
+            landsat_2_product = landsat_product[
+                (np.char.lower(landsat_product.processing_level) == 'l2sp') & (
+                        landsat_product.band_number != '10')]
+            # calculate reflectance = (raster * scale
+            #  + offset) / sin(Sun elevation)
+            # raster is interpreted as variable in the calculation
+            string_1 = np.char.add(
+                'np.clip( ( %s * ' % cfg.array_function_placeholder,
+                landsat_2_product.scale.astype('<U16')
+            )
+            string_2 = np.char.add(string_1, ' + ')
+            string_3 = np.char.add(
+                string_2, landsat_2_product.offset.astype('<U16')
+            )
+            expressions.extend(np.char.add(string_3, ') , 0, 1)').tolist())
+            input_list.extend(landsat_2_product.product_path.tolist())
+            # output raster list
+            output_string_2 = np.char.add(
+                '%s/%s' % (output_path, output_prefix),
+                landsat_2_product.band_name
+            )
+            output_raster_path_list.extend(
+                np.char.add(output_string_2, cfg.tif_suffix).tolist()
+            )
+            nodata_list.extend(landsat_2_product.nodata.tolist())
+            calculation_datatype.extend([np.float32] * len(landsat_product))
+            output_datatype.extend([cfg.uint16_dt] * len(landsat_product))
+            scale_list.extend([0.0001] * len(landsat_product))
+            offset_list.extend([0] * len(landsat_product))
+            output_nodata.extend(
+                [cfg.nodata_val_UInt16] * len(landsat_product)
+            )
         else:
             # level 1 products
             landsat_1_product = landsat_product[
@@ -511,12 +544,13 @@ def perform_preprocess(
             bandset_number = bandset_catalog.get_bandset_count() + 1
             # create bandset
             bandset_catalog.create_bandset(
-                paths=output_raster_path_list, wavelengths=[product],
+                paths=output_raster_path_list,
                 insert=True, date=str(product_table.date[0]),
                 bandset_number=bandset_number
             )
-            bandset_catalog.get_bandset(
-                bandset_number).sort_bands_by_wavelength()
+            bandset_catalog.set_satellite_wavelength(
+                satellite_name=product, bandset_number=bandset_number
+            )
         else:
             for path in output_raster_path_list:
                 # add to current bandset

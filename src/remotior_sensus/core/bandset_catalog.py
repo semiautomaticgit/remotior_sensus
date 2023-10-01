@@ -302,7 +302,7 @@ class BandSet(object):
         cfg.logger.log.debug(
             'absolute_path: %s%s'
             % (str(absolute_path), str(band_number))
-            )
+        )
         return absolute_path
 
     def get_wavelengths(self) -> list:
@@ -489,7 +489,7 @@ class BandSet(object):
                         element = cElementTree.SubElement(
                             band_element,
                             attribute
-                            )
+                        )
                         element.text = str(band[attribute])
         cfg.logger.log.debug('export bandset')
         if output_path is None:
@@ -521,25 +521,25 @@ class BandSet(object):
         text.append(
             'root directory: %s %s'
             % (str(self.root_directory), nl)
-            )
+        )
         text.append('crs: %s %s' % (str(self.crs), nl))
         if self.box_coordinate_list is not None:
             text.append(
                 'box coordinate left %s %s %s'
                 % (sep, str(self.box_coordinate_list[0]), nl)
-                )
+            )
             text.append(
                 'box coordinate top %s %s %s'
                 % (sep, str(self.box_coordinate_list[1]), nl)
-                )
+            )
             text.append(
                 'box coordinate right %s %s %s'
                 % (sep, str(self.box_coordinate_list[2]), nl)
-                )
+            )
             text.append(
                 'box coordinate bottom %s %s %s'
                 % (sep, str(self.box_coordinate_list[3]), nl)
-                )
+            )
         if self.bands is not None:
             max_widths = {}
             for attribute in self.bands.dtype.names:
@@ -574,19 +574,19 @@ class BandSet(object):
                 names.append(
                     '%s %s'
                     % (attribute.ljust(max_widths[attribute]), sep)
-                    )
+                )
                 first_line.append(
                     '%s%s'
                     % ('─' * (max_widths[attribute] + 2), '┬')
-                    )
+                )
                 lines.append(
                     '%s%s'
                     % ('─' * (max_widths[attribute] + 2), '┼')
-                    )
+                )
                 last_line.append(
                     '%s%s'
                     % ('─' * (max_widths[attribute] + 2), '┴')
-                    )
+                )
             names.append(nl)
             first_line[-1] = first_line[-1][:-1]
             first_line.append('%s %s' % ('┐', nl))
@@ -868,7 +868,11 @@ class BandSet(object):
                     wl = f + 1
                     unit = cfg.no_unit
             else:
-                wl = wavelengths[f]
+                try:
+                    wl = float(wavelengths[f])
+                except Exception as err:
+                    wl = f + 1
+                    cfg.logger.log.error(err)
             if cfg.action is True:
                 # single band
                 if multiband is None:
@@ -1001,7 +1005,7 @@ class BandSet(object):
         except Exception as err:
             str(err)
             return [None, None, None, None, None, None]
-        # scale unit
+        # unit
         if unit == cfg.wl_micro:
             m = 1
         elif unit == cfg.wl_nano:
@@ -1153,7 +1157,7 @@ class BandSet(object):
                     band_list.append(attr)
         return band_list
 
-    # Tools #######################################################################
+    # Tools ###################################################################
 
     def execute(self, function, *args, **kwargs):
         """Executes a function.
@@ -2241,7 +2245,7 @@ class BandSetCatalog(object):
     def sort_bands_by_name(
             self, bandset_number: Optional[int] = None,
             keep_wavelength_order: Optional[bool] = True
-            ):
+    ):
         """Sorts bands by name.
 
          This function numerically sorts bands in a BandSet by name.
@@ -2866,6 +2870,7 @@ class BandSetCatalog(object):
                 ... bandset_number=1, satellite_name='Sentinel-2'
                 ... )
         """  # noqa: E501
+        cfg.logger.log.debug('satellite_name: %s' % str(satellite_name))
         if bandset_number is None:
             bandset_number = self.current_bandset
         bandset_x = self.get_bandset_by_number(bandset_number)
@@ -3214,7 +3219,7 @@ class BandSetCatalog(object):
         raster_vector.gdal_copy_raster(
             input_raster=virtual_path,
             output=output_path
-            )
+        )
         cfg.logger.log.debug('output_path: %s' % str(output_path))
         return output_path
 

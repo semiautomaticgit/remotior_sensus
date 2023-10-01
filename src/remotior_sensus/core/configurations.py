@@ -135,10 +135,10 @@ satQuickBird = 'QuickBird [bands 1, 2, 3, 4]'
 satWorldView23 = 'WorldView-2 -3 Multispectral [bands 1, 2, 3, 4, 5, 6, 7, 8]'
 # satellite list used in BandSet class
 sat_band_list = [
-    no_satellite, satASTER, satGeoEye1, satGOES, satLandsat8, satLandsat7,
-    satLandsat45, satLandsat13, satMODIS, satMODIS2, satPleiades, satQuickBird,
-    satRapidEye, satSentinel2, satSentinel3, satSPOT4, satSPOT5, satSPOT6,
-    satWorldView23
+    no_satellite, satASTER, satGeoEye1, satGOES, satLandsat9, satLandsat8,
+    satLandsat7, satLandsat45, satLandsat13, satMODIS, satMODIS2, satPleiades,
+    satQuickBird, satRapidEye, satSentinel2, satSentinel3, satSPOT4, satSPOT5,
+    satSPOT6, satWorldView23
 ]
 # units used for center wavelength
 no_unit = 'band number'
@@ -174,7 +174,9 @@ satellites = {
         ['01', '02', '3N', '04', '05', '06', '07', '08', '09', '10',
          '11', '12', '13', '14']],
     # Landsat center wavelength calculated from
-    # http://landsat.usgs.gov/band_designations_landsat_satellites.php
+    # https://www.usgs.gov/faqs/what-are-band-designations-landsat-satellites
+    satLandsat9: [[0.44, 0.48, 0.56, 0.655, 0.865, 1.61, 2.2],
+                  wl_micro, ['1', '2', '3', '4', '5', '6', '7']],
     satLandsat8: [[0.44, 0.48, 0.56, 0.655, 0.865, 1.61, 2.2],
                   wl_micro, ['1', '2', '3', '4', '5', '6', '7']],
     satLandsat7: [[0.485, 0.56, 0.66, 0.835, 1.65, 2.22],

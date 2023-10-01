@@ -1175,7 +1175,7 @@ def create_band_table(
         ('nodata', 'int64'), ('data_type', 'U16'),
         ('number_of_bands', 'int16'),
         ('x_block_size', 'int64'), ('y_block_size', 'int64'),
-        ('scale', 'int64'), ('offset', 'int64'), ('crs', 'U1024')
+        ('scale', 'float64'), ('offset', 'float64'), ('crs', 'U1024')
     ]
     if nodata is None:
         nodata = cfg.nodata_val_Int64
