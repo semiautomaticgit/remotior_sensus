@@ -1450,9 +1450,13 @@ def create_virtual_raster_2_mosaic(
                 band.SetMetadataItem(
                     'ComplexSource', source, 'new_vrt_sources'
                 )
+            cfg.logger.log.debug(
+                'dst_nodata: %s; src_nodata: %s; no_data: %s'
+                % (str(dst_nodata),  str(src_nodata), str(no_data))
+            )
             if dst_nodata is True:
                 band.SetNoDataValue(int(src_nodata))
-            elif not dst_nodata:
+            elif dst_nodata is False:
                 pass
             else:
                 try:

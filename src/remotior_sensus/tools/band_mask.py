@@ -31,6 +31,7 @@ Typical usage example:
 """  # noqa: E501
 
 from typing import Union, Optional
+import numpy as np
 
 from remotior_sensus.core import configurations as cfg
 from remotior_sensus.core.bandset_catalog import BandSet
@@ -209,12 +210,27 @@ def band_mask(
     one_progress = int((99 - 1) / (len(input_raster_list) - 1))
     max_progress = one_progress
     for band in range(len(input_raster_list) - 1):
+        if output_datatype[band] == cfg.float64_dt:
+            calc_data_type = np.float64
+        elif output_datatype[band] == cfg.float32_dt:
+            calc_data_type = np.float32
+        elif (output_datatype[band] == cfg.int32_dt
+              or output_datatype[band] == cfg.uint32_dt):
+            calc_data_type = np.float32
+        elif output_datatype[band] == cfg.int16_dt:
+            calc_data_type = np.float32
+        elif output_datatype[band] == cfg.uint16_dt:
+            calc_data_type = np.float32
+        elif output_datatype[band] == cfg.byte_dt:
+            calc_data_type = np.float32
+        else:
+            calc_data_type = np.float32
         # run calculation
         cfg.multiprocess.run(
             raster_path=vrt_path_x, function=band_calculation,
             function_argument=argument_list[band],
             function_variable=variable_list[band],
-            calculation_datatype=calculation_datatype[band],
+            calculation_datatype=calc_data_type,
             use_value_as_nodata=nodata_list[band], dummy_bands=dummy_bands,
             output_raster_path=output_list[band],
             output_data_type=output_datatype[band],

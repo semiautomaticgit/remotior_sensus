@@ -27,7 +27,6 @@ class TestBandMask(TestCase):
                               output_path=cfg.temp.dir)
         self.assertTrue(output.check)
         self.assertTrue(files_directories.is_file(output.paths[0]))
-
         files = ['./data/S2_2020-01-01/S2_B02.tif',
                  './data/S2_2020-01-01/S2_B03.tif',
                  './data/S2_2020-01-01/S2_B04.tif']
