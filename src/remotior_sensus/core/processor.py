@@ -454,6 +454,9 @@ def function_initiator(
             cfg.logger.log.debug(
                 'len(ndv_band_list): %s' % (len(ndv_band_list))
             )
+            cfg.logger.log.debug(
+                'calculation_datatype: %s' % (calculation_datatype)
+            )
             # create input array
             for b in range(len(ndv_band_list)):
                 cfg.logger.log.debug(

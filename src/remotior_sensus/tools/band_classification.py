@@ -1078,7 +1078,8 @@ class Classifier(object):
             cfg.multiprocess.run(
                 raster_path=vrt_check, function=self.classification_function,
                 function_argument=self.function_argument,
-                n_processes=n_processes,
+                n_processes=n_processes, output_data_type=cfg.uint32_dt,
+                output_nodata_value=cfg.nodata_val_UInt32,
                 available_ram=available_ram, dummy_bands=dummy_bands,
                 function_variable=[macroclass, threshold],
                 output_raster_path=output_raster_path, classification=True,

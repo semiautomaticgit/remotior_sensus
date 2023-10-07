@@ -1349,8 +1349,8 @@ class Multiprocess(object):
         cfg.logger.log.debug('end')
         self.output = output_table
 
-    # convert raster to vector
-    def multiprocess_raster_to_vector(
+    # convert raster to vector (deprecated)
+    def multiprocess_raster_to_vector_old(
             self, raster_path, output_vector_path, field_name=None,
             n_processes: int = None,
             dissolve_output=True, min_progress=0, max_progress=100,
@@ -1487,6 +1487,80 @@ class Multiprocess(object):
         else:
             merge = tmp_rast_list[0]
         self.output = merge
+        cfg.logger.log.debug('end')
+
+    # convert raster to vector
+    def multiprocess_raster_to_vector(
+            self, raster_path, output_vector_path, field_name=None,
+            n_processes: int = None, dissolve_output=False,
+            min_progress=0, max_progress=100, available_ram: int = None
+    ):
+        max_progress_1 = int(max_progress / 3)
+        cfg.logger.log.debug('start')
+        _n_processes = n_processes
+        _dissolve_output = dissolve_output
+        process_result = []
+        self.output = False
+        if available_ram is None:
+            available_ram = cfg.available_ram
+        if field_name is None:
+            field_name = 'DN'
+        # progress queue
+        p_mq = self.manager.Queue()
+        # parallel process
+        p = 0
+        process_parameters = [
+            p, cfg.temp, cfg.gdal_path, p_mq, int(int(available_ram) * 1000000)
+        ]
+        c = self.pool.apply_async(
+            processor.raster_to_vector_process,
+            args=(
+                raster_path, output_vector_path, field_name,
+                process_parameters
+            )
+        )
+        results = [[c, p]]
+        while True:
+            if cfg.action is True:
+                # update progress
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    progress = round(p_mq.get(False))
+                    step = round(
+                        min_progress + progress * (
+                                max_progress_1 - min_progress) / 100
+                    )
+                    cfg.progress.update(
+                        message='processing to vector', step=step,
+                        percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.info('cancel')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
+        # get results
+        for r in results:
+            res = r[0].get()
+            process_result.append(res[0])
+            cfg.logger.log.debug(res[2])
+            # error
+            if res[1] is not False:
+                cfg.logger.log.error('error multiprocess: %s' % str(res[1]))
+                gc.collect()
+                return
+        gc.collect()
+        self.output = output_vector_path
         cfg.logger.log.debug('end')
 
     # convert raster sieve

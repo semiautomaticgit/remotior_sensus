@@ -142,13 +142,13 @@ def band_combination(
     for info in raster_info:
         type_list.append(info[8])
     if cfg.float64_dt in type_list:
-        calc_data_type = np.float64
+        calc_data_type = np.int64
         output_data_type = cfg.float64_dt
         calc_nodata = cfg.nodata_val_Int64
     elif cfg.float32_dt in type_list:
-        calc_data_type = np.float32
-        output_data_type = cfg.float32_dt
-        calc_nodata = cfg.nodata_val_Float32
+        calc_data_type = np.int64
+        output_data_type = cfg.float64_dt
+        calc_nodata = cfg.nodata_val_Int64
     elif cfg.int32_dt in type_list and cfg.uint32_dt in type_list:
         calc_data_type = np.int64
         output_data_type = cfg.float64_dt
@@ -156,7 +156,7 @@ def band_combination(
     elif cfg.int32_dt in type_list:
         calc_data_type = np.int64
         output_data_type = cfg.int32_dt
-        calc_nodata = cfg.nodata_val_Int32
+        calc_nodata = cfg.nodata_val_Int64
     elif cfg.uint32_dt in type_list:
         calc_data_type = np.int64
         output_data_type = cfg.uint32_dt
