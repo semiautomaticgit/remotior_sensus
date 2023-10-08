@@ -159,6 +159,13 @@ def perform_preprocess(
     sentinel_product = product_table[product_table.product == cfg.sentinel2]
     # Landsat
     landsat_product = product_table[product_table.product == cfg.landsat]
+    # HLS
+    sentinel_hls_product = product_table[
+        product_table.product == cfg.sentinel2_hls
+    ]
+    landsat_hls_product = product_table[
+        product_table.product == cfg.landsat_hls
+    ]
     # Sentinel-2
     if len(sentinel_product) > 0:
         if dos1_correction:
@@ -256,7 +263,7 @@ def perform_preprocess(
                 [cfg.nodata_val_UInt16] * len(sentinel_product)
             )
     # Landsat
-    elif len(landsat_product) > 0:
+    if len(landsat_product) > 0:
         # temperature
         landsat_temperature_product = landsat_product[landsat_product.k1 != 0]
         string_0 = np.char.add(
@@ -476,6 +483,51 @@ def perform_preprocess(
             output_nodata.extend(
                 [cfg.nodata_val_UInt16] * len(landsat_product)
             )
+    # HLS Landsat
+    if len(landsat_hls_product) > 0:
+        # raster is interpreted as variable in the calculation
+        # TODO implement copy of files instead of calculation
+        string_0 = 'np.where(%s < 0, 0, %s)' % (
+                cfg.array_function_placeholder, cfg.array_function_placeholder
+            )
+        expressions = [string_0] * len(landsat_hls_product)
+        input_list.extend(landsat_hls_product.product_path.tolist())
+        # output raster list
+        output_string_2 = np.char.add(
+            '%s/%s' % (output_path, output_prefix),
+            landsat_hls_product.band_name
+        )
+        output_raster_path_list.extend(
+            np.char.add(output_string_2, cfg.tif_suffix).tolist()
+        )
+        nodata_list.extend(landsat_hls_product.nodata.tolist())
+        calculation_datatype.extend([np.float32] * len(landsat_hls_product))
+        output_datatype.extend([cfg.float32_dt] * len(landsat_hls_product))
+        scale_list.extend([0.0001] * len(landsat_hls_product))
+        offset_list.extend([0] * len(landsat_hls_product))
+        output_nodata.extend([0] * len(landsat_hls_product))
+    # HLS Sentinel-2
+    if len(sentinel_hls_product) > 0:
+        # raster is interpreted as variable in the calculation
+        string_0 = 'np.where(%s < 0, 0, %s)' % (
+                cfg.array_function_placeholder, cfg.array_function_placeholder
+            )
+        expressions = [string_0] * len(sentinel_hls_product)
+        input_list.extend(sentinel_hls_product.product_path.tolist())
+        # output raster list
+        output_string_2 = np.char.add(
+            '%s/%s' % (output_path, output_prefix),
+            sentinel_hls_product.band_name
+        )
+        output_raster_path_list.extend(
+            np.char.add(output_string_2, cfg.tif_suffix).tolist()
+        )
+        nodata_list.extend(sentinel_hls_product.nodata.tolist())
+        calculation_datatype.extend([np.float32] * len(sentinel_hls_product))
+        output_datatype.extend([cfg.float32_dt] * len(sentinel_hls_product))
+        scale_list.extend([0.0001] * len(sentinel_hls_product))
+        offset_list.extend([0] * len(sentinel_hls_product))
+        output_nodata.extend([0] * len(sentinel_hls_product))
     files_directories.create_directory(output_path)
     # dummy bands for memory calculation
     dummy_bands = 2
@@ -540,6 +592,10 @@ def perform_preprocess(
                 product = cfg.satLandsat8
             elif '9' in spacecraft:
                 product = cfg.satLandsat9
+        elif product == cfg.landsat_hls:
+            product = cfg.satLandsat8
+        elif product == cfg.sentinel2_hls:
+            product = cfg.satSentinel2
         if add_bandset is True:
             bandset_number = bandset_catalog.get_bandset_count() + 1
             # create bandset
@@ -615,6 +671,19 @@ def create_product_table(
                 metadata = '%s/%s' % (input_path, str(f))
                 product_name = cfg.landsat
                 metadata_type = 'xml'
+            # HLS Landsat Sentinel-2
+            elif f.lower().endswith('.txt'):
+                metadata = '%s/%s' % (input_path, str(f))
+                with open(metadata, 'r') as file:
+                    # read file
+                    text = file.read()
+                if text.split(cfg.new_line)[0] == cfg.sentinel2_hls:
+                    product_name = cfg.sentinel2_hls
+                    product_date = text.split(cfg.new_line)[1]
+                elif text.split(cfg.new_line)[0] == cfg.landsat_hls:
+                    product_name = cfg.landsat_hls
+                    product_date = text.split(cfg.new_line)[1]
+                metadata_type = 'txt'
     else:
         metadata = metadata_file_path
         if files_directories.file_extension(metadata) == cfg.xml_suffix:
@@ -863,7 +932,6 @@ def create_product_table(
                         'TEMPERATURE_ADD_BAND_ST_B6'
                     )[0].firstChild.data
                 )]
-
         # use default values
         else:
             spacecraft_id = cfg.landsat
@@ -982,6 +1050,61 @@ def create_product_table(
                 k2_list.append(0)
         product_name_list = [cfg.landsat] * len(band_names)
         spacecraft_list = [spacecraft_id] * len(band_names)
+    elif product_name == cfg.sentinel2_hls:
+        cfg.logger.log.debug(cfg.sentinel2_hls)
+        sentinel2_bands = cfg.satellites[cfg.satSentinel2][2]
+        # get bands
+        file_list = files_directories.files_in_directory(
+            input_path, sort_files=True, suffix_filter=cfg.tif_suffix
+        )
+        file_list.extend(
+            files_directories.files_in_directory(
+                input_path, sort_files=True, suffix_filter='.vrt'
+            )
+        )
+        for f in file_list:
+            # check band number
+            if f[-6:-4].lower() in sentinel2_bands:
+                band_names.append(files_directories.file_name(f))
+                product_path_list.append(f)
+                band_number_list.append(f[-6:-4].lower())
+        product_name_list = [product_name] * len(band_names)
+        spacecraft_list = [product_name] * len(band_names)
+        scale_value_list = [1] * len(band_names)
+        if len(offset_value_list) == 0:
+            offset_value_list = [0] * len(band_names)
+    elif product_name == cfg.landsat_hls:
+        cfg.logger.log.debug(cfg.landsat_hls)
+        landsat_bands = cfg.satellites[cfg.satLandsat8][2]
+        # get bands
+        file_list = files_directories.files_in_directory(
+            input_path, sort_files=True, suffix_filter=cfg.tif_suffix
+        )
+        file_list.extend(
+            files_directories.files_in_directory(
+                input_path, sort_files=True, suffix_filter='.vrt'
+            )
+        )
+        for f in file_list:
+            # check band number
+            if f[-5:-4] in landsat_bands:
+                band_names.append(files_directories.file_name(f))
+                band_number_list.append(f[-5:-4])
+                product_path_list.append(f)
+                scale_value_list.append(1)
+                offset_value_list.append(0)
+                k1_list.append(0)
+                k2_list.append(0)
+            elif f[-6:-4] == '10' or f[-6:-4] == '11':
+                band_names.append(files_directories.file_name(f))
+                band_number_list.append(f[-6:-4])
+                product_path_list.append(f)
+                scale_value_list.append(1)
+                offset_value_list.append(0)
+                k1_list.append(0)
+                k2_list.append(0)
+        product_name_list = [product_name] * len(band_names)
+        spacecraft_list = [product_name] * len(band_names)
     # if empty, apply default scaling factors  from
     # https://www.usgs.gov/landsat-missions/landsat-collection-2-level-2-science-products
     if len(scale_value_list) == 0:

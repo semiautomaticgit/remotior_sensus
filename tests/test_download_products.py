@@ -80,7 +80,6 @@ class TestDownloadProducts(TestCase):
             extent_coordinate_list=[494000, 4175000, 501000, 4169000]
         )
         self.assertTrue(rs.files_directories.is_file(output_manager.paths[0]))
-
         cfg.logger.log.debug('>>> test query Sentinel HLS')
         output_manager = rs.download_products.query_nasa_cmr(
             product=cfg.sentinel2_hls, date_from='2021-01-01',
@@ -102,7 +101,7 @@ class TestDownloadProducts(TestCase):
         cfg.logger.log.debug('>>> test download HLS bands')
         output_manager = rs.download_products.download(
             product_table=product_table_2[product_table_2['cloud_cover'] < 10],
-            output_path=cfg.temp.dir + '/test_4', band_list=['01'], 
+            output_path=cfg.temp.dir + '/test_4', band_list=['01'],
             nasa_user='', nasa_password='')
         self.assertTrue(rs.files_directories.is_file(output_manager.paths[0]))
         """

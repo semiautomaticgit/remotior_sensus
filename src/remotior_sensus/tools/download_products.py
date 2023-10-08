@@ -553,14 +553,18 @@ def download(
             image_name = product_table['image'][i]
             acquisition_date = product_table['acquisition_date'][i]
             if product_table['product'][i] == cfg.sentinel2_hls:
-                top_url = 'https://data.lpdaac.earthdatacloud.nasa.gov/' \
-                          'lp-prod-protected'
+                top_url = (
+                    'https://data.lpdaac.earthdatacloud.nasa.gov'
+                    '/lp-prod-protected'
+                )
                 # noinspection SpellCheckingInspection
                 product_url = '%s/HLSS30.020/%s/%s' % (
                     top_url, image_name, image_name)
             elif product_table['product'][i] == cfg.landsat_hls:
-                top_url = 'https://data.lpdaac.earthdatacloud.nasa.gov/' \
-                          'lp-prod-protected'
+                top_url = (
+                    'https://data.lpdaac.earthdatacloud.nasa.gov'
+                    '/lp-prod-protected'
+                )
                 product_url = '%s/HLSL30.020/%s/%s' % (
                     top_url, image_name, image_name)
             base_output_dir = '%s/%s_%s' % (
@@ -610,6 +614,25 @@ def download(
                                 'failed download %s_B%s'
                                 % (image_name[0:-7], band)
                             )
+                        if not files_directories.is_file(
+                                '%s/metadata.txt' % base_output_dir
+                        ):
+                            try:
+                                with open(
+                                        '%s/metadata.txt' % base_output_dir,
+                                        'w'
+                                ) as file:
+                                    file.write(
+                                        str(product_table['product'][i])
+                                        + cfg.new_line
+                                        + str(
+                                            product_table[
+                                                'acquisition_date'
+                                            ][i]
+                                            )
+                                    )
+                            except Exception as err:
+                                str(err)
                 min_progress += progress_step
                 max_progress += progress_step
     if exporter:
