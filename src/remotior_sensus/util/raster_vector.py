@@ -57,7 +57,11 @@ def raster_or_vector_input(path):
     raster = False
     crs = None
     # try vector
-    l_p = ogr.Open(path)
+    try:
+        l_p = ogr.Open(path)
+    except Exception as err:
+        str(err)
+        l_p = None
     # if raster
     if l_p is None:
         raster = True
@@ -108,7 +112,11 @@ def get_number_bands(path):
 # get CRS of a raster or vector
 def get_crs(path):
     # try vector
-    l_p = ogr.Open(path)
+    try:
+        l_p = ogr.Open(path)
+    except Exception as err:
+        str(err)
+        l_p = None
     # if raster
     if l_p is None:
         l_p = gdal.Open(path, gdal.GA_ReadOnly)
