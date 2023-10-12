@@ -28,6 +28,7 @@ from remotior_sensus.core import configurations as cfg, processor
 from remotior_sensus.util import files_directories, raster_vector
 
 try:
+    multiprocessing.freeze_support()
     multiprocessing.set_start_method('spawn')
 except Exception as error:
     str(error)
@@ -38,9 +39,11 @@ class Multiprocess(object):
 
     def __init__(self, n_processes: int = None, multiprocess_module=None):
         if multiprocess_module is None:
+            multiprocessing.freeze_support()
             self.pool = multiprocessing.Pool(processes=n_processes)
             self.manager = multiprocessing.Manager()
         else:
+            multiprocess_module.freeze_support()
             self.pool = multiprocess_module.Pool(processes=n_processes)
             self.manager = multiprocess_module.Manager()
         self.multiprocess_module = multiprocess_module
@@ -52,9 +55,11 @@ class Multiprocess(object):
         self.stop()
         cfg.multiprocess = self
         if multiprocess_module is None:
+            multiprocessing.freeze_support()
             self.pool = multiprocessing.Pool(processes=n_processes)
             self.manager = multiprocessing.Manager()
         else:
+            multiprocess_module.freeze_support()
             self.pool = multiprocess_module.Pool(processes=n_processes)
             self.manager = multiprocess_module.Manager()
         self.multiprocess_module = multiprocess_module
