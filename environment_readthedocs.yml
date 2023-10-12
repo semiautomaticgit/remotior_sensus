@@ -7,3 +7,4 @@ dependencies:
   - numpy
   - scipy
   - gdal
+  - sphinx_rtd_theme
