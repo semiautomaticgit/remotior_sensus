@@ -1475,7 +1475,7 @@ def _get_x_y_arrays_from_rois(
     if (algorithm_name == cfg.maximum_likelihood
             or algorithm_name == cfg.maximum_likelihood_a):
         for s in array_dictionary:
-            cfg.logger.log.error('s: %s' % str(s))
+            cfg.logger.log.debug('s: %s' % str(s))
             matrix = np.stack(array_dictionary[s])
             # normalization
             if input_normalization is not None:

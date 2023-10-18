@@ -191,6 +191,18 @@ def classification_maximum_likelihood(*argv):
             class_id = signatures_table[
                 signatures_table.signature_id == s].class_id
         values = signatures.signatures[s].value
+        if _array_function_placeholder.shape[2] < values.shape[0]:
+            values = values[0:_array_function_placeholder.shape[2]]
+            cfg.logger.log.error(
+                'signature values shape; trying to continue anyway'
+            )
+        elif _array_function_placeholder.shape[2] > values.shape[0]:
+            _array_function_placeholder = _array_function_placeholder[
+                                          :, :, 0:values.shape[0]
+                                          ]
+            cfg.logger.log.error(
+                'signature values shape; trying to continue anyway'
+            )
         cfg.logger.log.debug('signature: %s; values: %s' % (s, str(values)))
         try:
             cov_matrix = covariance_matrices[s]
@@ -294,6 +306,18 @@ def classification_minimum_distance(*argv):
             class_id = signatures_table[
                 signatures_table.signature_id == s].class_id
         values = signatures.signatures[s].value
+        if _array_function_placeholder.shape[2] < values.shape[0]:
+            values = values[0:_array_function_placeholder.shape[2]]
+            cfg.logger.log.error(
+                'signature values shape; trying to continue anyway'
+            )
+        elif _array_function_placeholder.shape[2] > values.shape[0]:
+            _array_function_placeholder = _array_function_placeholder[
+                                          :, :, 0:values.shape[0]
+                                          ]
+            cfg.logger.log.error(
+                'signature values shape; trying to continue anyway'
+            )
         # euclidean distance
         distance_array = np.sqrt(
             ((_array_function_placeholder - values) ** 2).sum(axis=2)
@@ -382,6 +406,18 @@ def classification_spectral_angle_mapping(*argv):
             class_id = signatures_table[
                 signatures_table.signature_id == s].class_id
         values = signatures.signatures[s].value
+        if _array_function_placeholder.shape[2] < values.shape[0]:
+            values = values[0:_array_function_placeholder.shape[2]]
+            cfg.logger.log.error(
+                'signature values shape; trying to continue anyway'
+            )
+        elif _array_function_placeholder.shape[2] > values.shape[0]:
+            _array_function_placeholder = _array_function_placeholder[
+                                          :, :, 0:values.shape[0]
+                                          ]
+            cfg.logger.log.error(
+                'signature values shape; trying to continue anyway'
+            )
         # spectral angle
         distance_array = np.arccos(
             (_array_function_placeholder * values).sum(axis=2) / np.sqrt(

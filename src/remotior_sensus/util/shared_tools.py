@@ -58,6 +58,7 @@ def prepare_input_list(
     name_list = []
     gt_list = []
     xy_count_list = []
+    box_coordinates_list = []
     warped = False
     for i in range(len(band_list)):
         name_list.append(files_directories.file_name(band_list[i]))
@@ -94,6 +95,11 @@ def prepare_input_list(
         gt_list.append(gt)
         xy_count_list.append(xy_count)
         nodata_list.append(nd)
+        top = gt[3]
+        left = gt[0]
+        bottom = gt[3] + gt[5] * xy_count[1] + gt[4] * xy_count[0]
+        right = gt[0] + gt[1] * xy_count[0] + gt[2] * xy_count[1]
+        box_coordinates_list.append([left, top, right, bottom])
     check_gt_list = all(g_item == gt_list[0] for g_item in gt_list)
     check_xy_count_list = all(
         xy_item == xy_count_list[0] for xy_item in xy_count_list
@@ -107,8 +113,8 @@ def prepare_input_list(
     prepared = {
         'input_list': input_list, 'information_list': information_list,
         'nodata_list': nodata_list, 'name_list': name_list,
-        'warped': warped,
-        'same_geotransformation': same_geotransformation
+        'warped': warped, 'same_geotransformation': same_geotransformation,
+        'box_coordinates_list': box_coordinates_list
     }
     return prepared
 
@@ -150,6 +156,7 @@ def prepare_process_files(
     name_list = prepared_input['name_list']
     warped = prepared_input['warped']
     same_geotransformation = prepared_input['same_geotransformation']
+    box_coordinates_list = prepared_input['box_coordinates_list']
     # single output path
     out_path = None
     # multiple output path list
@@ -206,11 +213,14 @@ def prepare_process_files(
         else:
             if multiple_input:
                 temp_list = []
+                if box_coordinate_list is None:
+                    box_coordinate_list = box_coordinates_list[0]
                 for r in input_raster_list:
                     temporary_virtual_raster = (
                         raster_vector.create_temporary_virtual_raster(
                             input_raster_list=[r],
-                            box_coordinate_list=box_coordinate_list
+                            box_coordinate_list=box_coordinate_list,
+                            grid_reference=input_raster_list[0]
                         )
                     )
                     temp_list.append(temporary_virtual_raster)
