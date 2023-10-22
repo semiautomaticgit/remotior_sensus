@@ -1,14 +1,3 @@
-
-.. raw:: html
-
-    <div style="display: flex;">
-    <img src="https://img.shields.io/pypi/v/remotior-sensus?label=PyPI%20version" alt="PyPI version">
-    <img src="https://img.shields.io/pypi/dm/remotior-sensus?label=PyPI%20downloads" alt="PyPI - Downloads">
-    <img src="https://img.shields.io/conda/v/conda-forge/remotior-sensus?label=Conda%20version" alt="Conda version">
-    <img src="https://img.shields.io/conda/d/conda-forge/remotior-sensus?label=Conda%20downloads" alt="Conda downloads">
-    <img src="https://img.shields.io/conda/l/conda-forge/remotior-sensus" alt="License">
-    </div>
-
 .. image:: https://img.shields.io/badge/Website-darkgreen
     :target: https://fromgistors.blogspot.com/p/remotior-sensus.html
 
@@ -17,6 +6,21 @@
 
 .. image:: https://img.shields.io/badge/Bug%20reports-red
     :target: https://github.com/semiautomaticgit/remotior_sensus/issues
+
+.. image:: https://img.shields.io/pypi/v/remotior-sensus?label=PyPI%20version
+    :target: https://pypi.org/project/remotior-sensus
+
+.. image:: https://img.shields.io/pypi/dm/remotior-sensus?label=PyPI%20downloads
+    :target: https://pypi.org/project/remotior-sensus
+
+.. image:: https://img.shields.io/conda/v/conda-forge/remotior-sensus?label=Conda%20version
+    :target: https://anaconda.org/conda-forge/remotior-sensus
+
+.. image:: https://img.shields.io/conda/d/conda-forge/remotior-sensus?label=Conda%20downloads
+    :target: https://anaconda.org/conda-forge/remotior-sensus
+
+.. image:: https://img.shields.io/conda/l/conda-forge/remotior-sensus
+    :target: https://www.gnu.org/licenses/
 
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
     :target: https://remotior-sensus.readthedocs.io/en/latest/quickstart.html
