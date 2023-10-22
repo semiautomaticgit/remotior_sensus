@@ -36,7 +36,8 @@ def get_system_info():
     # system information
     cfg.sys_name = system()
     cfg.logger.log.info(
-        'system: %s; 64bit: %s; n_processes: %s; ram: %s; temp.dir: %s'
-        % (cfg.sys_name, cfg.sys_64bit, cfg.n_processes, cfg.available_ram,
-           cfg.temp.dir)
+        'version:%s; system: %s; 64bit: %s; n_processes: %s; ram: %s; '
+        'temp.dir: %s'
+        % (cfg.version, cfg.sys_name, cfg.sys_64bit, cfg.n_processes,
+           cfg.available_ram, cfg.temp.dir)
         )

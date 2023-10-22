@@ -30,6 +30,40 @@ Typical usage example:
     ... input_raster_list=['file1.tif', 'file2.tif'], output_path='output.tif',
     ... expression_string='"file1 + file2"', input_name_list=['file1', 'file2']
     ... )
+
+
+It is possible to iterate BandSets.
+BandSet iteration with structure
+
+forbandsets[x1:x2]name_filter
+
+or
+
+forbandsets[x1,x2,x3]name_filter
+
+or date iteration with structure
+
+forbandsets[YYYY-MM-DD:YYYY-MM-DD]name_filter
+
+or
+
+forbandsets[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]name_filter
+
+with name_filter optional filter of name of first band in the BandSet.
+
+It is possible to iterate bands in BandSet with structure
+
+forbandsinbandset[x1:x2]name_filter
+
+or
+
+forbandsinbandset[x1,x2,x3,...]name_filter
+
+or date iteration with structure
+
+forbandsinbandset[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]filter
+
+with name_filter optional filter of name of first band in the BandSet
 """
 
 import datetime
@@ -898,8 +932,10 @@ def _check_expression(
                             virtual = True
                         if output_dir_path is not None:
                             if files_directories.is_directory(output_dir_path):
-                                out_path = '%s/%s%s' % (
-                                    output_dir_path, output_name, extension
+                                out_path = str(
+                                    '%s/%s%s' % (
+                                        output_dir_path, output_name, extension
+                                    )
                                 ).replace('//', '/')
                             else:
                                 out_path = str(
