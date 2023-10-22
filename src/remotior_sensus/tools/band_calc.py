@@ -61,7 +61,7 @@ forbandsinbandset[x1,x2,x3,...]name_filter
 
 or date iteration with structure
 
-forbandsinbandset[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]filter
+forbandsinbandset[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]name_filter
 
 with name_filter optional filter of name of first band in the BandSet
 """

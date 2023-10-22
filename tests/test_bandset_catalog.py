@@ -143,6 +143,18 @@ class TestBandSetCatalog(TestCase):
         catalog.current_bandset = 10
         # current BandSet
         self.assertEqual(catalog.current_bandset, catalog.get_bandset_count())
+        # BandSet absolute paths
+        self.assertEqual(
+            catalog.get(3).get_absolute_paths()[0],
+            catalog.get(3).get_absolute_path(band_number=1)
+        )
+        # BandSet relative paths
+        self.assertEqual(
+            catalog.get(3).get_paths(), catalog.get_bandset(3, 'path')
+        )
+        self.assertEqual(
+            catalog.get_bandset(3).get_paths(), catalog.get_bandset(3, 'path')
+        )
         # create second catalog
         catalog_2 = rs.bandset_catalog()
         self.assertEqual(str(catalog_2.bandsets_table['date'][0]), 'NaT')

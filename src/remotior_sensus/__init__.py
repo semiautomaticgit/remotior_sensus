@@ -18,6 +18,6 @@
 from remotior_sensus.core.session import Session
 from remotior_sensus.core import configurations
 
-__version__ = '0.1.05'
+__version__ = '0.1.06'
 
 configurations.version = __version__

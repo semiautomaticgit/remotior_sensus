@@ -68,7 +68,9 @@ def relative_to_absolute_path(path, root=None):
     if root is None:
         a_path = path
     else:
-        a_path = os.path.join(root, path).replace('\\', '/').replace('//', '/')
+        a_path = os.path.join(
+            root, path.replace('\\', '/').replace('//', '/').lstrip('/')
+        ).replace('\\', '/').replace('//', '/')
     a = Path(a_path)
     original_path = Path(path)
     if a.is_dir() or a.is_file():
