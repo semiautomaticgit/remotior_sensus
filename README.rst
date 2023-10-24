@@ -22,6 +22,9 @@
 .. image:: https://img.shields.io/conda/l/conda-forge/remotior-sensus
     :target: https://www.gnu.org/licenses/
 
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10038132.svg
+    :target: https://doi.org/10.5281/zenodo.10038132
+
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
     :target: https://remotior-sensus.readthedocs.io/en/latest/quickstart.html
 
