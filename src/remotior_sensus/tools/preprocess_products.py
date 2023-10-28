@@ -427,11 +427,8 @@ def perform_preprocess(
                 string_2, landsat_1_product.offset.astype('<U16')
             )
             string_4 = np.char.add(string_3, ') / sin(')
-            string_5 = np.char.add(
-                string_4, landsat_1_product.sun_elevation.astype(
-                    '<U16'
-                )
-            )
+            sun_elevation_rad = landsat_1_product.sun_elevation * np.pi / 180
+            string_5 = np.char.add(string_4, sun_elevation_rad.astype('<U16'))
             expressions.extend(np.char.add(string_5, ') ) , 0, 1)').tolist())
             input_list.extend(landsat_1_product.product_path.tolist())
             # output raster list
@@ -552,6 +549,7 @@ def perform_preprocess(
                 dos1_expressions[i].replace('dnm', str(min_dn[i]))
             )
             input_list.append(input_dos1_list[i])
+    cfg.logger.log.debug('expressions: %s' % str(expressions))
     # dummy bands for memory calculation
     dummy_bands = 2
     # run calculation
@@ -961,6 +959,10 @@ def create_product_table(
         file_list = files_directories.files_in_directory(
             input_path, sort_files=True, suffix_filter=cfg.tif_suffix
         )
+        if len(file_list) == 0:
+            file_list = files_directories.files_in_directory(
+                input_path, sort_files=True, suffix_filter='TIF'
+            )
         for f in file_list:
             # check band number for multispectral bands
             if f[-5:-4] in landsat_bands:
