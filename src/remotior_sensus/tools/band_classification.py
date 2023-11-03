@@ -1090,7 +1090,27 @@ class Classifier(object):
                 max_progress=max_progress
             )
             cfg.logger.log.debug('output_path: %s' % str(output_raster_path))
-            return OutputManager(path=output_raster_path)
+            if cfg.multiprocess.output is False:
+                cfg.logger.log.error('classification failed')
+                return OutputManager(check=False)
+            else:
+                try:
+                    alg_raster = cfg.multiprocess.output['algorithm_raster']
+                except Exception as err:
+                    str(err)
+                    alg_raster = None
+                try:
+                    sig_rasters = cfg.multiprocess.output['signature_rasters']
+                except Exception as err:
+                    str(err)
+                    sig_rasters = None
+                return OutputManager(
+                    path=output_raster_path,
+                    extra={
+                        'algorithm_raster': alg_raster,
+                        'signature_rasters': sig_rasters
+                    }
+                )
         else:
             cfg.logger.log.error('classification function not available')
             return OutputManager(check=False)
@@ -1336,8 +1356,23 @@ def band_classification(
         )
         if prediction.check:
             cfg.logger.log.info('end; prediction: %s' % str(prediction.path))
+
+            try:
+                alg_raster = prediction.extra['algorithm_raster']
+            except Exception as err:
+                str(err)
+                alg_raster = None
+            try:
+                sig_rasters = prediction.extra['signature_rasters']
+            except Exception as err:
+                str(err)
+                sig_rasters = None
             return OutputManager(
-                path=prediction.path, extra={'model_path': output_model}
+                path=prediction.path,
+                extra={
+                    'model_path': output_model, 'algorithm_raster': alg_raster,
+                    'signature_rasters': sig_rasters
+                }
             )
     else:
         cfg.logger.log.info(

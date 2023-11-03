@@ -102,7 +102,7 @@ def cross_classification(
     out_path, vrt_r = files_directories.raster_output_path(
         output_path,
         overwrite=overwrite
-        )
+    )
     vector, raster, reference_crs = raster_vector.raster_or_vector_input(
         reference_path
     )
@@ -354,7 +354,7 @@ def _cross_table(
         text.append('> Reference')
         text.append(nl)
         cross_matrix = tm.pivot_matrix(
-            cross_class, row_field='f0', secondary_row_field_list=['f1'],
+            cross_class, row_field='f1', secondary_row_field_list=['f0'],
             column_function_list=[['sum', 'sum']], cross_matrix=True,
             progress_message=False
         )
@@ -373,11 +373,12 @@ def _cross_table(
             text_matrix_unbiased.append(str(column))
             text_matrix_unbiased.append(cv)
             if str(column) in tm.columns(cross_matrix):
-                err_matrix[:len(columns), c] = cross_matrix[str(column)]
+                err_matrix[:cross_matrix[str(column)].shape[0], c] = \
+                    cross_matrix[str(column)]
                 # copy for accuracy metrics in case area based values are
                 # not calculated
-                err_matrix_unbiased[:len(columns), c] = cross_matrix[
-                    str(column)]
+                err_matrix_unbiased[:cross_matrix[str(column)].shape[0], c] = \
+                    cross_matrix[str(column)]
             c += 1
         err_matrix[:len(columns), 0] = np.array(columns)
         text.append('Total')

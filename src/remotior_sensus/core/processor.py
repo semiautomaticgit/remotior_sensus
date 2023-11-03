@@ -263,13 +263,6 @@ def function_initiator(
                         output_classification_raster_list.append(
                             signature_file_path
                         )
-                # confidence raster
-                if classification_confidence:
-                    out_alg = cfg.temp.temporary_raster_path(
-                        name='alg_', name_suffix=process_id
-                    )
-                    output_classification_raster_list.append(out_alg)
-                    algorithm_rasters.append(out_alg)
                 # create rasters
                 raster_vector.create_raster_from_reference(
                     path=info_raster, band_number=1,
@@ -280,6 +273,22 @@ def function_initiator(
                     geo_transform=geo_transform, x_size=x_size_piece,
                     y_size=y_size_piece
                 )
+                # confidence raster
+                if classification_confidence:
+                    out_alg = cfg.temp.temporary_raster_path(
+                        name='alg_', name_suffix=process_id
+                    )
+                    output_classification_raster_list.append(out_alg)
+                    algorithm_rasters.append(out_alg)
+                    raster_vector.create_raster_from_reference(
+                        path=info_raster, band_number=1,
+                        output_raster_list=[out_alg],
+                        nodata_value=cfg.nodata_val_Float32, driver='GTiff',
+                        gdal_format='Float32', compress=compress,
+                        compress_format=compress_format,
+                        geo_transform=geo_transform, x_size=x_size_piece,
+                        y_size=y_size_piece
+                    )
                 cfg.logger.log.debug(
                     'output_classification_raster_list: %s'
                     % str(output_classification_raster_list)
@@ -455,7 +464,7 @@ def function_initiator(
                 'len(ndv_band_list): %s' % (len(ndv_band_list))
             )
             cfg.logger.log.debug(
-                'calculation_datatype: %s' % (calculation_datatype)
+                'calculation_datatype: %s' % calculation_datatype
             )
             # create input array
             for b in range(len(ndv_band_list)):

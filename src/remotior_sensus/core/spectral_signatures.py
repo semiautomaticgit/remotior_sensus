@@ -693,7 +693,10 @@ class SpectralSignaturesCatalog(object):
             for sig_id in geometry_ids:
                 table['signature_id'][
                     table['signature_id'] == sig_id] = geometry_ids[sig_id]
-            self.table = tm.append_tables(self.table, table)
+            if self.table is None:
+                self.table = table
+            else:
+                self.table = tm.append_tables(self.table, table)
 
     # import vector to Spectral Signatures Catalog
     def import_vector(

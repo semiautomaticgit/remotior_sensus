@@ -674,6 +674,7 @@ class Multiprocess(object):
             min_progress=None, max_progress=None
     ):
         cfg.logger.log.debug('start')
+        multiprocess_dictionary = {}
         # classification output
         output_classification_list = []
         # algorithm output
@@ -767,12 +768,15 @@ class Multiprocess(object):
                         input_raster_list=tmp_list,
                         output='%s/%s_alg%s' % (
                             dir_path, f_name, cfg.vrt_suffix),
-                        dst_nodata=output_nodata_value, relative_to_vrt=1,
-                        data_type=output_data_type
+                        dst_nodata=cfg.nodata_val_Float32, relative_to_vrt=1,
+                        data_type='Float32'
                     )
                     # fix relative to vrt in xml
                     raster_vector.force_relative_to_vrt(
                         '%s/%s_alg%s' % (dir_path, f_name, cfg.vrt_suffix)
+                    )
+                    multiprocess_dictionary['algorithm_raster'] = (
+                            '%s/%s_alg%s' % (dir_path, f_name, cfg.vrt_suffix)
                     )
                 # signature rasters
                 if len(signature_raster_list) > 0:
@@ -802,13 +806,25 @@ class Multiprocess(object):
                         raster_vector.create_virtual_raster_2_mosaic(
                             input_raster_list=tmp_list, output='%s/%s%s' % (
                                 dir_path, sig_name, cfg.vrt_suffix),
-                            dst_nodata=output_nodata_value, relative_to_vrt=1,
-                            data_type=output_data_type
+                            dst_nodata=cfg.nodata_val_Float32,
+                            relative_to_vrt=1, data_type='Float32'
                         )
                         # fix relative to vrt in xml
                         raster_vector.force_relative_to_vrt(
                             '%s/%s%s' % (dir_path, sig_name, cfg.vrt_suffix)
                         )
+                        try:
+                            multiprocess_dictionary[
+                                'signature_rasters'].append(
+                                    '%s/%s%s'
+                                    % (dir_path, sig_name, cfg.vrt_suffix)
+                            )
+                        except Exception as err:
+                            str(err)
+                            multiprocess_dictionary['signature_rasters'] = [
+                                    '%s/%s%s'
+                                    % (dir_path, sig_name, cfg.vrt_suffix)
+                            ]
             # copy raster output
             else:
                 dir_path = files_directories.parent_directory(
@@ -875,8 +891,8 @@ class Multiprocess(object):
                         # create virtual raster
                         raster_vector.create_virtual_raster_2_mosaic(
                             input_raster_list=output_algorithm_list,
-                            output=vrt_file, dst_nodata=output_nodata_value,
-                            data_type=output_data_type
+                            output=vrt_file, dst_nodata=cfg.nodata_val_Float32,
+                            data_type='Float32'
                         )
                     except Exception as err:
                         cfg.logger.log.error(str(err))
@@ -888,9 +904,13 @@ class Multiprocess(object):
                             '%s/%s_alg%s' % (dir_path, f_name, cfg.tif_suffix),
                             'GTiff', compress, compress_format,
                             additional_params='-ot %s%s' % (
-                                str(output_data_type), par_scale_offset),
+                                str('Float32'), ''),
                             n_processes=n_processes, min_progress=min_progress,
                             max_progress=max_progress
+                        )
+                        multiprocess_dictionary['algorithm_raster'] = (
+                                '%s/%s_alg%s'
+                                % (dir_path, f_name, cfg.tif_suffix)
                         )
                     except Exception as err:
                         cfg.logger.log.error(str(err))
@@ -902,14 +922,12 @@ class Multiprocess(object):
                             f_name, str(
                                 signatures_table[
                                     signatures_table.signature_id ==
-                                    s].macroclass_id[
-                                    0]
+                                    s].macroclass_id[0]
                             ),
                             str(
                                 signatures_table[
                                     signatures_table.signature_id ==
-                                    s].class_id[
-                                    0]
+                                    s].class_id[0]
                             ))
                         vrt_file = cfg.temp.temporary_raster_path(
                             extension=cfg.vrt_suffix
@@ -919,8 +937,8 @@ class Multiprocess(object):
                             raster_vector.create_virtual_raster_2_mosaic(
                                 input_raster_list=signature_raster_list[s],
                                 output=vrt_file,
-                                dst_nodata=output_nodata_value,
-                                data_type=output_data_type
+                                dst_nodata=cfg.nodata_val_Float32,
+                                data_type='Float32'
                             )
                         except Exception as err:
                             cfg.logger.log.error(str(err))
@@ -932,11 +950,24 @@ class Multiprocess(object):
                                     dir_path, sig_name, cfg.tif_suffix),
                                 'GTiff', compress, compress_format,
                                 additional_params='-ot %s%s' % (
-                                    str(output_data_type), par_scale_offset),
+                                    str('Float32'), ''),
                                 n_processes=n_processes,
                                 min_progress=min_progress,
                                 max_progress=max_progress
                             )
+                            try:
+                                multiprocess_dictionary[
+                                    'signature_rasters'].append(
+                                    '%s/%s%s'
+                                    % (dir_path, sig_name, cfg.tif_suffix)
+                                )
+                            except Exception as err:
+                                str(err)
+                                multiprocess_dictionary[
+                                    'signature_rasters'] = [
+                                    '%s/%s%s'
+                                    % (dir_path, sig_name, cfg.tif_suffix)
+                                ]
                         except Exception as err:
                             cfg.logger.log.error(str(err))
                             cfg.messages.error(str(err))
@@ -951,7 +982,7 @@ class Multiprocess(object):
                     str(err)
         gc.collect()
         cfg.logger.log.debug('end')
-        return output_raster_path
+        return multiprocess_dictionary
 
     # warp with GDAL
     def gdal_warping(
