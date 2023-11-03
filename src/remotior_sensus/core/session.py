@@ -33,6 +33,8 @@ Typical usage example:
     >>> rs.close()
 """
 
+import os
+import sys
 import logging
 from types import FunctionType
 from typing import Optional
@@ -172,6 +174,9 @@ class Session(object):
                 >>> import remotior_sensus
                 >>> rs = remotior_sensus.Session()
         """  # noqa: E501
+        # required for sklearn
+        if sys.stderr is None:
+            sys.stderr = open(os.devnull, 'w')
         configurations.n_processes = n_processes
         configurations.available_ram = available_ram
         if sound_notification is not None:

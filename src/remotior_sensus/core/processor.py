@@ -102,6 +102,11 @@ def function_initiator(
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
         str(err)
+    # required for sklearn
+    import sys
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, 'w')
+        cfg.logger.log.debug('sys.stderr')
     cfg.logger.log.debug('start')
     cfg.logger.log.debug(
         'keep_output_array: %s; keep_output_argument: %s; any_nodata_mask: %s;'
