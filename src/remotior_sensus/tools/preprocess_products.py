@@ -716,7 +716,6 @@ def create_product_table(
     if product_name == cfg.sentinel2:
         cfg.logger.log.debug(cfg.sentinel2)
         scale_value = 1 / 10000
-        offset_value = 0
         sentinel2_bands = cfg.satellites[cfg.satSentinel2][2]
         # open metadata
         if metadata_doc:
@@ -751,8 +750,10 @@ def create_product_table(
                         'RADIO_ADD_OFFSET'
                     )
                 for n in range(len(sentinel2_bands)):
-                    if offset_value:
-                        offset_value_list.append(offset[n].firstChild.data)
+                    if offset is not None:
+                        offset_value_list.append(
+                            int(offset[n].firstChild.data) * scale_value
+                        )
                 cfg.logger.log.debug('metadata')
             except Exception as err:
                 cfg.logger.log.error(str(err))
@@ -788,6 +789,17 @@ def create_product_table(
         scale_value_list = [scale_value] * len(band_names)
         if len(offset_value_list) == 0:
             offset_value_list = [0] * len(band_names)
+        else:
+            band_id_list = [
+                '01', '02', '03', '04', '05', '06', '07', '08', '8a', '09',
+                '10', '11', '12'
+            ]
+            new_offset_value_list = []
+            for n in band_number_list:
+                new_offset_value_list.append(
+                    offset_value_list[band_id_list.index(n.lower())]
+                )
+            offset_value_list = new_offset_value_list
     elif product_name == cfg.landsat:
         cfg.logger.log.debug(cfg.landsat)
         # open metadata
