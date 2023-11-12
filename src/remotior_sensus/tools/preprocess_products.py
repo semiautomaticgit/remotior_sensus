@@ -238,13 +238,18 @@ def perform_preprocess(
                 [cfg.nodata_val_UInt16] * len(sentinel_product_2a)
             )
         else:
-            # calculate reflectance = DN / quantificationValue = DN * scale
+            # calculate reflectance = (DN + offset) / quantificationValue =
+            # = DN * scale + offset
             # raster is interpreted as variable in the calculation
             string_1 = np.char.add(
                 'np.clip( ( %s * ' % cfg.array_function_placeholder,
                 sentinel_product.scale.astype('<U16')
             )
-            expressions.extend(np.char.add(string_1, ') , 0, 1)').tolist())
+            string_2 = np.char.add(string_1, ' + (')
+            string_3 = np.char.add(
+                string_2, sentinel_product.offset.astype('<U16')
+            )
+            expressions.extend(np.char.add(string_3, ')) , 0, 1)').tolist())
             input_list.extend(sentinel_product.product_path.tolist())
             # output raster list
             output_string_1 = np.char.add(
