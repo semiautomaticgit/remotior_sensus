@@ -756,9 +756,12 @@ def create_product_table(
                     )
                 for n in range(len(sentinel2_bands)):
                     if offset is not None:
-                        offset_value_list.append(
-                            int(offset[n].firstChild.data) * scale_value
-                        )
+                        try:
+                            offset_value_list.append(
+                                int(offset[n].firstChild.data) * scale_value
+                            )
+                        except Exception as err:
+                            str(err)
                 cfg.logger.log.debug('metadata')
             except Exception as err:
                 cfg.logger.log.error(str(err))
