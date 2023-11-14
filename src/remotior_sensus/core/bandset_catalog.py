@@ -1438,6 +1438,10 @@ def _create_table_of_bands(
         returns table of bands.
     """  # noqa: E501
     cfg.logger.log.debug('start')
+    if path is None:
+        cfg.logger.log.error('path is None')
+        cfg.messages.error('path is None')
+        return None
     try:
         absolute_path = files_directories.relative_to_absolute_path(
             path, root_directory
