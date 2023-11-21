@@ -2388,6 +2388,15 @@ def _calculate_block_size(
     ram_blocks = int(available_ram / (single_block_size * n_processes))
     if ram_blocks == 0:
         ram_blocks = 1
+        y_block = int(
+            available_ram / (r_x * memory_unit
+                             * (number_of_bands + dummy_bands)
+                             * n_processes)
+        )
+        if y_block == 0:
+            y_block = 1
+            cfg.logger.log.warning('insufficient RAM')
+            cfg.messages.warning('insufficient RAM')
     block_size_x = r_x
     block_size_y = ram_blocks * y_block
     if block_size_x > r_x:

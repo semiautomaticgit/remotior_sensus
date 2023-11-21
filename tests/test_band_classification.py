@@ -11,7 +11,6 @@ class TestBandClassification(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
         cfg.logger.log.debug('>>> test semiautomatic classification')
         # create BandSet
         catalog = rs.bandset_catalog()
@@ -23,8 +22,24 @@ class TestBandClassification(TestCase):
             file_list, wavelengths=['Landsat 8'], root_directory=root_directory
             )
         # set BandSet in SpectralCatalog
-        signature_catalog_2 = rs.spectral_signatures_catalog(
+        signature_catalog_1 = rs.spectral_signatures_catalog(
             bandset=catalog.get(1)
+            )
+        # import vector
+        signature_catalog_1.import_vector(
+            file_path='data/files/roi.gpkg',
+            macroclass_field='macroclass', class_field='class',
+            macroclass_name_field='macroclass', class_name_field='class',
+            calculate_signature=True
+        )
+
+        cfg.logger.log.debug('>>> test input multiband')
+        catalog.create_bandset(
+            ['./data/S2_2020-01-05/S2_2020-01-05.tif'], bandset_number=2
+            )
+        # set BandSet in SpectralCatalog
+        signature_catalog_2 = rs.spectral_signatures_catalog(
+            bandset=catalog.get(2)
             )
         # import vector
         signature_catalog_2.import_vector(
@@ -38,19 +53,29 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             signature_raster=False
             )
         temp_sig = cfg.temp.temporary_file_path(
             name_suffix='.scpx'
             )
-        signature_catalog_2.save(temp_sig)
+        signature_catalog_1.save(temp_sig)
         temp_class_sig = cfg.temp.temporary_file_path(
             name='class', name_suffix=cfg.tif_suffix
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp_class_sig,
             spectral_signatures=temp_sig
+            )
+        self.assertTrue(files_directories.is_file(temp))
+        temp = cfg.temp.temporary_file_path(
+            name='class', name_suffix=cfg.vrt_suffix
+            )
+        rs.band_classification(
+            input_bands=catalog.get(2), output_path=temp,
+            spectral_signatures=signature_catalog_2,
+            algorithm_name=cfg.spectral_angle_mapping_a,
+            signature_raster=False
             )
         self.assertTrue(files_directories.is_file(temp))
         cfg.logger.log.debug(
@@ -62,7 +87,7 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             signature_raster=True, n_processes=2
             )
         cfg.logger.log.debug('>>> test maximum likelihood')
@@ -72,7 +97,7 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.maximum_likelihood_a, signature_raster=False
             )
         self.assertTrue(files_directories.is_file(temp))
@@ -82,7 +107,7 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.minimum_distance_a, signature_raster=False
             )
         self.assertTrue(files_directories.is_file(temp))
@@ -92,7 +117,7 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.spectral_angle_mapping_a,
             signature_raster=True
             )
@@ -103,7 +128,7 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.random_forest_a, signature_raster=False,
             rf_max_features=5, rf_number_trees=20, rf_min_samples_split=2
             )
@@ -114,14 +139,14 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.random_forest_ovr_a, signature_raster=False
             )
         self.assertTrue(files_directories.is_file(temp))
         cfg.logger.log.debug('>>> test support vector machine')
         classifier = rs.band_classification(
             input_bands=catalog.get(1),
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.support_vector_machine, only_fit=True, svm_c=1,
             svm_gamma='scale', svm_kernel='rbf'
             )
@@ -132,7 +157,7 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.support_vector_machine_a, macroclass=True,
             signature_raster=False
             )
@@ -143,7 +168,7 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.multi_layer_perceptron_a,
             classification_confidence=True,
             signature_raster=False, cross_validation=True, mlp_max_iter=5
@@ -155,7 +180,7 @@ class TestBandClassification(TestCase):
             )
         rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.multi_layer_perceptron, signature_raster=False,
             find_best_estimator=True, pytorch_loss_function=None,
             mlp_hidden_layer_sizes=[100, 50], mlp_alpha=0.0001,
@@ -167,7 +192,7 @@ class TestBandClassification(TestCase):
         temp = cfg.temp.temporary_file_path(name='class')
         classification = rs.band_classification(
             input_bands=catalog.get(1), output_path=temp,
-            spectral_signatures=signature_catalog_2,
+            spectral_signatures=signature_catalog_1,
             algorithm_name=cfg.pytorch_multi_layer_perceptron_a, only_fit=True,
             save_classifier=True, class_weight='balanced',
             mlp_hidden_layer_sizes=[100, 50], mlp_max_iter=5,

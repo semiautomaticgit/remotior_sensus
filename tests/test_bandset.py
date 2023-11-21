@@ -14,7 +14,7 @@ class TestBandSet(TestCase):
         cfg = rs.configurations
         # create BandSet Catalog
         catalog = rs.bandset_catalog()
-        cfg.logger.log.debug('test')
+        cfg.logger.log.debug('>>> test bandset')
         data_directory = './data/S2_2020-01-01'
         file_list = files_directories.files_in_directory(
             data_directory, sort_files=True, path_filter='S',
@@ -173,6 +173,14 @@ class TestBandSet(TestCase):
         for i in range(len(bandset.bands[0])):
             if str(bandset.bands[0][i]) != 'NaT':
                 self.assertEqual(bandset.bands[0][i], bandset2.bands[0][i])
+        cfg.logger.log.debug('>>> test multiband')
+        # create BandSet Catalog
+        catalog_2 = rs.bandset_catalog()
+        bandset = rs.bandset.create(
+            paths=['./data/S2_2020-01-05/S2_2020-01-05.tif'],
+            wavelengths=[cfg.satSentinel2], catalog=catalog_2
+        )
+        self.assertGreater(len(bandset.bands), 0)
 
         """ commented because time consuming
         cfg.logger.log.debug('>>> test tools')

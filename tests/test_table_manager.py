@@ -11,7 +11,6 @@ class TestTableManager(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
         file1 = './data/files/file1.csv'
         file2 = './data/files/file2.csv'
         file3 = './data/files/file1.dbf'

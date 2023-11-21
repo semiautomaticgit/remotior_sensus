@@ -11,7 +11,7 @@ class TestBandClip(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
+        cfg.logger.log.debug('>>> test band clip')
         catalog = rs.bandset_catalog()
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
@@ -27,13 +27,21 @@ class TestBandClip(TestCase):
                               output_path=cfg.temp.dir, prefix='clip_',
                               extent_list=extent_list)
         self.assertTrue(output.check)
+        cfg.logger.log.debug('>>> test band clip input BandSet multiband')
+        catalog.create_bandset(
+            ['./data/S2_2020-01-05/S2_2020-01-05.tif'],
+            wavelengths=['Sentinel-2'], bandset_number=2
+            )
+        output = rs.band_clip(input_bands=catalog.get_bandset(2),
+                              output_path=cfg.temp.dir, prefix='clip_b_',
+                              extent_list=extent_list)
+        self.assertTrue(output.check)
         # box coordinate list
         extent_list = [230250, 4674510, 230320, 4674440]
         output = rs.band_clip(input_bands=catalog.get_bandset(1),
                               output_path=cfg.temp.dir, prefix='clip2_',
                               extent_list=extent_list, virtual_output=True)
         self.assertTrue(output.check)
-        print('output.paths', output.paths)
         self.assertTrue(files_directories.is_file(output.paths[0]))
 
         v = './data/files/roi.gpkg'
@@ -50,4 +58,4 @@ class TestBandClip(TestCase):
         self.assertTrue(files_directories.is_file(output.paths[0]))
 
         # clear temporary directory
-        #rs.close()
+        rs.close()

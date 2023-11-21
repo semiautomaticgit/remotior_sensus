@@ -57,10 +57,11 @@ _____________
    introduction.rst
    installation.rst
    quickstart.rst
+   basic_tutorials.rst
    api_tools.rst
    api_core.rst
    api.rst
-   basic_tutorials.rst
+   changelog.rst
 
 `Except where otherwise noted, content of this work is licensed under a`
 `Creative Commons Attribution-ShareAlike 4.0 International License

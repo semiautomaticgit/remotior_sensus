@@ -10,7 +10,6 @@ class TestPreprocessProducts(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
         # test Sentinel-2
         cfg.logger.log.debug('>>> test sentinel-2')
         table = rs.preprocess_products.create_product_table(

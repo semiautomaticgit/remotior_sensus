@@ -904,6 +904,27 @@ class BandSet(object):
                     # band names from raster
                     band_names = _raster_to_band_names(file_list[0], multiband)
                     for b in range(multiband):
+                        # get wavelength
+                        if wavelengths is None:
+                            if (satellite is not None
+                                    and satellite != cfg.no_satellite):
+                                # get band number from names
+                                try:
+                                    unit = sat_unit
+                                    # get values from list
+                                    wl = float(sat_wl[b])
+                                except Exception as err:
+                                    cfg.logger.log.error(err)
+                                    wl = b + 1
+                            else:
+                                wl = b + 1
+                                unit = cfg.no_unit
+                        else:
+                            try:
+                                wl = float(wavelengths[b])
+                            except Exception as err:
+                                cfg.logger.log.error(err)
+                                wl = b + 1
                         if cfg.action is False:
                             break
                         new_band = _create_table_of_bands(

@@ -11,7 +11,6 @@ class TestDownloadProducts(TestCase):
             n_processes=2, available_ram=1000, log_level=10
         )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
         cfg.logger.log.debug('>>> test query database Sentinel-2')
         coordinate_list = [8, 43, 10, 41]
         output_manager = rs.download_products.query_sentinel_2_database(

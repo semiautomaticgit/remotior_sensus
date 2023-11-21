@@ -1565,7 +1565,7 @@ def download_file_processor(input_parameters, process_parameters=None):
         if process_id == 0 and elapsed_time > refresh_time:
             start_time = now_time
             progress_queue.put([url, len(url_list)], False)
-        check, output_path = download_tools.download_file(
+        downloaded = download_tools.download_file(
             url=url_list[url], output_path=output_path_list[url],
             authentication_uri=authentication_uri, user=user,
             password=password, proxy_host=proxy_host, proxy_port=proxy_port,
@@ -1573,6 +1573,15 @@ def download_file_processor(input_parameters, process_parameters=None):
             progress=True, retried=retried, timeout=timeout,
             callback=progress_queue.put, log=cfg.logger.log
         )
+        if downloaded is None:
+            cfg.logger.log.debug('error downloading: %s' % url_list[url])
+            logger = cfg.logger.stream.getvalue()
+            return (
+                False, output_path_list,
+                'error downloading: %s' % url_list[url], logger
+            )
+        else:
+            check, output_path = downloaded
         if check is False:
             cfg.logger.log.debug('error downloading: %s' % output_path)
             logger = cfg.logger.stream.getvalue()

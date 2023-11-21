@@ -40,7 +40,8 @@ from remotior_sensus.core.processor_functions import region_growing
 # check input path converting to the same crs if necessary
 def prepare_input_list(
         band_list, reference_raster_crs=None,
-        n_processes: int = None, src_nodata=None, dst_nodata=None
+        n_processes: int = None, src_nodata=None, dst_nodata=None,
+        raster_bands=None
 ):
     cfg.logger.log.debug('start')
     cfg.logger.log.debug('band_list: %s' % str(band_list))
@@ -61,7 +62,15 @@ def prepare_input_list(
     box_coordinates_list = []
     warped = False
     for i in range(len(band_list)):
-        name_list.append(files_directories.file_name(band_list[i]))
+        info = raster_vector.raster_info(band_list[i])
+        if info is not False:
+            (gt, crs, un, xy_count, nd, number_of_bands, block_size,
+             scale_offset, data_type) = info
+        else:
+            cfg.logger.log.error(
+                'unable to get raster info: %s' % band_list[i]
+            )
+            return {'input_list': []}
         crs = raster_vector.get_crs(band_list[i])
         # check crs
         same_crs = raster_vector.compare_crs(crs, reference_raster_crs)
@@ -78,16 +87,24 @@ def prepare_input_list(
             warped = True
         else:
             reference_raster = band_list[i]
-        input_list.append(reference_raster)
-        info = raster_vector.raster_info(band_list[i])
-        if info is not False:
-            (gt, crs, un, xy_count, nd, number_of_bands, block_size,
-             scale_offset, data_type) = info
+        if raster_bands is None:
+            name_list.append(files_directories.file_name(band_list[i]))
         else:
-            cfg.logger.log.error(
-                'unable to get raster info: %s' % band_list[i]
-            )
-            return {'input_list': []}
+            raster_band = raster_bands[i]
+            if number_of_bands > 1:
+                reference_raster = (
+                    raster_vector.create_temporary_virtual_raster(
+                        input_raster_list=[band_list[i]],
+                        band_number_list=[[raster_band]]
+                    )
+                )
+                name_list.append(
+                    '%s_%s' % (files_directories.file_name(band_list[i]),
+                               raster_band)
+                )
+            else:
+                name_list.append(files_directories.file_name(band_list[i]))
+        input_list.append(reference_raster)
         information_list.append(
             [gt, crs, un, xy_count, nd, number_of_bands, block_size,
              scale_offset, data_type]
@@ -136,10 +153,12 @@ def prepare_process_files(
         pass
     # get input list
     band_list = BandSetCatalog.get_band_list(input_bands, bandset_catalog)
+    raster_bands = None
     if type(input_bands) is BandSet:
         coord_list = input_bands.box_coordinate_list
         if coord_list is not None:
             box_coordinate_list = coord_list
+        raster_bands = input_bands.bands['raster_band'].tolist()
     elif type(input_bands) is int:
         coord_list = bandset_catalog.get_bandset(
             bandset_number=input_bands
@@ -147,7 +166,9 @@ def prepare_process_files(
         if coord_list is not None:
             box_coordinate_list = coord_list
     # list of inputs
-    prepared_input = prepare_input_list(band_list, n_processes=n_processes)
+    prepared_input = prepare_input_list(
+        band_list, n_processes=n_processes, raster_bands=raster_bands
+    )
     input_raster_list = prepared_input['input_list']
     if len(input_raster_list) == 0:
         return {'input_raster_list': []}
@@ -166,21 +187,18 @@ def prepare_process_files(
     if multiple_output:
         if output_path is None:
             output_path = []
-            for _r in input_raster_list:
+            for _r in name_list:
                 output_path.append(
                     cfg.temp.temporary_raster_path(
-                        name=files_directories.file_name(_r),
-                        extension=cfg.vrt_suffix
+                        name=_r, extension=cfg.vrt_suffix
                     )
                 )
         if type(output_path) is not list and files_directories.is_directory(
                 output_path
         ):
-            for r in input_raster_list:
+            for _r in name_list:
                 p = path.join(
-                    output_path, '{}{}'.format(
-                        prefix, files_directories.file_name(r)
-                    )
+                    output_path, '{}{}'.format(prefix, _r)
                 ).replace('\\', '/')
                 # check output path
                 out_path, vrt_r = files_directories.raster_output_path(

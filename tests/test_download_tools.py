@@ -11,7 +11,7 @@ class TestDownloadTools(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
+        cfg.logger.log.debug('>>> test download')
         url = 'https://www.python.org'
         temp = cfg.temp.temporary_file_path(name_suffix='.html')
         download_tools.download_file(url=url, output_path=temp)

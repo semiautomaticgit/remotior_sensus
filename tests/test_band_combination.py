@@ -11,7 +11,7 @@ class TestBandCombination(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
+        cfg.logger.log.debug('>>> test band combination')
         catalog = rs.bandset_catalog()
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
@@ -25,6 +25,24 @@ class TestBandCombination(TestCase):
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         combination = rs.band_combination(
             input_bands=catalog.get_bandset(1), output_path=temp
+            )
+        raster, text = combination.paths
+        table = read_write_files.open_text_file(text)
+        table_f = read_write_files.format_csv_new_delimiter(
+            table, cfg.tab_delimiter
+            )
+        self.assertGreater(len(table_f), 0)
+        catalog.create_bandset(
+            file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=1,
+            root_directory=root_directory
+            )
+        cfg.logger.log.debug('>>> test band combination input multiband')
+        catalog.create_bandset(
+            ['./data/S2_2020-01-05/S2_2020-01-05.tif'], bandset_number=2
+            )
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        combination = rs.band_combination(
+            input_bands=catalog.get_bandset(2), output_path=temp
             )
         raster, text = combination.paths
         table = read_write_files.open_text_file(text)

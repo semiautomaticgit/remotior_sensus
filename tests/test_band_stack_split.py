@@ -11,7 +11,7 @@ class TestBandStackSplit(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
+        cfg.logger.log.debug('>>> test band stack')
         catalog = rs.bandset_catalog()
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']

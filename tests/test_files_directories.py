@@ -12,7 +12,7 @@ class TestFilesDirectories(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
+        cfg.logger.log.debug('>>> test files directories')
         path = '/home/user/file.tif'
         root = '/home/user/'
         relative_path = files_directories.absolute_to_relative_path(

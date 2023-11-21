@@ -13,7 +13,6 @@ class TestBandSetCatalog(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
         data_directory = './data/S2_2020-01-01'
         cfg.logger.log.debug('>>> test bandset catalog create')
         # create BandSet Catalog

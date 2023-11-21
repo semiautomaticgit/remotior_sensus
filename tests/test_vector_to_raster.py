@@ -11,7 +11,7 @@ class TestVectorToRaster(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
+        cfg.logger.log.debug('>>> test vector to raster')
         v = './data/files/roi.gpkg'
         r = './data/S2_2020-01-01/S2_B02.tif'
         temp = cfg.temp.temporary_file_path(

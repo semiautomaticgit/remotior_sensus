@@ -10,7 +10,6 @@ class TestSpectralSignatures(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        cfg.logger.log.debug('test')
         # create Spectral Signature Catalog
         cfg.logger.log.debug('>>> test create Spectral Signature Catalog')
         signature_catalog = rs.spectral_signatures_catalog()
