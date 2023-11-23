@@ -1,7 +1,16 @@
 Changelog
 ===============
 
-.. toctree::
-   :maxdepth: 4
+v0.1.17
+________
 
-   v0.1.16.rst
+* Fixed spectral signature calculation for multiband raster
+* Fixed closing multiprocess at exit
+
+v0.1.16
+________
+
+* Fixed issue in block size calculation for multiprocess in case of large
+  input raster and low RAM;
+* Fixed management of bandsets using multiband rasters;
+* Minor fixes to multiprocess download;

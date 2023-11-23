@@ -1,7 +1,0 @@
-v0.1.16
-===============
-
-* Fixed issue in block size calculation for multiprocess in case of large
-  input raster and low RAM;
-* Fixed management of bandsets using multiband rasters;
-* Minor fixes to multiprocess download;

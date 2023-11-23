@@ -35,6 +35,7 @@ Typical usage example:
 
 import os
 import sys
+import atexit
 import logging
 from types import FunctionType
 from typing import Optional
@@ -219,6 +220,7 @@ class Session(object):
             self.configurations.multiprocess = Multiprocess(
                 n_processes, multiprocess_module
             )
+            atexit.register(self.close)
             # available core tools
             self.bandset = BandSet
             self.bandset_catalog = BandSetCatalog

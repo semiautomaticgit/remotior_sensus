@@ -859,16 +859,18 @@ class SpectralSignaturesCatalog(object):
             n_processes = cfg.n_processes
         min_x, max_x, min_y, max_y = raster_vector.get_layer_extent(roi_path)
         path_list = self.bandset.get_absolute_paths()
+        raster_bands = self.bandset.bands['raster_band'].tolist()
         virtual_path_list = []
-        for p in path_list:
+        for p in range(len(path_list)):
             if cfg.action is False:
                 break
             temp_path = cfg.temp.temporary_file_path(
                 name_suffix=cfg.tif_suffix
             )
             virtual = raster_vector.create_virtual_raster(
-                input_raster_list=[p], output=temp_path,
-                box_coordinate_list=[min_x, max_y, max_x, min_y]
+                input_raster_list=[path_list[p]], output=temp_path,
+                box_coordinate_list=[min_x, max_y, max_x, min_y],
+                band_number_list=[[raster_bands[p]]]
             )
             virtual_path_list.append(virtual)
         roi_paths = [roi_path] * len(path_list)
