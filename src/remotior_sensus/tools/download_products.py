@@ -22,6 +22,7 @@ and Sentinel-2 datasets.
 
 import datetime
 import json
+import requests
 from xml.dom import minidom
 from xml.etree import cElementTree
 
@@ -48,7 +49,9 @@ def search(
             date_from=date_from, date_to=date_to,
             max_cloud_cover=max_cloud_cover,
             result_number=result_number, name_filter=name_filter,
-            coordinate_list=coordinate_list, progress_message=progress_message
+            coordinate_list=coordinate_list, progress_message=progress_message,
+            proxy_host=proxy_host, proxy_port=proxy_port,
+            proxy_user=proxy_user, proxy_password=proxy_password
         )
     elif product == cfg.landsat_hls or product == cfg.sentinel2_hls:
         result = query_nasa_cmr(
@@ -64,7 +67,10 @@ def search(
 
 def query_sentinel_2_database(
         date_from, date_to, max_cloud_cover=100, result_number=50,
-        name_filter=None, coordinate_list=None, progress_message=True
+        name_filter=None, coordinate_list=None, progress_message=True,
+        copernicus_user=None, copernicus_password=None,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+
 ) -> OutputManager:
     """Perform the query of Sentinel-2 database.
 
@@ -84,13 +90,19 @@ def query_sentinel_2_database(
     https://storage.googleapis.com/gcp-public-data-sentinel-2 .
 
     Args:
-        date_from: date defining the starting period of the query
+        date_from: date defining the starting period of the query.
         date_to:
         max_cloud_cover:
         result_number:
         name_filter:
-        coordinate_list: list [left, top, right, bottom] WGS84 coordinates
+        coordinate_list: list [left, top, right, bottom] WGS84 coordinates.
         progress_message: progress message
+        copernicus_user:
+        copernicus_password:
+        proxy_host: proxy host.
+        proxy_port: proxy port.
+        proxy_user: proxy user.
+        proxy_password: proxy password.
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager`
@@ -127,7 +139,18 @@ def query_sentinel_2_database(
         ) > 10:
             cfg.logger.log.warning('search area extent beyond limits')
             cfg.messages.warning('search area extent beyond limits')
-    base_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
+    if copernicus_password is None:
+        base_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
+        copernicus = False
+        access_token = session_state = None
+    else:
+        base_url = 'https://catalogue.dataspace.copernicus.eu/odata/v1'
+        copernicus = True
+        access_token, session_state = get_copernicus_token(
+            user=copernicus_user, password=copernicus_password,
+            proxy_host=proxy_host, proxy_port=proxy_port,
+            proxy_user=proxy_user, proxy_password=proxy_password
+        )
     product_table_list = []
     # loop the results
     e = 0
@@ -138,36 +161,32 @@ def query_sentinel_2_database(
         if coordinate_list is None:
             # get level 2A
             url = ''.join(
-                ['https://datahub.creodias.eu/odata/v1/Products?&',
-                 '$filter=contains(Name,%27', str(final_query),
-                 '%27)%20and%20(startswith(Name,%27', 'S2', '%27)%20and%20(',
-                 'Attributes/OData.CSC.StringAttribute/any(att:att/Name',
-                 '%20eq%20%27productType%27%20and%20att/',
-                 'OData.CSC.StringAttribute/Value%20eq%20%27', 'S2MSI2A',
-                 '%27)%20and%20', 'Attributes/OData.CSC.DoubleAttribute/',
-                 'any(att:att/Name%20eq%20%27cloudCover%27%20and%20att/',
-                 'OData.CSC.DoubleAttribute/Value%20le%20',
-                 str(max_cloud_cover), ')))%20and%20ContentDate/Start%20ge%20',
-                 str(date_from), 'T00:00:00.000Z%20and%20ContentDate/',
-                 'Start%20lt%20', str(date_to), 'T21:42:55.721Z&$orderby=',
+                ['https://catalogue.dataspace.copernicus.eu/odata/v1',
+                 '/Products?$filter=contains(Name,%27', str(final_query),
+                 '%27)%20', 'and%20Attributes/OData.CSC.StringAttribute/',
+                 "any(att:att/Name%20eq%20'productType'%20"
+                 "and%20att/OData.CSC.StringAttribute/Value%20eq%20'S2MSI2A')",
+                 '%20and%20ContentDate/Start%20gt%20', str(date_from),
+                 'T00:00:00.000Z%20and%20ContentDate/Start%20lt%20',
+                 str(date_to), 'T21:42:55.721Z',
+                 '%20and%20Attributes/OData.CSC.DoubleAttribute/any(att:att/',
+                 'Name%20eq%20%27cloudCover%27%20and%20att',
+                 '/OData.CSC.DoubleAttribute/Value%20le%20',
+                 str(max_cloud_cover), ')&$orderby=',
                  'ContentDate/Start%20asc&$expand=Attributes&$count=True&',
-                 '$top=', str(max_result_number), '&$skip=', str(_results)
-                 ]
+                 '$top=', str(max_result_number), '&$skip=', str(_results)]
             )
         else:
             url = ''.join(
-                ['https://datahub.creodias.eu/odata/v1/Products?&',
-                 '$filter=contains(Name,%27', str(final_query),
-                 '%27)%20and%20(startswith(Name,%27', 'S2', '%27)%20and%20(',
-                 'Attributes/OData.CSC.StringAttribute/any(att:att/Name',
-                 '%20eq%20%27instrumentShortName%27%20and%20att/',
-                 'OData.CSC.StringAttribute/Value%20eq%20%27', 'MSI',
-                 '%27)%20and%20', 'Attributes/OData.CSC.DoubleAttribute/',
-                 'any(att:att/Name%20eq%20%27cloudCover%27%20and%20att/',
-                 'OData.CSC.DoubleAttribute/Value%20le%20',
-                 str(max_cloud_cover), ')))%20and%20ContentDate/Start%20ge%20',
-                 str(date_from), 'T00:00:00.000Z%20and%20ContentDate/',
-                 'Start%20lt%20', str(date_to), 'T21:42:55.721Z',
+                ['https://catalogue.dataspace.copernicus.eu/odata/v1',
+                 "/Products?$filter=Collection/Name%20eq%20'SENTINEL-2'%20",
+                 'and%20ContentDate/Start%20gt%20', str(date_from),
+                 'T00:00:00.000Z%20and%20ContentDate/Start%20lt%20',
+                 str(date_to), 'T21:42:55.721Z',
+                 '%20and%20Attributes/OData.CSC.DoubleAttribute/any(att:att/',
+                 'Name%20eq%20%27cloudCover%27%20and%20att',
+                 '/OData.CSC.DoubleAttribute/Value%20le%20',
+                 str(max_cloud_cover), ')',
                  '%20and%20OData.CSC.Intersects(area=geography%27SRID=4326;',
                  'POLYGON%20((',
                  str(coordinate_list[0]), '%20', str(coordinate_list[1]), ',',
@@ -176,10 +195,9 @@ def query_sentinel_2_database(
                  str(coordinate_list[2]), '%20', str(coordinate_list[1]), ',',
                  str(coordinate_list[0]), '%20', str(coordinate_list[1]),
                  '))%27)',
-                 '&$orderby=ContentDate/Start%20asc&$expand=Attributes&',
-                 '$count=True&$top=', str(max_result_number), '&$skip=',
-                 str(_results)
-                 ]
+                 '&$orderby=',
+                 'ContentDate/Start%20asc&$expand=Attributes&$count=True&',
+                 '$top=', str(max_result_number), '&$skip=', str(_results)]
             )
         # download json
         json_file = cfg.temp.temporary_file_path(name_suffix='.json')
@@ -205,6 +223,7 @@ def query_sentinel_2_database(
                     steps=result_number, minimum=10, maximum=90, ping=True
                 )
                 product_name = entry['Name'].replace('.SAFE', '')
+                uid = entry['Id']
                 # online
                 _online = entry['Online']
                 # relative path
@@ -239,22 +258,39 @@ def query_sentinel_2_database(
                 max_lat = max(y_list)
                 # download Sentinel metadata
                 if product_type == 'L1C':
-                    url_2 = ''.join(
-                        [base_url, '/tiles/', product_name[39:41], '/',
-                         product_name[41], '/', product_name[42:44], '/',
-                         product_name, '.SAFE/MTD_MSIL1C.xml']
-                    )
+                    if copernicus is True:
+                        url_2 = (
+                                '%s/Products(%s)/Nodes(%s.SAFE)'
+                                '/Nodes(MTD_MSIL1C.xml)/$value'
+                                % (base_url, uid, product_name)
+                        )
+                    else:
+                        url_2 = ''.join(
+                            [base_url, '/tiles/', product_name[39:41], '/',
+                             product_name[41], '/', product_name[42:44], '/',
+                             product_name, '.SAFE/MTD_MSIL1C.xml']
+                        )
                 else:
-                    url_2 = ''.join(
-                        [base_url, '/L2/tiles/', product_name[39:41], '/',
-                         product_name[41], '/', product_name[42:44], '/',
-                         product_name, '.SAFE/MTD_MSIL2A.xml']
-                    )
+                    if copernicus is True:
+                        url_2 = (
+                                '%s/Products(%s)/Nodes(%s.SAFE)'
+                                '/Nodes(MTD_MSIL2A.xml)/$value'
+                                % (base_url, uid, product_name)
+                        )
+                    else:
+                        url_2 = ''.join(
+                            [base_url, '/L2/tiles/', product_name[39:41], '/',
+                             product_name[41], '/', product_name[42:44], '/',
+                             product_name, '.SAFE/MTD_MSIL2A.xml']
+                        )
                 # download metadata xml
                 xml_file = cfg.temp.temporary_file_path(name_suffix='.xml')
                 check_2 = cfg.multiprocess.multi_download_file(
                     url_list=[url_2], output_path_list=[xml_file],
-                    progress=False, timeout=1
+                    progress=False, timeout=2, copernicus=copernicus,
+                    access_token=access_token, proxy_host=proxy_host,
+                    proxy_port=proxy_port, proxy_user=proxy_user,
+                    proxy_password=proxy_password
                 )
                 if check_2:
                     try:
@@ -319,7 +355,7 @@ def query_sentinel_2_database(
                                         max_lat=float(max_lat),
                                         max_lon=float(max_lon),
                                         collection=None, size=None,
-                                        preview=img_preview, uid=product_name,
+                                        preview=img_preview, uid=uid,
                                         image=image_name
                                     )
                                 )
@@ -341,7 +377,7 @@ def query_sentinel_2_database(
                                         max_lat=float(max_lat),
                                         max_lon=float(max_lon),
                                         collection=None, size=None,
-                                        preview=None, uid=product_name,
+                                        preview=None, uid=uid,
                                         image=product_name
                                     )
                                 )
@@ -357,6 +393,12 @@ def query_sentinel_2_database(
             cfg.logger.log.error('error: search failed')
             cfg.messages.error('error: search failed')
             return OutputManager(check=False)
+    if access_token is not None:
+        delete_copernicus_token(
+            access_token, session_state, proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
+        )
     cfg.progress.update(end=True)
     cfg.logger.log.info('end')
     return OutputManager(
@@ -368,21 +410,84 @@ def query_sentinel_2_database(
     )
 
 
+def get_copernicus_token(
+        user, password, authentication_uri=None, proxy_host=None,
+        proxy_port=None, proxy_user=None, proxy_password=None
+):
+    if authentication_uri is None:
+        authentication_uri = (
+            'https://identity.dataspace.copernicus.eu/auth/realms/CDSE'
+            '/protocol/openid-connect/token'
+        )
+    # noinspection SpellCheckingInspection
+    data = {
+        'client_id': 'cdse-public', 'grant_type': 'password',
+        'username': user, 'password': password,
+    }
+    if proxy_host is None:
+        proxies = None
+    else:
+        proxies = {
+            'https': 'https://%s:%s@%s:%s' % (
+                proxy_user, proxy_password, proxy_host, proxy_port
+            )
+        }
+    response = requests.post(
+        authentication_uri, data=data, verify=True, allow_redirects=False,
+        proxies=proxies
+        )
+    response_text = json.loads(response.text)
+    access_token = response_text['access_token']
+    session_state = response_text['session_state']
+    return access_token, session_state
+
+
+def delete_copernicus_token(
+        access_token, session_state, proxy_host=None,
+        proxy_port=None, proxy_user=None, proxy_password=None
+):
+    if proxy_host is None:
+        proxies = None
+    else:
+        proxies = {
+            'https': 'https://%s:%s@%s:%s' % (
+                proxy_user, proxy_password, proxy_host, proxy_port
+            )
+        }
+    session = requests.Session()
+    session.headers['Authorization'] = 'Bearer %s' % access_token
+    if proxies is not None:
+        session.proxies = proxies
+    session_url = (
+            'https://identity.dataspace.copernicus.eu/auth/realms/CDSE'
+            '/account/sessions/%s' % session_state
+    )
+    session.headers['Authorization'] = 'Bearer %s' % access_token
+    session.headers['Content-Type'] = 'application/json'
+    session.headers['Accept'] = '*/*'
+    session.headers['Sec-Fetch-Mode'] = 'cors'
+    session.delete(session_url)
+    return True
+
+
 def download(
         product_table, output_path, exporter=False, band_list=None,
         virtual_download=False, extent_coordinate_list=None, proxy_host=None,
         proxy_port=None, proxy_user=None, proxy_password=None,
         authentication_uri=None, nasa_user=None, nasa_password=None,
+        copernicus_user=None, copernicus_password=None,
         progress_message=True
 ) -> OutputManager:
     """Download products.
 
     This tool downloads product.
     Downloads Sentinel-2 images using the following Google service:
-    https://storage.googleapis.com/gcp-public-data-sentinel-2 .
+    https://storage.googleapis.com/gcp-public-data-sentinel-2 or
+    https://catalogue.dataspace.copernicus.eu 
+    if copernicus_user and copernicus_password are provided.
+    
     Downloads HLS images from:
     https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html.
-
 
     Args:
         product_table: product table object.
@@ -396,8 +501,10 @@ def download(
         proxy_user: proxy user.
         proxy_password: proxy password.
         authentication_uri: authentication uri.
-        nasa_user: user for authentication.
-        nasa_password: password for authentication.
+        nasa_user: user for NASA authentication.
+        nasa_password: password for NASA authentication.
+        copernicus_user: user for Copernicus authentication.
+        copernicus_password: password for Copernicus authentication.
         progress_message: progress message.
 
     Returns:
@@ -426,9 +533,78 @@ def download(
         str(err)
     min_progress = 0
     max_progress = min_progress + progress_step
+    if copernicus_password is not None:
+        access_token, session_state = get_copernicus_token(
+            user=copernicus_user, password=copernicus_password,
+            proxy_host=proxy_host, proxy_port=proxy_port,
+            proxy_user=proxy_user, proxy_password=proxy_password
+        )
+    else:
+        access_token = session_state = None
     for i in range(total_products):
         cloud_mask_gml = None
-        if product_table['product'][i] == cfg.sentinel2:
+        if (product_table['product'][i] == cfg.sentinel2
+                and copernicus_password is not None):
+            top_url = (
+                'https://catalogue.dataspace.copernicus.eu/odata/v1'
+            )
+            product_name = product_table['product_id'][i]
+            acquisition_date = product_table['acquisition_date'][i]
+            image_name = product_table['image'][i]
+            uid = product_table['uid'][i]
+            # download ancillary data MSI, TL and cloud mask GML
+            if image_name[0:4] == 'L1C_':
+                base_output_dir = '%s/%s_%s' % (
+                    output_path, image_name, str(acquisition_date))
+                metadata_msi = base_output_dir + '/MTD_MSIL1C.xml'
+                metadata_msi_url = (
+                        '%s/Products(%s)/Nodes(%s.SAFE)/Nodes(MTD_MSIL1C.xml)'
+                        '/$value' % (top_url, uid, product_name)
+                )
+            else:
+                base_output_dir = '%s/%s_%s' % (
+                    output_path, image_name, str(acquisition_date))
+                metadata_msi = base_output_dir + '/MTD_MSIL2A.xml'
+                metadata_msi_url = (
+                        '%s/Products(%s)/Nodes(%s.SAFE)/Nodes(MTD_MSIL2A.xml)'
+                        '/$value' % (top_url, uid, product_name)
+                )
+            output_directory_list.append(base_output_dir)
+            # check connection downloading metadata xml
+            temp_file = cfg.temp.temporary_file_path(name_suffix='.xml')
+            check = cfg.multiprocess.multi_download_file(
+                url_list=[metadata_msi_url], output_path_list=[temp_file],
+                proxy_host=proxy_host, proxy_port=proxy_port,
+                proxy_user=proxy_user, proxy_password=proxy_password,
+                access_token=access_token, copernicus=True, progress=False,
+                timeout=2
+            )
+            if exporter:
+                output_file_list.extend(
+                    [metadata_msi_url]
+                )
+            else:
+                if check:
+                    files_directories.move_file(
+                        in_path=temp_file, out_path=metadata_msi
+                    )
+            # download bands
+            for band in band_list:
+                _check_sentinel_2_bands(
+                    band_number=band, product_name=product_name,
+                    image_name=image_name, output_path=base_output_dir,
+                    output_list=output_file_list, exporter=exporter,
+                    progress=progress_message, uid=uid,
+                    virtual_download=virtual_download,
+                    extent_coordinate_list=extent_coordinate_list,
+                    proxy_host=proxy_host, proxy_port=proxy_port,
+                    proxy_user=proxy_user, proxy_password=proxy_password,
+                    min_progress=min_progress, max_progress=max_progress,
+                    access_token=access_token
+                )
+                min_progress += progress_step
+                max_progress += progress_step
+        elif product_table['product'][i] == cfg.sentinel2:
             top_url = (
                 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
             )
@@ -635,6 +811,12 @@ def download(
                                 str(err)
                 min_progress += progress_step
                 max_progress += progress_step
+    if access_token is not None:
+        delete_copernicus_token(
+            access_token, session_state, proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
+        )
     if exporter:
         output_csv_file = '%s/links%s%s' % (
             output_path, dates_times.get_time_string(), cfg.csv_suffix)
@@ -656,11 +838,11 @@ def download(
 
 
 def _check_sentinel_2_bands(
-        band_number, product_name, image_name, output_path,
+        band_number, product_name, image_name, output_path, uid=None,
         output_list=None, exporter=False, progress=True,
         virtual_download=False, extent_coordinate_list=None,
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
-        min_progress=0, max_progress=100
+        min_progress=0, max_progress=100, access_token=None
 ):
     """Checks and download Sentinel-2 bands.
 
@@ -669,50 +851,93 @@ def _check_sentinel_2_bands(
         Args:
         extent_coordinate_list: list of coordinates for defining a subset region [left, top, right, bottom]
     """  # noqa: E501
-    top_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
+    if access_token is None:
+        top_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
+        copernicus = False
+    else:
+        top_url = 'https://catalogue.dataspace.copernicus.eu/odata/v1'
+        copernicus = True
+    band_url = ''
+    output_file = ''
     if image_name[0:4] == 'L1C_':
-        band_url = ''.join(
-            [top_url, '/tiles/', product_name[39:41], '/', product_name[41],
-             '/', product_name[42:44], '/',
-             product_name, '.SAFE', '/GRANULE/', image_name, '/IMG_DATA/',
-             image_name.split('_')[1], '_',
-             product_name.split('_')[2], '_B', band_number, '.jp2']
-        )
+        if copernicus is False:
+            band_url = ''.join(
+                [top_url, '/tiles/', product_name[39:41], '/',
+                 product_name[41], '/', product_name[42:44], '/',
+                 product_name, '.SAFE', '/GRANULE/', image_name, '/IMG_DATA/',
+                 image_name.split('_')[1], '_',
+                 product_name.split('_')[2], '_B', band_number, '.jp2']
+            )
+        else:
+            band_url = ''.join(
+                [top_url, '/Products(', uid, ')/Nodes(', product_name,
+                 '.SAFE)/Nodes(GRANULE)/Nodes(', image_name,
+                 ')/Nodes(IMG_DATA)/Nodes(', image_name.split('_')[1], '_',
+                 product_name.split('_')[2], '_B', band_number, '.jp2)/$value']
+            )
         output_file = '%s/L1C_%s_B%s' % (
             output_path, image_name[4:], band_number)
     elif image_name[0:4] == 'L2A_':
         if band_number in ['02', '03', '04', '08']:
-            band_url = ''.join(
-                [top_url, '/L2/tiles/', product_name[39:41], '/',
-                 product_name[41], '/', product_name[42:44], '/',
-                 product_name, '.SAFE', '/GRANULE/', image_name,
-                 '/IMG_DATA/R10m/', image_name.split('_')[1], '_',
-                 product_name.split('_')[2], '_B', band_number, '_10m.jp2']
-            )
+            if copernicus is False:
+                band_url = ''.join(
+                    [top_url, '/L2/tiles/', product_name[39:41], '/',
+                     product_name[41], '/', product_name[42:44], '/',
+                     product_name, '.SAFE', '/GRANULE/', image_name,
+                     '/IMG_DATA/R10m/', image_name.split('_')[1], '_',
+                     product_name.split('_')[2], '_B', band_number, '_10m.jp2']
+                )
+            else:
+                band_url = ''.join(
+                    [top_url, '/Products(', uid, ')/Nodes(', product_name,
+                     '.SAFE)/Nodes(GRANULE)/Nodes(', image_name,
+                     ')/Nodes(IMG_DATA)/Nodes(R10m)/Nodes(',
+                     image_name.split('_')[1], '_',
+                     product_name.split('_')[2], '_B', band_number,
+                     '_10m.jp2)/$value']
+                )
             output_file = '%s/%s_B%s' % (
                 output_path, image_name[4:], band_number)
         elif band_number in ['05', '06', '07', '11', '12', '8A']:
-            band_url = ''.join(
-                [top_url, '/L2/tiles/', product_name[39:41], '/',
-                 product_name[41], '/', product_name[42:44], '/',
-                 product_name, '.SAFE', '/GRANULE/', image_name,
-                 '/IMG_DATA/R20m/', image_name.split('_')[1], '_',
-                 product_name.split('_')[2], '_B', band_number, '_20m.jp2']
-            )
+            if copernicus is False:
+                band_url = ''.join(
+                    [top_url, '/L2/tiles/', product_name[39:41], '/',
+                     product_name[41], '/', product_name[42:44], '/',
+                     product_name, '.SAFE', '/GRANULE/', image_name,
+                     '/IMG_DATA/R20m/', image_name.split('_')[1], '_',
+                     product_name.split('_')[2], '_B', band_number, '_20m.jp2']
+                )
+            else:
+                band_url = ''.join(
+                    [top_url, '/Products(', uid, ')/Nodes(', product_name,
+                     '.SAFE)/Nodes(GRANULE)/Nodes(', image_name,
+                     ')/Nodes(IMG_DATA)/Nodes(R20m)/Nodes(',
+                     image_name.split('_')[1], '_',
+                     product_name.split('_')[2], '_B', band_number,
+                     '_20m.jp2)/$value']
+                )
             output_file = '%s/%s_B%s' % (
                 output_path, image_name[4:], band_number)
         elif band_number in ['01', '09']:
-            band_url = ''.join(
-                [top_url, '/L2/tiles/', product_name[39:41], '/',
-                 product_name[41], '/', product_name[42:44], '/',
-                 product_name, '.SAFE', '/GRANULE/', image_name,
-                 '/IMG_DATA/R60m/', image_name.split('_')[1], '_',
-                 product_name.split('_')[2], '_B', band_number, '_60m.jp2']
-            )
+            if copernicus is False:
+                band_url = ''.join(
+                    [top_url, '/L2/tiles/', product_name[39:41], '/',
+                     product_name[41], '/', product_name[42:44], '/',
+                     product_name, '.SAFE', '/GRANULE/', image_name,
+                     '/IMG_DATA/R60m/', image_name.split('_')[1], '_',
+                     product_name.split('_')[2], '_B', band_number, '_60m.jp2']
+                )
+            else:
+                band_url = ''.join(
+                    [top_url, '/Products(', uid, ')/Nodes(', product_name,
+                     '.SAFE)/Nodes(GRANULE)/Nodes(', image_name,
+                     ')/Nodes(IMG_DATA)/Nodes(R60m)/Nodes(',
+                     image_name.split('_')[1], '_',
+                     product_name.split('_')[2], '_B', band_number,
+                     '_60m.jp2)/$value']
+                )
             output_file = '%s/%s_B%s' % (
                 output_path, image_name[4:], band_number)
-        else:
-            return
     else:
         # old product format
         band_url = ''.join(
@@ -751,7 +976,8 @@ def _check_sentinel_2_bands(
                 proxy_port=proxy_port, proxy_user=proxy_user,
                 proxy_password=proxy_password, timeout=2,
                 progress=progress, message='downloading band %s' % band_number,
-                min_progress=min_progress, max_progress=max_progress
+                min_progress=min_progress, max_progress=max_progress,
+                copernicus=copernicus, access_token=access_token
             )
         if files_directories.is_file(output_file):
             output_list.append(output_file)

@@ -2282,7 +2282,8 @@ class Multiprocess(object):
             self, url_list, output_path_list, authentication_uri=None,
             user=None, password=None, proxy_host=None, proxy_port=None,
             proxy_user=None, proxy_password=None, progress=None, message=None,
-            min_progress=0, max_progress=100, retried=False, timeout=20
+            min_progress=0, max_progress=100, retried=False, timeout=20,
+            copernicus=False, access_token=None
     ):
         cfg.logger.log.debug('start')
         cfg.logger.log.debug('url_list: %s' % str(url_list))
@@ -2293,7 +2294,7 @@ class Multiprocess(object):
         input_parameters = [
             url_list, output_path_list, authentication_uri, user, password,
             proxy_host, proxy_port, proxy_user, proxy_password, retried,
-            timeout
+            timeout, copernicus, access_token
         ]
         # progress queue
         p_mq = self.manager.Queue()

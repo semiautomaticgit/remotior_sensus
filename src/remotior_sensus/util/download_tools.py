@@ -20,6 +20,7 @@ Tools to download files
 """
 
 import urllib.request
+import requests
 from datetime import datetime
 from http.cookiejar import CookieJar
 from os import stat
@@ -215,3 +216,113 @@ def download_file(
             )
         else:
             return False, str(err)
+
+
+# download Copernicus file
+def download_copernicus_file(
+        url, output_path, authentication_uri=None,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
+        progress=True, message=None, min_progress=0, max_progress=100,
+        timeout=20, callback=None, log=None, retried=None, access_token=None
+):
+    cfg.logger.log.debug('url: %s' % url)
+    if authentication_uri is None:
+        pass
+    if proxy_host is None:
+        proxies = None
+    else:
+        proxies = {
+            'https': 'https://%s:%s@%s:%s' % (
+                proxy_user, proxy_password, proxy_host, proxy_port
+            )
+        }
+    session = requests.Session()
+    session.headers['Authorization'] = 'Bearer %s' % access_token
+    if proxies is not None:
+        session.proxies = proxies
+    url_r = None
+    try:
+        url_request = session.get(url, allow_redirects=False)
+        while url_request.status_code in (301, 302, 303, 307):
+            if cfg.action is True:
+                url_r = url_request.headers['Location']
+                url_request = session.get(
+                    url_r, allow_redirects=False, timeout=timeout
+                )
+            else:
+                return False, 'cancel'
+        if log is not None:
+            log.debug('url_request: %s' % str(url_r))
+        file_response = session.get(
+            url_r, verify=False, allow_redirects=True, timeout=timeout,
+            stream=True
+        )
+        try:
+            file_size = int(file_response.headers['Content-Length'])
+            # size megabyte
+            total_size = round(file_size / 1048576, 2)
+            if log is not None:
+                log.debug('total_size: %s' % str(total_size))
+        except Exception as err:
+            return False, str(err)
+        block_size = int(file_size / 10)
+        if log is not None:
+            log.debug(
+                'block_size: %s; file_size: %s'
+                % (str(block_size), str(file_size))
+                )
+        # small files
+        if file_size < 300000:
+            for chunk in file_response.iter_content(chunk_size=file_size):
+                if chunk:
+                    write_file(chunk, output_path, mode='wb')
+        else:
+            create_parent_directory(output_path)
+            with open(output_path, 'wb') as file:
+                while True:
+                    if cfg.action is True:
+                        for chunk in file_response.iter_content(
+                                chunk_size=block_size
+                        ):
+                            if chunk:
+                                if progress is True:
+                                    try:
+                                        downloaded_part_size = round(
+                                            int(stat(output_path).st_size)
+                                            / 1048576, 2
+                                        )
+                                        if message is None:
+                                            message = '({}/{} MB) {}'.format(
+                                                downloaded_part_size,
+                                                total_size, url
+                                            )
+                                        step = int(
+                                            (max_progress - min_progress)
+                                            * downloaded_part_size / total_size
+                                            + min_progress
+                                        )
+                                        percentage = int(
+                                            100 * downloaded_part_size
+                                            / total_size
+                                        )
+                                        if callback is None:
+                                            cfg.progress.update(
+                                                message=message, step=step,
+                                                percentage=percentage,
+                                                ping=True
+                                            )
+                                        else:
+                                            callback(percentage, False)
+                                    except Exception as err:
+                                        str(err)
+                                # write file
+                                file.write(chunk)
+                            else:
+                                break
+                    else:
+                        return False, 'cancel'
+        return True, output_path
+    except Exception as err:
+        if retried:
+            pass
+        return False, str(err)

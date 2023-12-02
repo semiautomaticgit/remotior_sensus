@@ -15,8 +15,7 @@ class TestDownloadProducts(TestCase):
         coordinate_list = [8, 43, 10, 41]
         output_manager = rs.download_products.query_sentinel_2_database(
             date_from='2020-01-01', date_to='2020-01-30', max_cloud_cover=80,
-            result_number=5, coordinate_list=coordinate_list,
-            name_filter='L2A'
+            result_number=5, coordinate_list=coordinate_list, name_filter='L2A'
         )
         product_table = output_manager.extra['product_table']
         temp = cfg.temp.temporary_file_path(name_suffix='.xml')
@@ -32,8 +31,7 @@ class TestDownloadProducts(TestCase):
         output_manager = rs.download_products.search(
             product=cfg.sentinel2, date_from='2020-01-01',
             date_to='2020-01-30', max_cloud_cover=80,
-            result_number=5, coordinate_list=coordinate_list,
-            name_filter='L2A'
+            result_number=5, coordinate_list=coordinate_list, name_filter='L2A'
         )
         product_table = output_manager.extra['product_table']
         self.assertEqual(product_table['product'][0], cfg.sentinel2)
@@ -102,6 +100,22 @@ class TestDownloadProducts(TestCase):
             product_table=product_table_2[product_table_2['cloud_cover'] < 10],
             output_path=cfg.temp.dir + '/test_4', band_list=['01'],
             nasa_user='', nasa_password='')
+        self.assertTrue(rs.files_directories.is_file(output_manager.paths[0]))
+        """
+
+        """# user and password required
+        # download Copernicus service bands
+        cfg.logger.log.debug('>>> test download Copernicus service bands')
+        output_manager = rs.download_products.query_sentinel_2_database(
+            date_from='2023-07-01', date_to='2023-07-30', max_cloud_cover=80,
+            result_number=1, name_filter='32TNN',
+            copernicus_user='', copernicus_password=''
+        )
+        product_table_3 = output_manager.extra['product_table']
+        output_manager = rs.download_products.download(
+            product_table=product_table_3,
+            output_path=cfg.temp.dir + '/test_5', band_list=['01'],
+            copernicus_user='', copernicus_password='')
         self.assertTrue(rs.files_directories.is_file(output_manager.paths[0]))
         """
 

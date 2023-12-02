@@ -38,8 +38,9 @@ class Temporary(object):
 
     # clear root temporary directory
     def clear(self):
-        remove_root_temporary_directory(self.dir)
-        self.dir = None
+        if self.dir is not None:
+            remove_root_temporary_directory(self.dir)
+            self.dir = None
         return self.dir
 
     # create temporary directory

@@ -16,8 +16,7 @@ class TestFilesDirectories(TestCase):
         path = '/home/user/file.tif'
         root = '/home/user/'
         relative_path = files_directories.absolute_to_relative_path(
-            path=path,
-            root=root
+            path=path, root=root
             )
         absolute_path = files_directories.relative_to_absolute_path(
             path=relative_path, root=root

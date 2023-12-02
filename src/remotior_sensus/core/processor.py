@@ -1557,6 +1557,8 @@ def download_file_processor(input_parameters, process_parameters=None):
     proxy_password = input_parameters[8]
     retried = input_parameters[9]
     timeout = input_parameters[10]
+    copernicus = input_parameters[11]
+    access_token = input_parameters[12]
     start_time = datetime.datetime.now()
     cfg.logger.log.debug('url_list: %s' % str(url_list))
     for url in range(len(url_list)):
@@ -1565,14 +1567,26 @@ def download_file_processor(input_parameters, process_parameters=None):
         if process_id == 0 and elapsed_time > refresh_time:
             start_time = now_time
             progress_queue.put([url, len(url_list)], False)
-        downloaded = download_tools.download_file(
-            url=url_list[url], output_path=output_path_list[url],
-            authentication_uri=authentication_uri, user=user,
-            password=password, proxy_host=proxy_host, proxy_port=proxy_port,
-            proxy_user=proxy_user, proxy_password=proxy_password,
-            progress=True, retried=retried, timeout=timeout,
-            callback=progress_queue.put, log=cfg.logger.log
-        )
+        if copernicus is True:
+            downloaded = download_tools.download_copernicus_file(
+                url=url_list[url], output_path=output_path_list[url],
+                authentication_uri=authentication_uri,
+                proxy_host=proxy_host, proxy_port=proxy_port,
+                proxy_user=proxy_user, proxy_password=proxy_password,
+                progress=True, retried=retried, timeout=timeout,
+                callback=progress_queue.put, log=cfg.logger.log,
+                access_token=access_token
+            )
+        else:
+            downloaded = download_tools.download_file(
+                url=url_list[url], output_path=output_path_list[url],
+                authentication_uri=authentication_uri, user=user,
+                password=password, proxy_host=proxy_host,
+                proxy_port=proxy_port,
+                proxy_user=proxy_user, proxy_password=proxy_password,
+                progress=True, retried=retried, timeout=timeout,
+                callback=progress_queue.put, log=cfg.logger.log
+            )
         if downloaded is None:
             cfg.logger.log.debug('error downloading: %s' % url_list[url])
             logger = cfg.logger.stream.getvalue()

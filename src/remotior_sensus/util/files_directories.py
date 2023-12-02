@@ -182,7 +182,10 @@ def file_name(path, suffix=False):
 def absolute_to_relative_path(path, root=None):
     p = Path(path)
     try:
-        relative = p.relative_to(root)
+        if root is not None:
+            relative = p.relative_to(root)
+        else:
+            relative = p
     except Exception as err:
         cfg.logger.log.error(str(err))
         relative = p
