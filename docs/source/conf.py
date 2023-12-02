@@ -12,7 +12,7 @@ project = 'Remotior Sensus'
 copyright = '2022-2023, Luca Congedo'
 author = 'Luca Congedo'
 release = '0.1.19'
-version = '0.1.19.1'
+version = '0.1.19.2'
 
 
 # -- General configuration ---------------------------------------------------

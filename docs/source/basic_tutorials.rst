@@ -10,3 +10,4 @@ The following tutorials are available.
 
    quickstart.rst
    tutorial_ndvi.rst
+   tutorial_random_forest.rst
