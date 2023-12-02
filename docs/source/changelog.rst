@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.1.20
+________
+
+* Fixed Copernicus search and download service
+
+
 v0.1.19
 ________
 

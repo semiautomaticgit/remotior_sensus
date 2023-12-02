@@ -37,7 +37,8 @@ from remotior_sensus.util import (
 def search(
         product, date_from, date_to, max_cloud_cover=100, result_number=50,
         name_filter=None, coordinate_list=None, progress_message=True,
-        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
+        copernicus_user=None, copernicus_password=None
 ) -> OutputManager:
     """Perform the query of image databases.
 
@@ -51,7 +52,9 @@ def search(
             result_number=result_number, name_filter=name_filter,
             coordinate_list=coordinate_list, progress_message=progress_message,
             proxy_host=proxy_host, proxy_port=proxy_port,
-            proxy_user=proxy_user, proxy_password=proxy_password
+            proxy_user=proxy_user, proxy_password=proxy_password,
+            copernicus_user=copernicus_user,
+            copernicus_password=copernicus_password
         )
     elif product == cfg.landsat_hls or product == cfg.sentinel2_hls:
         result = query_nasa_cmr(

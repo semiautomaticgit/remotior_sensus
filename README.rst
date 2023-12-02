@@ -81,7 +81,7 @@ such as Principal Components Analysis, classification, mosaic,
 or band calculation.
 
 In band calculations, alias name of bands based on center wavelength
-(e.g., blue, red) can be used to simplify the structure of calculation expression.
+(e.g. blue, red) can be used to simplify the structure of calculation expression.
 
 Performance
 ___________

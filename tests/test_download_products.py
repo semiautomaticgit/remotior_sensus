@@ -106,9 +106,9 @@ class TestDownloadProducts(TestCase):
         """# user and password required
         # download Copernicus service bands
         cfg.logger.log.debug('>>> test download Copernicus service bands')
-        output_manager = rs.download_products.query_sentinel_2_database(
-            date_from='2023-07-01', date_to='2023-07-30', max_cloud_cover=80,
-            result_number=1, name_filter='32TNN',
+        output_manager = rs.download_products.search(
+            product='Sentinel-2', date_from='2023-07-01', date_to='2023-07-30',
+            max_cloud_cover=80, result_number=1, name_filter='32TNN',
             copernicus_user='', copernicus_password=''
         )
         product_table_3 = output_manager.extra['product_table']
