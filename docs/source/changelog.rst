@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.1.21
+________
+
+* Fixed requirements
+
+
 v0.1.20
 ________
 
