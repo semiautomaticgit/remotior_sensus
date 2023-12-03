@@ -198,8 +198,7 @@ def query_sentinel_2_database(
                  str(coordinate_list[2]), '%20', str(coordinate_list[3]), ',',
                  str(coordinate_list[2]), '%20', str(coordinate_list[1]), ',',
                  str(coordinate_list[0]), '%20', str(coordinate_list[1]),
-                 '))%27)',
-                 '&$orderby=',
+                 '))%27)', '&$orderby=',
                  'ContentDate/Start%20asc&$expand=Attributes&$count=True&',
                  '$top=', str(max_result_number), '&$skip=', str(_results)]
             )
