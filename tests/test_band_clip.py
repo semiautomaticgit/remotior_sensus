@@ -23,8 +23,14 @@ class TestBandClip(TestCase):
         cfg.logger.log.debug('>>> test band clip input BandSet')
         # box coordinate list
         extent_list = [230250, 4674510, 230320, 4674440]
-        output = rs.band_clip(input_bands=catalog.get_bandset(1),
+        output = rs.band_clip(input_bands=1,
                               output_path=cfg.temp.dir, prefix='clip_',
+                              extent_list=extent_list, bandset_catalog=catalog)
+        self.assertTrue(output.check)
+        # box coordinate list
+        extent_list = [230250, 4674510, 230320, 4674440]
+        output = rs.band_clip(input_bands=catalog.get_bandset(1),
+                              output_path=cfg.temp.dir, prefix='clip3_',
                               extent_list=extent_list)
         self.assertTrue(output.check)
         cfg.logger.log.debug('>>> test band clip input BandSet multiband')

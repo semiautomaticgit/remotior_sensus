@@ -200,6 +200,7 @@ class Session(object):
         if log_level is None:
             log_level = logging.INFO
         self.log_level = log_level
+        configurations.log_level = log_level
         configurations.logger = Log(
             directory=configurations.temp.dir, level=self.log_level,
             time=log_time
@@ -381,6 +382,7 @@ class Session(object):
                 )
         if log_level:
             self.log_level = log_level
+            self.configurations.log_level = log_level
             if log_time is None:
                 log_time = True
             # create logger

@@ -222,7 +222,8 @@ class Multiprocess(object):
         for p in range(len(pieces)):
             process_parameters = [
                 p, cfg.temp, int(available_ram / n_processes),
-                cfg.gdal_path, p_mq, cfg.refresh_time, memory_unit
+                cfg.gdal_path, p_mq, cfg.refresh_time, memory_unit,
+                cfg.log_level
             ]
             input_parameters = [[raster_path], calc_datatype, boundary_size,
                                 pieces[p], [scale], [offset],
@@ -444,7 +445,7 @@ class Multiprocess(object):
                 use_value_as_nodata = [None] * len(raster_paths)
             process_parameters = [
                 p, cfg.temp, int(available_ram / n_processes),
-                cfg.gdal_path, p_mq, cfg.refresh_time
+                cfg.gdal_path, p_mq, cfg.refresh_time, None, cfg.log_level
             ]
             input_parameters = [
                 raster_paths, calculation_datatype[ranges[p - 1]: ranges[p]],
@@ -1031,7 +1032,8 @@ class Multiprocess(object):
         if available_ram is None:
             available_ram = cfg.available_ram
         available_ram = str(int(available_ram) * 1000000)
-        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram]
+        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram,
+                              cfg.log_level]
         cfg.logger.log.debug(
             'process_parameters: %s' % str(process_parameters)
         )
@@ -1332,7 +1334,8 @@ class Multiprocess(object):
                                   table2_dtypes, table2_features,
                                   table2_features_index, table2_output_names,
                                   features_table_2_outer]
-            process_parameters = [p, cfg.temp, p_mq, cfg.refresh_time]
+            process_parameters = [p, cfg.temp, p_mq, cfg.refresh_time,
+                                  cfg.log_level]
             c = self.pool.apply_async(
                 processor.table_join,
                 args=(table_1_parameters, table_2_parameters, nodata_value,
@@ -1434,9 +1437,11 @@ class Multiprocess(object):
         # multiple parallel processes
         for p in range(len(tmp_rast_list)):
             vrt_path = tmp_rast_list[p]
-            process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, int(
-                int(available_ram) * 1000000 / len(tmp_rast_list)
-            )]
+            process_parameters = [
+                p, cfg.temp, cfg.gdal_path, p_mq,
+                int(int(available_ram) * 1000000 / len(tmp_rast_list)),
+                cfg.log_level
+            ]
             t_vector = cfg.temp.temporary_raster_path(
                 extension=cfg.gpkg_suffix
             )
@@ -1546,7 +1551,8 @@ class Multiprocess(object):
         # parallel process
         p = 0
         process_parameters = [
-            p, cfg.temp, cfg.gdal_path, p_mq, int(int(available_ram) * 1000000)
+            p, cfg.temp, cfg.gdal_path, p_mq,
+            int(int(available_ram) * 1000000), cfg.log_level
         ]
         c = self.pool.apply_async(
             processor.raster_to_vector_process,
@@ -1620,7 +1626,8 @@ class Multiprocess(object):
         process_result = {}
         process_output_files = {}
         p = 0
-        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram]
+        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram,
+                              cfg.log_level]
         input_parameters = [raster_path, sieve_size, connected]
         output_parameters = [output, output_data_type, compress,
                              compress_format, output_nodata_value]
@@ -1693,7 +1700,8 @@ class Multiprocess(object):
         p_mq = self.manager.Queue()
         results = []
         p = 0
-        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram]
+        process_parameters = [p, cfg.temp, cfg.gdal_path, p_mq, available_ram,
+                              cfg.log_level]
         input_parameters = [vector_path, field_name, reference_raster_path,
                             nodata_value, background_value, burn_values,
                             x_y_size, all_touched, minimum_extent]
@@ -2230,7 +2238,7 @@ class Multiprocess(object):
             available_ram = cfg.available_ram
         available_ram = str(int(available_ram) * 1000000)
         process_parameters = [p, cfg.temp, available_ram, cfg.gdal_path,
-                              p_mq]
+                              p_mq, cfg.log_level]
         cfg.logger.log.debug(str(process_parameters))
         results = []
         c = self.pool.apply_async(
@@ -2299,7 +2307,8 @@ class Multiprocess(object):
         # progress queue
         p_mq = self.manager.Queue()
         p = 0
-        process_parameters = [p, cfg.temp, p_mq, cfg.refresh_time]
+        process_parameters = [p, cfg.temp, p_mq, cfg.refresh_time,
+                              cfg.log_level]
         cfg.logger.log.debug(str(process_parameters))
         results = []
         c = self.pool.apply_async(

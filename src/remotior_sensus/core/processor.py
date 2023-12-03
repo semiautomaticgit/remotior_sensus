@@ -43,6 +43,8 @@ def function_initiator(
     gdal_path = process_parameters[3]
     progress_queue = process_parameters[4]
     refresh_time = process_parameters[5]
+    _memory_unit = process_parameters[6]
+    log_level = process_parameters[7]
     # get input raster parameters
     raster_list = input_parameters[0]
     calc_data_type = input_parameters[1]
@@ -83,7 +85,9 @@ def function_initiator(
      any_nodata_mask, output_no_data, output_band_number, keep_output_array,
      keep_output_argument) = output_parameters
     # start logger
-    cfg.logger = Log(directory=cfg.temp.dir, multiprocess=str(process_id))
+    cfg.logger = Log(
+        directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
+    )
     # set gdal path
     if gdal_path is not None:
         for d in gdal_path.split(';'):
@@ -858,9 +862,12 @@ def table_join(
     (table2, field2_name, table2_names, table2_dtypes, table2_features,
      table2_features_index, table2_output_names,
      features_table_2_outer) = table_2_parameters
-    process_id, cfg.temp, progress_queue, refresh_time = process_parameters
+    (process_id, cfg.temp, progress_queue, refresh_time,
+     log_level) = process_parameters
     proc_error = False
-    cfg.logger = Log(directory=cfg.temp.dir, multiprocess=str(process_id))
+    cfg.logger = Log(
+        directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
+    )
     cfg.logger.log.debug('start')
     c = 0
     output = output_part = outer_part = None
@@ -1042,7 +1049,8 @@ def gdal_translate(
     memory = process_parameters[2]
     gdal_path = process_parameters[3]
     progress_queue = process_parameters[4]
-    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0')
+    log_level = process_parameters[5]
+    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
     cfg.logger.log.debug('start')
     if gdal_path is not None:
         for d in gdal_path.split(';'):
@@ -1090,7 +1098,8 @@ def gdal_warp(
     gdal_path = process_parameters[2]
     progress_queue = process_parameters[3]
     memory = process_parameters[4]
-    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0')
+    log_level = process_parameters[5]
+    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
     cfg.logger.log.debug('start')
     if gdal_path is not None:
         for d in gdal_path.split(';'):
@@ -1131,8 +1140,7 @@ def gdal_warp(
 # convert raster to vector
 def raster_to_vector_process(
         raster_path, output_vector_path, field_name=False,
-        process_parameters=None,
-        connected=4
+        process_parameters=None, connected=4
 ):
     # process parameters
     process_id = str(process_parameters[0])
@@ -1140,6 +1148,7 @@ def raster_to_vector_process(
     gdal_path = process_parameters[2]
     progress_queue = process_parameters[3]
     memory = process_parameters[4]
+    log_level = process_parameters[5]
     if gdal_path is not None:
         for d in gdal_path.split(';'):
             try:
@@ -1151,7 +1160,9 @@ def raster_to_vector_process(
     from osgeo import ogr
     from osgeo import osr
     from pathlib import Path
-    cfg.logger = Log(directory=cfg.temp.dir, multiprocess=str(process_id))
+    cfg.logger = Log(
+        directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
+    )
     cfg.logger.log.debug('start')
     # GDAL config
     try:
@@ -1252,6 +1263,7 @@ def raster_sieve_process(
     gdal_path = process_parameters[2]
     progress_queue = process_parameters[3]
     memory = process_parameters[4]
+    log_level = process_parameters[5]
     # input_raster parameters
     raster = input_parameters[0]
     sieve_size = input_parameters[1]
@@ -1270,7 +1282,9 @@ def raster_sieve_process(
             except Exception as err:
                 str(err)
     from osgeo import gdal
-    cfg.logger = Log(directory=cfg.temp.dir, multiprocess=str(process_id))
+    cfg.logger = Log(
+        directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
+    )
     cfg.logger.log.debug('start')
     # GDAL config
     try:
@@ -1349,6 +1363,7 @@ def vector_to_raster(
     gdal_path = process_parameters[2]
     progress_queue = process_parameters[3]
     memory = process_parameters[4]
+    log_level = process_parameters[5]
     # input_raster parameters
     vector_path = input_parameters[0]
     field_name = input_parameters[1]
@@ -1378,7 +1393,9 @@ def vector_to_raster(
             except Exception as err:
                 str(err)
     from osgeo import gdal, ogr
-    cfg.logger = Log(directory=cfg.temp.dir, multiprocess=str(process_id))
+    cfg.logger = Log(
+        directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
+    )
     cfg.logger.log.debug('start')
     # GDAL config
     try:
@@ -1544,7 +1561,8 @@ def download_file_processor(input_parameters, process_parameters=None):
     cfg.temp = process_parameters[1]
     progress_queue = process_parameters[2]
     refresh_time = process_parameters[3]
-    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0')
+    log_level = process_parameters[4]
+    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
     cfg.logger.log.debug('start')
     url_list = input_parameters[0]
     output_path_list = input_parameters[1]

@@ -1,6 +1,13 @@
 Changelog
 ===============
 
+v0.1.22
+________
+
+* Fixed prepare input function
+* Fixed logger for multiprocess
+
+
 v0.1.21
 ________
 

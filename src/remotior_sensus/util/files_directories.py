@@ -35,9 +35,13 @@ def is_directory(path):
 # get parent directory of input_raster
 def parent_directory(path):
     try:
-        directory = os.path.dirname(path)
-        cfg.logger.log.debug('directory: %s' % directory)
-        return directory
+        if len(path) > 0:
+            directory = os.path.dirname(path)
+            cfg.logger.log.debug('directory: %s' % directory)
+            return directory
+        else:
+            cfg.logger.log.debug('no directory')
+            return ''
     except Exception as err:
         cfg.logger.log.error(str(err))
         return False

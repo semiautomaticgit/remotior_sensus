@@ -34,6 +34,7 @@ multiprocess: Multiprocess
 logger = messages = band_calc = band_classification = band_combination = None
 band_dilation = band_erosion = band_neighbor_pixels = band_pca = None
 band_sieve = None
+log_level = None
 # shared Temporary class
 temp = None
 # variable to stop processes
@@ -76,7 +77,7 @@ nodata_val = -32768
 nodata_val_UInt16 = 65535
 nodata_val_Int32 = 2147483647
 nodata_val_Int64 = -9223372036854775808
-nodata_val_Float32 = -3.4028235e+38
+nodata_val_Float32 = -340282346638528859811704183484516925440
 nodata_val_UInt32 = 4294967295
 nodata_val_UInt64 = 2 ** 64 - 1
 nodata_val_Byte = 255

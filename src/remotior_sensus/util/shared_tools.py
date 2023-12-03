@@ -193,9 +193,9 @@ def prepare_process_files(
                         name=_r, extension=cfg.vrt_suffix
                     )
                 )
-        if type(output_path) is not list and files_directories.is_directory(
-                output_path
-        ):
+        if type(output_path) is not list:
+            if not files_directories.is_directory(output_path):
+                files_directories.create_directory(output_path)
             for _r in name_list:
                 p = path.join(
                     output_path, '{}{}'.format(prefix, _r)

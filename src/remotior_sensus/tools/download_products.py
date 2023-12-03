@@ -142,8 +142,9 @@ def query_sentinel_2_database(
         ) > 10:
             cfg.logger.log.warning('search area extent beyond limits')
             cfg.messages.warning('search area extent beyond limits')
+    base_g_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
     if copernicus_password is None:
-        base_url = 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
+        base_url = base_g_url
         copernicus = False
         access_token = session_state = None
     else:
@@ -315,30 +316,29 @@ def query_sentinel_2_database(
                                     or f.lower() in image_name.lower()):
                                 image_zone = image_name.split('_')[1][1:]
                                 if product_type == 'L1C':
+                                    p_data = image_name_tag.firstChild.data
                                     img_name_3 = (
-                                        image_name_tag.firstChild.data.split(
-                                            '/'
-                                        )[3].split('_'))
+                                        p_data.split('/')[3].split('_')
+                                    )
                                     pvi_name = '%s_%s_PVI.jp2' % (
                                         img_name_3[0], img_name_3[1])
                                     img_preview = ''.join(
-                                        [base_url, '/tiles/',
+                                        [base_g_url, '/tiles/',
                                          product_name[39:41], '/',
                                          product_name[41], '/',
                                          product_name[42:44], '/',
                                          product_name, '.SAFE/GRANULE/',
-                                         image_name,
-                                         '/QI_DATA/', pvi_name]
+                                         image_name, '/QI_DATA/', pvi_name]
                                     )
                                 else:
+                                    p_data = image_name_tag.firstChild.data
                                     img_name_3 = (
-                                        image_name_tag.firstChild.data.split(
-                                            '/'
-                                        )[4].split('_'))
+                                        p_data.split('/')[4].split('_')
+                                    )
                                     pvi_name = '%s_%s_PVI.jp2' % (
                                         img_name_3[0], img_name_3[1])
                                     img_preview = ''.join(
-                                        [base_url, '/L2/tiles/',
+                                        [base_g_url, '/L2/tiles/',
                                          product_name[39:41], '/',
                                          product_name[41], '/',
                                          product_name[42:44], '/',
