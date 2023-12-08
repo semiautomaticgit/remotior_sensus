@@ -490,6 +490,9 @@ def _band_names_alias(
         input_raster_list: list of raster paths or list of lists path,
             name ignoring input_name_list.
         input_name_list: list of raster names for calculation.
+
+    Returns:
+        Dictionary of band name alias as key and file path as value
     """
     band_names = {}
     # raster files
@@ -519,24 +522,41 @@ def _band_names_alias(
                 break
             bands = bandset_catalog.get(i).get_band_alias()
             apaths = bandset_catalog.get(i).get_absolute_paths()
+            raster_bands = bandset_catalog.get(i).bands['raster_band'].tolist()
             for b in range(bandset_catalog.get_band_count(i)):
                 if cfg.action is False:
                     break
+                if raster_bands[b] != 1:
+                    raster_path = (
+                        raster_vector.create_temporary_virtual_raster(
+                            input_raster_list=[apaths[b]],
+                            band_number_list=[[raster_bands[b]]]
+                        )
+                    )
+                else:
+                    raster_path = apaths[b]
                 band_names['%s%s%s%s%s' % (
-                    cfg.variable_band_quotes,
-                    cfg.variable_bandset_name, i,
+                    cfg.variable_band_quotes, cfg.variable_bandset_name, i,
                     bands[b], cfg.variable_band_quotes
-                )] = apaths[b]
+                )] = raster_path
             # current BandSet
             if i == bandset_number:
                 for b in range(len(bands)):
                     if cfg.action is False:
                         break
+                    if raster_bands[b] != 1:
+                        raster_path = (
+                            raster_vector.create_temporary_virtual_raster(
+                                input_raster_list=[apaths[b]],
+                                band_number_list=[[raster_bands[b]]]
+                            )
+                        )
+                    else:
+                        raster_path = apaths[b]
                     band_names['%s%s%s%s%s' % (
-                        cfg.variable_band_quotes,
-                        cfg.variable_bandset_name,
+                        cfg.variable_band_quotes, cfg.variable_bandset_name,
                         cfg.variable_current_bandset, bands[b],
-                        cfg.variable_band_quotes)] = apaths[b]
+                        cfg.variable_band_quotes)] = raster_path
     cfg.logger.log.debug('band_names: %s' % (str(band_names)))
     return band_names
 
@@ -555,7 +575,13 @@ def _check_expression(
         raster_variables: raster output_name variable dictionary
         bandset_number: optional number of BandSet as current one
         output_dir_path: optional path of output directory to use as variables
-    """
+        
+    Returns:
+        Tuple of exp_list, all_out_name_list, output_message
+        exp_list = [expr, expr_function, output_name, bs_number, out_path, virtual, input_rasters]
+        all_out_name_list = list of output_names
+        output_message = str of error message
+    """  # noqa: E501
     cfg.logger.log.debug('start')
     raster_variables_dict = raster_variables.copy()
     output_message = None
@@ -777,14 +803,12 @@ def _check_expression(
                                                     shared_tools.replace(
                                                         calculation,
                                                         spectral_band[0],
-                                                        '%s%s%s%s' % (
-                                                            bsn,
-                                                            str(bandset_x),
-                                                            bn, str(
-                                                                spectral_band[
-                                                                    1]
-                                                            )
-                                                        )
+                                                        '%s%s%s%s'
+                                                        % (bsn, str(bandset_x),
+                                                           bn,
+                                                           str(spectral_band[1]
+                                                               )
+                                                           )
                                                     )
                                                 )
                                             except Exception as err:
@@ -1282,8 +1306,8 @@ def _expression_to_function(expression, raster_variables: dict):
         if k in expr_func:
             input_rasters[k] = raster_variables[k]
             expr_func = expr_func.replace(
-                k, ' %s[::, ::, %s] ' % (
-                    cfg.array_function_placeholder, str(layer_number))
+                k, ' %s[::, ::, %s] '
+                   % (cfg.array_function_placeholder, str(layer_number))
             )
             layer_number += 1
     cfg.logger.log.debug(

@@ -520,6 +520,24 @@ class TestBandCalc(TestCase):
                                expression_string=expression)
         self.assertTrue(calc.check)
         self.assertTrue(files_directories.is_file(calc.paths[0]))
+        # calculation with multiband raster as bandset
+        cfg.logger.log.debug('>>> test multiband raster as bandset')
+        catalog_2 = rs.bandset_catalog()
+        catalog_2.create_bandset(
+            ['./data/S2_2020-01-05/S2_2020-01-05.tif'], bandset_number=1
+            )
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        expression = '{}{}{}{}{}{}'.format(
+            cfg.variable_band_quotes, cfg.variable_bandset_name,
+            cfg.variable_current_bandset, cfg.variable_band_name,
+            '2', cfg.variable_band_quotes
+        )
+        output = rs.band_calc(
+            output_path=temp, expression_string=expression,
+            extent_intersection=False, bandset_catalog=catalog_2
+        )
+        self.assertTrue(output.check)
+        self.assertTrue(files_directories.is_file(output.paths[0]))
 
         # clear temporary directory
         rs.close()

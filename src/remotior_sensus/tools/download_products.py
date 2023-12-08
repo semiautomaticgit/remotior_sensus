@@ -321,14 +321,26 @@ def query_sentinel_2_database(
                                     )
                                     pvi_name = '%s_%s_PVI.jp2' % (
                                         img_name_3[0], img_name_3[1])
-                                    img_preview = ''.join(
-                                        [base_g_url, '/tiles/',
-                                         product_name[39:41], '/',
-                                         product_name[41], '/',
-                                         product_name[42:44], '/',
-                                         product_name, '.SAFE/GRANULE/',
-                                         image_name, '/QI_DATA/', pvi_name]
-                                    )
+                                    if copernicus is True:
+                                        img_preview = (
+                                                '%s/Products(%s)'
+                                                '/Nodes(%s.SAFE)'
+                                                '/Nodes(GRANULE)/Nodes(%s)'
+                                                '/Nodes(QI_DATA)/Nodes(%s)'
+                                                '/$value'
+                                                % (base_url, uid,
+                                                   product_name, image_name,
+                                                   pvi_name)
+                                        )
+                                    else:
+                                        img_preview = ''.join(
+                                            [base_g_url, '/tiles/',
+                                             product_name[39:41], '/',
+                                             product_name[41], '/',
+                                             product_name[42:44], '/',
+                                             product_name, '.SAFE/GRANULE/',
+                                             image_name, '/QI_DATA/', pvi_name]
+                                        )
                                 else:
                                     p_data = image_name_tag.firstChild.data
                                     img_name_3 = (
@@ -336,14 +348,26 @@ def query_sentinel_2_database(
                                     )
                                     pvi_name = '%s_%s_PVI.jp2' % (
                                         img_name_3[0], img_name_3[1])
-                                    img_preview = ''.join(
-                                        [base_g_url, '/L2/tiles/',
-                                         product_name[39:41], '/',
-                                         product_name[41], '/',
-                                         product_name[42:44], '/',
-                                         product_name, '.SAFE/GRANULE/',
-                                         image_name, '/QI_DATA/', pvi_name]
-                                    )
+                                    if copernicus is True:
+                                        img_preview = (
+                                                '%s/Products(%s)'
+                                                '/Nodes(%s.SAFE)'
+                                                '/Nodes(GRANULE)/Nodes(%s)'
+                                                '/Nodes(QI_DATA)/Nodes(%s)'
+                                                '/$value'
+                                                % (base_url, uid,
+                                                   product_name, image_name,
+                                                   pvi_name)
+                                        )
+                                    else:
+                                        img_preview = ''.join(
+                                            [base_g_url, '/L2/tiles/',
+                                             product_name[39:41], '/',
+                                             product_name[41], '/',
+                                             product_name[42:44], '/',
+                                             product_name, '.SAFE/GRANULE/',
+                                             image_name, '/QI_DATA/', pvi_name]
+                                        )
                                 product_table_list.append(
                                     tm.create_product_table(
                                         product=cfg.sentinel2,

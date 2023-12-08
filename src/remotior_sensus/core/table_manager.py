@@ -1081,8 +1081,7 @@ def create_product_table(
         image=None
 ):
     rec_array = np.rec.fromrecords(
-        [(
-            product, image, product_id, acquisition_date, cloud_cover,
+        [(product, image, product_id, acquisition_date, cloud_cover,
             zone_path, row, min_lat, min_lon, max_lat, max_lon,
             collection, size, preview, uid)], dtype=cfg.product_dtype_list
     )

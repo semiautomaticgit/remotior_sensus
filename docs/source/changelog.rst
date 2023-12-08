@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.1.24
+________
+
+* Fixed band calc calculation with multiband raster as bandset
+* Fixed preview path for Copernicus products
+
 v0.1.23
 ________
 
