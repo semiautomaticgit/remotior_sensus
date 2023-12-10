@@ -326,3 +326,30 @@ def download_copernicus_file(
         if retried:
             pass
         return False, str(err)
+
+
+# request stac
+def request_stac(
+        url, params=None, proxy_host=None, proxy_port=None, proxy_user=None,
+        proxy_password=None, retried=None
+):
+    cfg.logger.log.debug('url: %s; params: %s' % (url, str(params)))
+    if proxy_host is None:
+        proxies = None
+    else:
+        proxies = {
+            'https': 'https://%s:%s@%s:%s' % (
+                proxy_user, proxy_password, proxy_host, proxy_port
+            )
+        }
+    session = requests.Session()
+    if proxies is not None:
+        session.proxies = proxies
+    try:
+        url_request = session.get(url, params=params)
+        stac_data = url_request.json()
+        return True, stac_data
+    except Exception as err:
+        if retried:
+            pass
+        return False, str(err)

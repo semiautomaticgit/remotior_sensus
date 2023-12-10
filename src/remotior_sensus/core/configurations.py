@@ -96,19 +96,52 @@ comma_delimiter = ','
 tab_delimiter = '\t'
 new_line = '\n'
 # product variables used for download and preprocessing
+# Copernicus Sentinel-2
 sentinel2 = 'Sentinel-2'
-landsat = 'Landsat'
-sensor_oli = 'oli_tirs'
-sensor_etm = 'etm'
-sensor_tm = 'tm'
-sensor_mss = 'mss'
 # NASA CMR Search
 # https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html
 landsat_hls = 'Landsat_HLS'
 landsat_hls_collection = 'C2021957657-LPCLOUD'
 sentinel2_hls = 'Sentinel-2_HLS'
 sentinel2_hls_collection = 'C2021957295-LPCLOUD'
-product_list = [sentinel2, landsat_hls, sentinel2_hls]
+landsat = 'Landsat'
+sensor_oli = 'oli_tirs'
+sensor_etm = 'etm'
+sensor_tm = 'tm'
+sensor_mss = 'mss'
+# Collections from Microsoft Planetary Computer
+landsat_mpc = 'Landsat_MPC'
+landsat_mpc_collection = 'landsat-c2-l2'
+sentinel2_mpc = 'Sentinel-2_MPC'
+sentinel2_mpc_collection = 'sentinel-2-l2a'
+modis_09q1_mpc = 'MODIS_09Q1_MPC'
+modis_09q1_mpc_collection = 'modis-09Q1-061'
+modis_11a2_mpc = 'MODIS_11A2_MPC'
+modis_11a2_mpc_collection = 'modis-11A2-061'
+aster_l1t_mpc = 'ASTER_MPC'
+aster_l1t_mpc_collection = 'aster-l1t'
+cop_dem_glo_30_mpc = 'Copernicus_DEM_30_MPC'
+cop_dem_glo_30_mpc_collection = 'cop-dem-glo-30'
+product_description = {
+    sentinel2: 'Copernicus Sentinel-2 '
+               'https://dataspace.copernicus.eu/explore-data/data-collections/sentinel-data/sentinel-2',  # noqa: E501
+    landsat_mpc: 'Landsat Collection from Microsoft Planetary Computer '
+                 'https://planetarycomputer.microsoft.com/dataset/group/landsat',  # noqa: E501
+    sentinel2_mpc: 'Sentinel-2 Level-2A from Microsoft Planetary Computer '
+                   'https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a',  # noqa: E501
+    landsat_hls: 'Landsat from Harmonized Landsat and Sentinel-2 by NASA '
+                 'https://hls.gsfc.nasa.gov',
+    sentinel2_hls: 'Sentinel-2 from Harmonized Landsat and Sentinel-2 by NASA '
+                   'https://hls.gsfc.nasa.gov',
+    modis_09q1_mpc: 'MODIS Surface Reflectance 8-Day (250m) from Microsoft '
+                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-09Q1-061',  # noqa: E501
+    modis_11a2_mpc: 'MODIS Land Surface Temperature 8-Day from Microsoft '
+                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-11A2-061',  # noqa: E501
+    aster_l1t_mpc: 'ASTER L1T from Microsoft Planetary Computer '
+                   'https://planetarycomputer.microsoft.com/dataset/aster-l1t',
+    cop_dem_glo_30_mpc: 'Copernicus DEM GLO-30 from Microsoft Planetary '
+                        'Computer https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-30'  # noqa: E501
+}
 # satellites bands for center wavelength definition
 no_satellite = 'Band order'
 satGeoEye1 = 'GeoEye-1 [bands 1, 2, 3, 4]'
@@ -226,7 +259,7 @@ satellites = {
     satSentinel2: [
         [0.443, 0.490, 0.560, 0.665, 0.705, 0.740, 0.783, 0.842, 0.865,
          0.945, 1.375, 1.610, 2.190], wl_micro,
-        ['01', '02', '03', '04', '05', '06', '07', '08', '8a', '09',
+        ['01', '02', '03', '04', '05', '06', '07', '08', '8A', '09',
          '10', '11', '12']],
     # Sentinel-3 center wavelength from Sentinel-3 xfdumanifest.xml
     satSentinel3: [
@@ -316,7 +349,7 @@ product_dtype_list = [
     ('zone_path', 'U8'), ('row', 'U8'), ('min_lat', 'float64'),
     ('min_lon', 'float64'), ('max_lat', 'float64'), ('max_lon', 'float64'),
     ('collection', 'U1024'), ('size', 'U512'), ('preview', 'U1024'),
-    ('uid', 'U1024')
+    ('uid', 'U1024'), ('ref_url', 'U1024')
 ]
 # variables used in spectral signatures
 uid_field_name = 'roi_id'

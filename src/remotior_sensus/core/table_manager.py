@@ -1078,12 +1078,13 @@ def create_product_table(
         product=None, product_id=None, acquisition_date=None, cloud_cover=None,
         zone_path=None, row=None, min_lat=None, min_lon=None, max_lat=None,
         max_lon=None, collection=None, size=None, preview=None, uid=None,
-        image=None
+        image=None, ref_url=None
 ):
     rec_array = np.rec.fromrecords(
         [(product, image, product_id, acquisition_date, cloud_cover,
             zone_path, row, min_lat, min_lon, max_lat, max_lon,
-            collection, size, preview, uid)], dtype=cfg.product_dtype_list
+            collection, size, preview, uid, ref_url)],
+        dtype=cfg.product_dtype_list
     )
     cfg.logger.log.debug('rec_array.shape: %s' % rec_array.shape)
     return rec_array

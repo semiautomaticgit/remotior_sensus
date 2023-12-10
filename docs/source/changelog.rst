@@ -1,6 +1,14 @@
 Changelog
 ===============
 
+v0.2.01
+________
+
+* In Download Products added the functions to search and download Collections
+  from Microsoft Planetary Computer: Sentinel-2, Landsat, ASTER,
+  MODIS Surface Reflectance 8-Day, and Copernicus DEM
+
+
 v0.1.24
 ________
 

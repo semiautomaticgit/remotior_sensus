@@ -686,6 +686,9 @@ def create_product_table(
                 elif text.split(cfg.new_line)[0] == cfg.landsat_hls:
                     product_name = cfg.landsat_hls
                     product_date = text.split(cfg.new_line)[1]
+                elif text.split(cfg.new_line)[0] == cfg.landsat_mpc:
+                    product_name = cfg.landsat
+                    product_date = text.split(cfg.new_line)[1]
                 metadata_type = 'txt'
     else:
         metadata = metadata_file_path

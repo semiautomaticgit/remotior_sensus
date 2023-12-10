@@ -34,6 +34,13 @@ from remotior_sensus.util import (
 )
 
 
+def product_names() -> list:
+    """Prints the products that can be searched and returns the list."""
+    for product in cfg.product_description:
+        print('%s: %s' % (product, cfg.product_description[product]))
+    return list(cfg.product_description.keys())
+
+
 def search(
         product, date_from, date_to, max_cloud_cover=100, result_number=50,
         name_filter=None, coordinate_list=None, progress_message=True,
@@ -42,7 +49,49 @@ def search(
 ) -> OutputManager:
     """Perform the query of image databases.
 
-    It allows for the search of image products, currently Landsat and Sentinel-2.
+    This tool performs the query of image products, currently Landsat,
+    Sentinel-2, Harmonized Landsat Sentinel-2.
+    
+    Sentinel-2 data can be searched from multiple sources.
+    
+    Query using Copernicus Data Space Ecosystem API
+    https://documentation.dataspace.copernicus.eu/#/APIs/OData
+    (from https://documentation.dataspace.copernicus.eu:
+    'Copernicus Data Space Ecosystem represents an overall and comprehensive
+    data ecosystem accessible via web portal, applications and APIs.
+    ...
+    The Copernicus Data Space Ecosystem provides the essential data
+    and service offering for everyone to use,
+    for commercial and non-commercial purposes').
+
+    Sentinel-2 metadata are downloaded through the following Google service:
+    https://storage.googleapis.com/gcp-public-data-sentinel-2 .
+    
+    Alternatively, query the collections from Microsoft Planetary Computer
+    https://planetarycomputer.microsoft.com
+    
+    Performs the query of Harmonized Landsat Sentinel-2 through NASA CMR Search
+    https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html.
+
+
+    Args:
+        product: product name from configurations.product_list
+        date_from: date defining the starting period of the query.
+        date_to:
+        max_cloud_cover:
+        result_number:
+        name_filter:
+        coordinate_list: list [left, top, right, bottom] WGS84 coordinates.
+        progress_message: progress message
+        copernicus_user:
+        copernicus_password:
+        proxy_host: proxy host.
+        proxy_port: proxy port.
+        proxy_user: proxy user.
+        proxy_password: proxy password.
+
+    Returns:
+        object :func:`~remotior_sensus.core.output_manager.OutputManager`
     """  # noqa: E501
     result = OutputManager(check=False)
     if product == cfg.sentinel2:
@@ -55,6 +104,60 @@ def search(
             proxy_user=proxy_user, proxy_password=proxy_password,
             copernicus_user=copernicus_user,
             copernicus_password=copernicus_password
+        )
+    elif product == cfg.sentinel2_mpc:
+        result = query_sentinel2_mpc(
+            date_from=date_from, date_to=date_to,
+            max_cloud_cover=max_cloud_cover, result_number=result_number,
+            name_filter=name_filter, coordinate_list=coordinate_list,
+            progress_message=progress_message, proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
+        )
+    elif product == cfg.landsat_mpc:
+        result = query_landsat_mpc(
+            date_from=date_from, date_to=date_to,
+            max_cloud_cover=max_cloud_cover, result_number=result_number,
+            name_filter=name_filter, coordinate_list=coordinate_list,
+            progress_message=progress_message, proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
+        )
+    elif product == cfg.modis_09q1_mpc:
+        result = query_modis_09q1_mpc(
+            date_from=date_from, date_to=date_to,
+            max_cloud_cover=max_cloud_cover, result_number=result_number,
+            name_filter=name_filter, coordinate_list=coordinate_list,
+            progress_message=progress_message, proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
+        )
+    elif product == cfg.modis_11a2_mpc:
+        result = query_modis_11a2_mpc(
+            date_from=date_from, date_to=date_to,
+            max_cloud_cover=max_cloud_cover, result_number=result_number,
+            name_filter=name_filter, coordinate_list=coordinate_list,
+            progress_message=progress_message, proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
+        )
+    elif product == cfg.aster_l1t_mpc:
+        result = query_aster_l1t_mpc(
+            date_from=date_from, date_to=date_to,
+            max_cloud_cover=max_cloud_cover, result_number=result_number,
+            name_filter=name_filter, coordinate_list=coordinate_list,
+            progress_message=progress_message, proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
+        )
+    elif product == cfg.cop_dem_glo_30_mpc:
+        result = query_cop_dem_glo_30_mpc(
+            date_from=date_from, date_to=date_to,
+            max_cloud_cover=max_cloud_cover, result_number=result_number,
+            name_filter=name_filter, coordinate_list=coordinate_list,
+            progress_message=progress_message, proxy_host=proxy_host,
+            proxy_port=proxy_port, proxy_user=proxy_user,
+            proxy_password=proxy_password
         )
     elif product == cfg.landsat_hls or product == cfg.sentinel2_hls:
         result = query_nasa_cmr(
@@ -496,6 +599,7 @@ def delete_copernicus_token(
     return True
 
 
+# noinspection SpellCheckingInspection
 def download(
         product_table, output_path, exporter=False, band_list=None,
         virtual_download=False, extent_coordinate_list=None, proxy_host=None,
@@ -582,16 +686,16 @@ def download(
             if image_name[0:4] == 'L1C_':
                 base_output_dir = '%s/%s_%s' % (
                     output_path, image_name, str(acquisition_date))
-                metadata_msi = base_output_dir + '/MTD_MSIL1C.xml'
-                metadata_msi_url = (
+                metadata_file = base_output_dir + '/MTD_MSIL1C.xml'
+                metadata_url = (
                         '%s/Products(%s)/Nodes(%s.SAFE)/Nodes(MTD_MSIL1C.xml)'
                         '/$value' % (top_url, uid, product_name)
                 )
             else:
                 base_output_dir = '%s/%s_%s' % (
                     output_path, image_name, str(acquisition_date))
-                metadata_msi = base_output_dir + '/MTD_MSIL2A.xml'
-                metadata_msi_url = (
+                metadata_file = base_output_dir + '/MTD_MSIL2A.xml'
+                metadata_url = (
                         '%s/Products(%s)/Nodes(%s.SAFE)/Nodes(MTD_MSIL2A.xml)'
                         '/$value' % (top_url, uid, product_name)
                 )
@@ -599,7 +703,7 @@ def download(
             # check connection downloading metadata xml
             temp_file = cfg.temp.temporary_file_path(name_suffix='.xml')
             check = cfg.multiprocess.multi_download_file(
-                url_list=[metadata_msi_url], output_path_list=[temp_file],
+                url_list=[metadata_url], output_path_list=[temp_file],
                 proxy_host=proxy_host, proxy_port=proxy_port,
                 proxy_user=proxy_user, proxy_password=proxy_password,
                 access_token=access_token, copernicus=True, progress=False,
@@ -607,12 +711,12 @@ def download(
             )
             if exporter:
                 output_file_list.extend(
-                    [metadata_msi_url]
+                    [metadata_url]
                 )
             else:
                 if check:
                     files_directories.move_file(
-                        in_path=temp_file, out_path=metadata_msi
+                        in_path=temp_file, out_path=metadata_file
                     )
             # download bands
             for band in band_list:
@@ -641,7 +745,7 @@ def download(
             if image_name[0:4] == 'L1C_':
                 base_output_dir = '%s/%s_%s' % (
                     output_path, image_name, str(acquisition_date))
-                metadata_msi = base_output_dir + '/MTD_MSIL1C.xml'
+                metadata_file = base_output_dir + '/MTD_MSIL1C.xml'
                 metadata_tl = base_output_dir + '/MTD_TL.xml'
                 cloud_mask_gml = base_output_dir + '/MSK_CLOUDS_B00.gml'
                 base_url = ''.join(
@@ -649,7 +753,7 @@ def download(
                      product_name[41], '/',
                      product_name[42:44], '/', product_name]
                 )
-                metadata_msi_url = base_url + '.SAFE/MTD_MSIL1C.xml'
+                metadata_url = base_url + '.SAFE/MTD_MSIL1C.xml'
                 metadata_tl_url = '%s.SAFE/GRANULE/%s/MTD_TL.xml' % (
                     base_url, image_name)
                 cloud_mask_gml_url = \
@@ -658,7 +762,7 @@ def download(
             elif image_name[0:4] == 'L2A_':
                 base_output_dir = '%s/%s_%s' % (
                     output_path, image_name, str(acquisition_date))
-                metadata_msi = base_output_dir + '/MTD_MSIL2A.xml'
+                metadata_file = base_output_dir + '/MTD_MSIL2A.xml'
                 metadata_tl = base_output_dir + '/MTD_TL.xml'
                 # cloud_mask_gml = base_output_dir + '/MSK_CLOUDS_B00.gml'
                 base_url = ''.join(
@@ -666,7 +770,7 @@ def download(
                      product_name[41], '/',
                      product_name[42:44], '/', product_name]
                 )
-                metadata_msi_url = base_url + '.SAFE/MTD_MSIL2A.xml'
+                metadata_url = base_url + '.SAFE/MTD_MSIL2A.xml'
                 metadata_tl_url = '%s.SAFE/GRANULE/%s/MTD_TL.xml' % (
                     base_url, image_name)
                 cloud_mask_gml_url = \
@@ -676,7 +780,7 @@ def download(
             else:
                 base_output_dir = '%s/%s_%s' % (
                     output_path, image_name[0:-7], str(acquisition_date))
-                metadata_msi = base_output_dir + '/MTD_SAFL1C.xml'
+                metadata_file = base_output_dir + '/MTD_SAFL1C.xml'
                 metadata_tl = base_output_dir + '_MTD_L1C.xml'
                 cloud_mask_gml = base_output_dir + 'MSK_CLOUDS_B00.gml'
                 base_url = ''.join(
@@ -684,7 +788,7 @@ def download(
                      product_name[41], '/',
                      product_name[42:44], '/', product_name, '.SAFE/']
                 )
-                metadata_msi_url = '%s%s.xml' % (
+                metadata_url = '%s%s.xml' % (
                     base_url,
                     product_name.replace('_PRD_MSIL1C_', '_MTD_SAFL1C_'))
                 metadata_tl_url = '%s%s/GRANULE/%s.xml' % (
@@ -700,19 +804,19 @@ def download(
             # check connection downloading metadata xml
             temp_file = cfg.temp.temporary_file_path(name_suffix='.xml')
             check = cfg.multiprocess.multi_download_file(
-                url_list=[metadata_msi_url], output_path_list=[temp_file],
+                url_list=[metadata_url], output_path_list=[temp_file],
                 proxy_host=proxy_host,
                 proxy_port=proxy_port, proxy_user=proxy_user,
                 proxy_password=proxy_password, progress=False, timeout=1
             )
             if exporter:
                 output_file_list.extend(
-                    [metadata_msi_url, metadata_tl_url, cloud_mask_gml_url]
+                    [metadata_url, metadata_tl_url, cloud_mask_gml_url]
                 )
             else:
                 if check:
                     files_directories.move_file(
-                        in_path=temp_file, out_path=metadata_msi
+                        in_path=temp_file, out_path=metadata_file
                     )
                     cfg.multiprocess.multi_download_file(
                         url_list=[metadata_tl_url],
@@ -837,6 +941,228 @@ def download(
                                 str(err)
                 min_progress += progress_step
                 max_progress += progress_step
+        elif (product_table['product'][i] == cfg.sentinel2_mpc
+              or product_table['product'][i] == cfg.landsat_mpc
+              or product_table['product'][i] == cfg.modis_09q1_mpc
+              or product_table['product'][i] == cfg.modis_11a2_mpc
+              or product_table['product'][i] == cfg.aster_l1t_mpc
+              or product_table['product'][i] == cfg.cop_dem_glo_30_mpc):
+            sign_url = ('https://planetarycomputer.microsoft.com/api/sas/v1'
+                        '/sign?href=')
+            ref_url = product_table['ref_url'][i]
+            response, stac_data = download_tools.request_stac(
+                url=ref_url, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+            if response:
+                product_name = product_table['product_id'][i]
+                image_name = product_table['image'][i]
+                acquisition_date = product_table['acquisition_date'][i]
+                base_output_dir = '%s/%s_%s' % (
+                    output_path, product_name.replace('.', '_'),
+                    str(acquisition_date))
+                output_directory_list.append(base_output_dir)
+                if product_table['product'][i] == cfg.sentinel2_mpc:
+                    metadata_url = stac_data['assets']['product-metadata'][
+                        'href']
+                    metadata_file = base_output_dir + '/MTD_MSIL2A.xml'
+                elif product_table['product'][i] == cfg.aster_l1t_mpc:
+                    metadata_url = stac_data['assets']['xml']['href']
+                    metadata_file = base_output_dir + '/aster.xml'
+                elif (product_table['product'][i] == cfg.modis_09q1_mpc
+                      or product_table['product'][i] == cfg.modis_11a2_mpc
+                      or product_table['product'][i]
+                      == cfg.cop_dem_glo_30_mpc):
+                    metadata_url = None
+                    metadata_file = '%s/metadata.txt' % base_output_dir
+                    try:
+                        files_directories.create_parent_directory(
+                            metadata_file
+                        )
+                        with open(metadata_file, 'w') as file:
+                            file.write(
+                                str(product_table['product'][i]) + cfg.new_line
+                                + str(product_table['acquisition_date'][i])
+                            )
+                    except Exception as err:
+                        str(err)
+                else:
+                    metadata_url = stac_data['assets']['mtl.xml']['href']
+                    metadata_file = '%s/%s_MTL.xml' % (
+                        base_output_dir, image_name
+                    )
+                # exclude MODIS metadata
+                if (product_table['product'][i] == cfg.modis_09q1_mpc
+                        or product_table['product'][i] == cfg.modis_11a2_mpc
+                        or product_table['product'][i]
+                        == cfg.cop_dem_glo_30_mpc):
+                    response_2 = True
+                    sign_data = temp_file = None
+                else:
+                    # check connection downloading metadata xml
+                    temp_file = cfg.temp.temporary_file_path(
+                        name_suffix='.xml'
+                    )
+                    response_2, sign_data = download_tools.request_stac(
+                        url='%s%s' % (sign_url, metadata_url),
+                        proxy_host=proxy_host, proxy_port=proxy_port,
+                        proxy_user=proxy_user, proxy_password=proxy_password
+                    )
+                if response_2:
+                    # exclude MODIS metadata
+                    if (product_table['product'][i] != cfg.modis_09q1_mpc
+                            and product_table['product'][i]
+                            != cfg.modis_11a2_mpc
+                            and product_table['product'][i]
+                            != cfg.cop_dem_glo_30_mpc):
+                        check = cfg.multiprocess.multi_download_file(
+                            url_list=[sign_data['href']],
+                            output_path_list=[temp_file],
+                            proxy_host=proxy_host, proxy_port=proxy_port,
+                            proxy_user=proxy_user,
+                            proxy_password=proxy_password, progress=False,
+                            timeout=5
+                        )
+                        if exporter:
+                            output_file_list.extend([metadata_url])
+                        else:
+                            if check:
+                                files_directories.move_file(
+                                    in_path=temp_file, out_path=metadata_file
+                                )
+                    # download bands
+                    for band in band_list:
+                        band_name = None
+                        if product_table['product'][i] == cfg.landsat_mpc:
+                            if ('8A' in str(band) or '08' in str(band)
+                                    or '12' in str(band)):
+                                band = None
+                            if 'LC08' in image_name or 'LC09' in image_name:
+                                band_names = {
+                                    '01': 'coastal', '02': 'blue',
+                                    '03': 'green', '04': 'red', '05': 'nir08',
+                                    '06': 'swir16', '07': 'swir22',
+                                    '10': 'lwir11'
+                                }
+                                if band in band_names:
+                                    band_name = band_names[band]
+                                else:
+                                    band = None
+                            elif 'LE07' in image_name:
+                                band_names = {
+                                    '01': 'blue',  '02': 'green', '03': 'red',
+                                    '04': 'nir08',  '05': 'swir16',
+                                    '06': 'lwir11', '07': 'swir22'
+                                }
+                                if band in band_names:
+                                    band_name = band_names[band]
+                                else:
+                                    band = None
+                            else:
+                                band_names = {
+                                    '01': 'blue',  '02': 'green', '03': 'red',
+                                    '04': 'nir08',  '05': 'swir16',
+                                    '06': 'lwir11', '07': 'swir22'
+                                }
+                                if band in band_names:
+                                    band_name = band_names[band]
+                                else:
+                                    band = None
+                        elif product_table['product'][i] == cfg.sentinel2_mpc:
+                            if '10' in str(band):
+                                band = None
+                            else:
+                                band_name = 'B%s' % band
+                        elif product_table['product'][i] == cfg.aster_l1t_mpc:
+                            band_names = {
+                                '01': 'VNIR', '04': 'SWIR', '10': 'TIR'
+                            }
+                            if band in band_names:
+                                band_name = band_names[band]
+                            else:
+                                band = None
+                        elif product_table['product'][i] == cfg.modis_09q1_mpc:
+                            if '01' in str(band):
+                                band_name = 'sur_refl_b01'
+                            elif '02' in str(band):
+                                band_name = 'sur_refl_b02'
+                            else:
+                                band = None
+                        elif product_table['product'][i] == cfg.modis_11a2_mpc:
+                            if '01' in str(band):
+                                band_name = 'LST_Day_1km'
+                            elif '02' in str(band):
+                                band_name = 'LST_Night_1km'
+                            elif '03' in str(band):
+                                band_name = 'Emis_31'
+                            elif '04' in str(band):
+                                band_name = 'Emis_32'
+                            else:
+                                band = None
+                        elif (product_table['product'][i]
+                              == cfg.cop_dem_glo_30_mpc):
+                            if '01' in str(band):
+                                band_name = 'data'
+                            else:
+                                band = None
+                        if band is not None:
+                            url = stac_data['assets'][band_name]['href']
+                            if exporter:
+                                output_file_list.append(url)
+                            else:
+                                if (product_table['product'][i]
+                                        == cfg.aster_l1t_mpc):
+                                    output_file = '%s/%s_%s%s' % (
+                                        base_output_dir,
+                                        product_name.replace('.', '_'),
+                                        band_name, cfg.tif_suffix)
+                                else:
+                                    output_file = '%s/%s_B%s%s' % (
+                                        base_output_dir,
+                                        product_name.replace('.', '_'),
+                                        str(band).zfill(2), cfg.tif_suffix)
+                                (response_3,
+                                 band_data) = download_tools.request_stac(
+                                    url='%s%s' % (sign_url, url),
+                                    proxy_host=proxy_host,
+                                    proxy_port=proxy_port,
+                                    proxy_user=proxy_user,
+                                    proxy_password=proxy_password
+                                )
+                                if response_3:
+                                    cfg.multiprocess.multi_download_file(
+                                        url_list=[band_data['href']],
+                                        output_path_list=[output_file],
+                                        authentication_uri=authentication_uri,
+                                        user=nasa_user, password=nasa_password,
+                                        proxy_host=proxy_host,
+                                        proxy_port=proxy_port,
+                                        proxy_user=proxy_user,
+                                        proxy_password=proxy_password,
+                                        progress=progress_message,
+                                        message='downloading band %s' % band,
+                                        min_progress=min_progress,
+                                        max_progress=max_progress, timeout=2
+                                    )
+                                if files_directories.is_file(output_file):
+                                    output_file_list.append(output_file)
+                                    cfg.logger.log.debug(
+                                        'downloaded file %s' % output_file
+                                    )
+                                else:
+                                    cfg.messages.error(
+                                        'failed download %s_B%s'
+                                        % (image_name[0:-7], band)
+                                    )
+                                    cfg.logger.log.error(
+                                        'failed download %s_B%s'
+                                        % (image_name[0:-7], band)
+                                    )
+                        min_progress += progress_step
+                        max_progress += progress_step
+            else:
+                return OutputManager(check=False)
     if access_token is not None:
         delete_copernicus_token(
             access_token, session_state, proxy_host=proxy_host,
@@ -1220,6 +1546,758 @@ def query_nasa_cmr(
             cfg.logger.log.error('error: search failed')
             cfg.messages.error('error: search failed')
             return OutputManager(check=False)
+
+
+def query_landsat_mpc(
+        date_from, date_to, max_cloud_cover=100, result_number=50,
+        name_filter=None, coordinate_list=None, progress_message=True,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+) -> OutputManager:
+    """Perform the query of Landsat from Microsoft Planetary Computer.
+
+    This tool performs the query from Microsoft Planetary Computer
+    https://planetarycomputer.microsoft.com.
+
+    Args:
+        date_from: date defining the starting period of the query
+        date_to:
+        max_cloud_cover:
+        result_number:
+        name_filter:
+        coordinate_list:
+        progress_message:
+        proxy_host:
+        proxy_port:
+        proxy_user:
+        proxy_password:
+
+    Returns:
+        object OutputManger
+
+    """
+    cfg.logger.log.info('start')
+    if progress_message:
+        cfg.progress.update(process='search', message='starting', start=True)
+    product = cfg.landsat_mpc
+    collection = cfg.landsat_mpc_collection
+    base_url = 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
+    image_find_list = []
+    # filter the results based on a string
+    if name_filter:
+        name_filter_split = name_filter.replace(' ', '').split(',')
+        for f in name_filter_split:
+            image_find_list.append(f)
+    else:
+        image_find_list.append('l')
+    # loop for results
+    max_result_number = result_number
+    if max_result_number > 1000:
+        max_result_number = 1000
+    params = {
+        'collections': collection,
+        'datetime': '%sT00:00:00Z/%sT23:59:59Z' % (date_from, date_to),
+        'limit': str(max_result_number)
+    }
+    query_dict = {'eo:cloud_cover': {'lt': max_cloud_cover}}
+    if coordinate_list is None:
+        query_dict['id'] = {'ilike': f'%{name_filter}%'}
+    # coordinate list left, top, right, bottom
+    else:
+        if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
+                coordinate_list[1] - coordinate_list[3]
+        ) > 10:
+            cfg.logger.log.warning('search area extent beyond limits')
+            cfg.messages.warning('search area extent beyond limits')
+        params['bbox'] = '%s,%s,%s,%s' % (
+            coordinate_list[0], coordinate_list[3], coordinate_list[2],
+            coordinate_list[1]
+        )
+    params['query'] = json.dumps(query_dict)
+    # search
+    response, stac_data = download_tools.request_stac(
+        url=base_url, params=params, proxy_host=proxy_host,
+        proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    if response:
+        entries = stac_data['features']
+        product_table_list = []
+        e = 0
+        for entry in entries:
+            e += 1
+            step = int(80 * e / len(entries) + 20)
+            percentage = int(100 * e / len(entries))
+            cfg.progress.update(
+                message='search in progress', step=step,
+                percentage=percentage, ping=True
+            )
+            producer_image_id = entry['id']
+            ref_url = entry['links'][3]['href']
+            preview = entry['assets']['rendered_preview']['href']
+            properties = entry['properties']
+            product_id = properties['landsat:scene_id']
+            img_acquisition_date = datetime.datetime.strptime(
+                properties['datetime'][0:19], '%Y-%m-%dT%H:%M:%S'
+            ).strftime('%Y-%m-%d')
+            cloud_cover_percentage = properties['eo:cloud_cover']
+            path = properties['landsat:wrs_path']
+            row = properties['landsat:wrs_row']
+            bbox = entry['bbox']
+            for f in image_find_list:
+                if f.lower() in producer_image_id.lower():
+                    product_table_list.append(
+                        tm.create_product_table(
+                            product=product,
+                            product_id=product_id,
+                            acquisition_date=img_acquisition_date,
+                            cloud_cover=float(cloud_cover_percentage),
+                            zone_path=path, row=row,
+                            min_lat=float(bbox[1]), min_lon=float(bbox[0]),
+                            max_lat=float(bbox[3]), max_lon=float(bbox[2]),
+                            collection=collection, size=None,
+                            preview=preview, uid=producer_image_id,
+                            image=producer_image_id, ref_url=ref_url
+                        )
+                    )
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return OutputManager(
+            extra={
+                'product_table': tm.stack_product_table(
+                    product_list=product_table_list
+                )
+            }
+        )
+    else:
+        cfg.logger.log.error('error: search failed')
+        cfg.messages.error('error: search failed')
+        return OutputManager(check=False)
+
+
+def query_modis_09q1_mpc(
+        date_from, date_to, max_cloud_cover=100, result_number=50,
+        name_filter=None, coordinate_list=None, progress_message=True,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+) -> OutputManager:
+    """Perform the query of MODIS from Microsoft Planetary Computer.
+
+    This tool performs the query from Microsoft Planetary Computer
+    https://planetarycomputer.microsoft.com.
+
+    Args:
+        date_from: date defining the starting period of the query
+        date_to:
+        max_cloud_cover:
+        result_number:
+        name_filter:
+        coordinate_list:
+        progress_message:
+        proxy_host:
+        proxy_port:
+        proxy_user:
+        proxy_password:
+
+    Returns:
+        object OutputManger
+
+    """
+    cfg.logger.log.info('start')
+    if progress_message:
+        cfg.progress.update(process='search', message='starting', start=True)
+    product = cfg.modis_09q1_mpc
+    collection = cfg.modis_09q1_mpc_collection
+    base_url = 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
+    image_find_list = []
+    _max_cloud_cover = max_cloud_cover
+    # filter the results based on a string
+    if name_filter:
+        name_filter_split = name_filter.replace(' ', '').split(',')
+        for f in name_filter_split:
+            image_find_list.append(f)
+    else:
+        image_find_list.append('m')
+    # loop for results
+    max_result_number = result_number
+    if max_result_number > 1000:
+        max_result_number = 1000
+    params = {
+        'collections': collection,
+        'datetime': '%sT00:00:00Z/%sT23:59:59Z' % (date_from, date_to),
+        'limit': str(max_result_number)
+    }
+    query_dict = {}
+    if coordinate_list is None:
+        query_dict['id'] = {'ilike': f'%{name_filter}%'}
+    # coordinate list left, top, right, bottom
+    else:
+        if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
+                coordinate_list[1] - coordinate_list[3]
+        ) > 10:
+            cfg.logger.log.warning('search area extent beyond limits')
+            cfg.messages.warning('search area extent beyond limits')
+        params['bbox'] = '%s,%s,%s,%s' % (
+            coordinate_list[0], coordinate_list[3], coordinate_list[2],
+            coordinate_list[1]
+        )
+    params['query'] = json.dumps(query_dict)
+    # search
+    response, stac_data = download_tools.request_stac(
+        url=base_url, params=params, proxy_host=proxy_host,
+        proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    if response:
+        entries = stac_data['features']
+        product_table_list = []
+        e = 0
+        for entry in entries:
+            e += 1
+            step = int(80 * e / len(entries) + 20)
+            percentage = int(100 * e / len(entries))
+            cfg.progress.update(
+                message='search in progress', step=step,
+                percentage=percentage, ping=True
+            )
+            producer_image_id = entry['id']
+            ref_url = entry['links'][3]['href']
+            preview = entry['assets']['rendered_preview']['href']
+            properties = entry['properties']
+            img_acquisition_date = datetime.datetime.strptime(
+                properties['start_datetime'][0:19], '%Y-%m-%dT%H:%M:%S'
+            ).strftime('%Y-%m-%d')
+            cloud_cover_percentage = 0
+            path = properties['modis:horizontal-tile']
+            row = properties['modis:vertical-tile']
+            bbox = entry['bbox']
+            for f in image_find_list:
+                if f.lower() in producer_image_id.lower():
+                    product_table_list.append(
+                        tm.create_product_table(
+                            product=product,
+                            product_id=producer_image_id,
+                            acquisition_date=img_acquisition_date,
+                            cloud_cover=float(cloud_cover_percentage),
+                            zone_path=path, row=row,
+                            min_lat=float(bbox[1]), min_lon=float(bbox[0]),
+                            max_lat=float(bbox[3]), max_lon=float(bbox[2]),
+                            collection=collection, size=None,
+                            preview=preview, uid=producer_image_id,
+                            image=producer_image_id, ref_url=ref_url
+                        )
+                    )
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return OutputManager(
+            extra={
+                'product_table': tm.stack_product_table(
+                    product_list=product_table_list
+                )
+            }
+        )
+    else:
+        cfg.logger.log.error('error: search failed')
+        cfg.messages.error('error: search failed')
+        return OutputManager(check=False)
+
+
+def query_modis_11a2_mpc(
+        date_from, date_to, max_cloud_cover=100, result_number=50,
+        name_filter=None, coordinate_list=None, progress_message=True,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+) -> OutputManager:
+    """Perform the query of MODIS temperature from Microsoft Planetary Computer.
+
+    This tool performs the query from Microsoft Planetary Computer
+    https://planetarycomputer.microsoft.com.
+
+    Args:
+        date_from: date defining the starting period of the query
+        date_to:
+        max_cloud_cover:
+        result_number:
+        name_filter:
+        coordinate_list:
+        progress_message:
+        proxy_host:
+        proxy_port:
+        proxy_user:
+        proxy_password:
+
+    Returns:
+        object OutputManger
+
+    """  # noqa: E501
+    cfg.logger.log.info('start')
+    if progress_message:
+        cfg.progress.update(process='search', message='starting', start=True)
+    product = cfg.modis_11a2_mpc
+    collection = cfg.modis_11a2_mpc_collection
+    base_url = 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
+    image_find_list = []
+    _max_cloud_cover = max_cloud_cover
+    # filter the results based on a string
+    if name_filter:
+        name_filter_split = name_filter.replace(' ', '').split(',')
+        for f in name_filter_split:
+            image_find_list.append(f)
+    else:
+        image_find_list.append('m')
+    # loop for results
+    max_result_number = result_number
+    if max_result_number > 1000:
+        max_result_number = 1000
+    params = {
+        'collections': collection,
+        'datetime': '%sT00:00:00Z/%sT23:59:59Z' % (date_from, date_to),
+        'limit': str(max_result_number)
+    }
+    query_dict = {}
+    if coordinate_list is None:
+        query_dict['id'] = {'ilike': f'%{name_filter}%'}
+    # coordinate list left, top, right, bottom
+    else:
+        if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
+                coordinate_list[1] - coordinate_list[3]
+        ) > 10:
+            cfg.logger.log.warning('search area extent beyond limits')
+            cfg.messages.warning('search area extent beyond limits')
+        params['bbox'] = '%s,%s,%s,%s' % (
+            coordinate_list[0], coordinate_list[3], coordinate_list[2],
+            coordinate_list[1]
+        )
+    params['query'] = json.dumps(query_dict)
+    # search
+    response, stac_data = download_tools.request_stac(
+        url=base_url, params=params, proxy_host=proxy_host,
+        proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    if response:
+        entries = stac_data['features']
+        product_table_list = []
+        e = 0
+        for entry in entries:
+            e += 1
+            step = int(80 * e / len(entries) + 20)
+            percentage = int(100 * e / len(entries))
+            cfg.progress.update(
+                message='search in progress', step=step,
+                percentage=percentage, ping=True
+            )
+            producer_image_id = entry['id']
+            ref_url = entry['links'][3]['href']
+            preview = entry['assets']['rendered_preview']['href']
+            properties = entry['properties']
+            img_acquisition_date = datetime.datetime.strptime(
+                properties['start_datetime'][0:19], '%Y-%m-%dT%H:%M:%S'
+            ).strftime('%Y-%m-%d')
+            cloud_cover_percentage = 0
+            path = properties['modis:horizontal-tile']
+            row = properties['modis:vertical-tile']
+            bbox = entry['bbox']
+            for f in image_find_list:
+                if f.lower() in producer_image_id.lower():
+                    product_table_list.append(
+                        tm.create_product_table(
+                            product=product,
+                            product_id=producer_image_id,
+                            acquisition_date=img_acquisition_date,
+                            cloud_cover=float(cloud_cover_percentage),
+                            zone_path=path, row=row,
+                            min_lat=float(bbox[1]), min_lon=float(bbox[0]),
+                            max_lat=float(bbox[3]), max_lon=float(bbox[2]),
+                            collection=collection, size=None,
+                            preview=preview, uid=producer_image_id,
+                            image=producer_image_id, ref_url=ref_url
+                        )
+                    )
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return OutputManager(
+            extra={
+                'product_table': tm.stack_product_table(
+                    product_list=product_table_list
+                )
+            }
+        )
+    else:
+        cfg.logger.log.error('error: search failed')
+        cfg.messages.error('error: search failed')
+        return OutputManager(check=False)
+
+
+def query_cop_dem_glo_30_mpc(
+        date_from, date_to, max_cloud_cover=100, result_number=50,
+        name_filter=None, coordinate_list=None, progress_message=True,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+) -> OutputManager:
+    """Perform the query of MODIS temperature from Microsoft Planetary Computer.
+
+    This tool performs the query from Microsoft Planetary Computer
+    https://planetarycomputer.microsoft.com.
+
+    Args:
+        date_from: date defining the starting period of the query
+        date_to:
+        max_cloud_cover:
+        result_number:
+        name_filter:
+        coordinate_list:
+        progress_message:
+        proxy_host:
+        proxy_port:
+        proxy_user:
+        proxy_password:
+
+    Returns:
+        object OutputManger
+
+    """  # noqa: E501
+    cfg.logger.log.info('start')
+    if progress_message:
+        cfg.progress.update(process='search', message='starting', start=True)
+    product = cfg.cop_dem_glo_30_mpc
+    collection = cfg.cop_dem_glo_30_mpc_collection
+    base_url = 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
+    image_find_list = []
+    _max_cloud_cover = max_cloud_cover
+    _date_from = date_from
+    _date_to = date_to
+    # filter the results based on a string
+    if name_filter:
+        name_filter_split = name_filter.replace(' ', '').split(',')
+        for f in name_filter_split:
+            image_find_list.append(f)
+    else:
+        image_find_list.append('m')
+    # loop for results
+    max_result_number = result_number
+    if max_result_number > 1000:
+        max_result_number = 1000
+    params = {'collections': collection, 'limit': str(max_result_number)}
+    query_dict = {}
+    if coordinate_list is None:
+        query_dict['id'] = {'ilike': f'%{name_filter}%'}
+    # coordinate list left, top, right, bottom
+    else:
+        if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
+                coordinate_list[1] - coordinate_list[3]
+        ) > 10:
+            cfg.logger.log.warning('search area extent beyond limits')
+            cfg.messages.warning('search area extent beyond limits')
+        params['bbox'] = '%s,%s,%s,%s' % (
+            coordinate_list[0], coordinate_list[3], coordinate_list[2],
+            coordinate_list[1]
+        )
+    params['query'] = json.dumps(query_dict)
+    # search
+    response, stac_data = download_tools.request_stac(
+        url=base_url, params=params, proxy_host=proxy_host,
+        proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    if response:
+        entries = stac_data['features']
+        product_table_list = []
+        e = 0
+        for entry in entries:
+            e += 1
+            step = int(80 * e / len(entries) + 20)
+            percentage = int(100 * e / len(entries))
+            cfg.progress.update(
+                message='search in progress', step=step,
+                percentage=percentage, ping=True
+            )
+            producer_image_id = entry['id']
+            ref_url = entry['links'][3]['href']
+            preview = entry['assets']['rendered_preview']['href']
+            properties = entry['properties']
+            img_acquisition_date = datetime.datetime.strptime(
+                properties['datetime'][0:19], '%Y-%m-%dT%H:%M:%S'
+            ).strftime('%Y-%m-%d')
+            cloud_cover_percentage = 0
+            path = entry['assets']['data']['title'].split(
+                '_00_')[1].replace('_00', '')
+            row = entry['assets']['data']['title'].split('_00_')[0]
+            bbox = entry['bbox']
+            for f in image_find_list:
+                if f.lower() in producer_image_id.lower():
+                    product_table_list.append(
+                        tm.create_product_table(
+                            product=product,
+                            product_id=producer_image_id,
+                            acquisition_date=img_acquisition_date,
+                            cloud_cover=float(cloud_cover_percentage),
+                            zone_path=path, row=row,
+                            min_lat=float(bbox[1]), min_lon=float(bbox[0]),
+                            max_lat=float(bbox[3]), max_lon=float(bbox[2]),
+                            collection=collection, size=None,
+                            preview=preview, uid=producer_image_id,
+                            image=producer_image_id, ref_url=ref_url
+                        )
+                    )
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return OutputManager(
+            extra={
+                'product_table': tm.stack_product_table(
+                    product_list=product_table_list
+                )
+            }
+        )
+    else:
+        cfg.logger.log.error('error: search failed')
+        cfg.messages.error('error: search failed')
+        return OutputManager(check=False)
+
+
+def query_aster_l1t_mpc(
+        date_from, date_to, max_cloud_cover=100, result_number=50,
+        name_filter=None, coordinate_list=None, progress_message=True,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+) -> OutputManager:
+    """Perform the query of ASTER from Microsoft Planetary Computer.
+
+    This tool performs the query from Microsoft Planetary Computer
+    https://planetarycomputer.microsoft.com.
+
+    Args:
+        date_from: date defining the starting period of the query
+        date_to:
+        max_cloud_cover:
+        result_number:
+        name_filter:
+        coordinate_list:
+        progress_message:
+        proxy_host:
+        proxy_port:
+        proxy_user:
+        proxy_password:
+
+    Returns:
+        object OutputManger
+
+    """  # noqa: E501
+    cfg.logger.log.info('start')
+    if progress_message:
+        cfg.progress.update(process='search', message='starting', start=True)
+    product = cfg.aster_l1t_mpc
+    collection = cfg.aster_l1t_mpc_collection
+    base_url = 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
+    image_find_list = []
+    _max_cloud_cover = max_cloud_cover
+    # filter the results based on a string
+    if name_filter:
+        name_filter_split = name_filter.replace(' ', '').split(',')
+        for f in name_filter_split:
+            image_find_list.append(f)
+    else:
+        image_find_list.append('a')
+    # loop for results
+    max_result_number = result_number
+    if max_result_number > 1000:
+        max_result_number = 1000
+    params = {
+        'collections': collection,
+        'datetime': '%sT00:00:00Z/%sT23:59:59Z' % (date_from, date_to),
+        'limit': str(max_result_number)
+    }
+    query_dict = {'eo:cloud_cover': {'lt': max_cloud_cover}}
+    if coordinate_list is None:
+        query_dict['id'] = {'ilike': f'%{name_filter}%'}
+    # coordinate list left, top, right, bottom
+    else:
+        if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
+                coordinate_list[1] - coordinate_list[3]
+        ) > 10:
+            cfg.logger.log.warning('search area extent beyond limits')
+            cfg.messages.warning('search area extent beyond limits')
+        params['bbox'] = '%s,%s,%s,%s' % (
+            coordinate_list[0], coordinate_list[3], coordinate_list[2],
+            coordinate_list[1]
+        )
+    params['query'] = json.dumps(query_dict)
+    # search
+    response, stac_data = download_tools.request_stac(
+        url=base_url, params=params, proxy_host=proxy_host,
+        proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    if response:
+        entries = stac_data['features']
+        product_table_list = []
+        e = 0
+        for entry in entries:
+            e += 1
+            step = int(80 * e / len(entries) + 20)
+            percentage = int(100 * e / len(entries))
+            cfg.progress.update(
+                message='search in progress', step=step,
+                percentage=percentage, ping=True
+            )
+            producer_image_id = entry['id']
+            ref_url = entry['links'][3]['href']
+            preview = entry['assets']['rendered_preview']['href']
+            properties = entry['properties']
+            img_acquisition_date = datetime.datetime.strptime(
+                properties['datetime'][0:19], '%Y-%m-%dT%H:%M:%S'
+            ).strftime('%Y-%m-%d')
+            cloud_cover_percentage = properties['eo:cloud_cover']
+            bbox = entry['bbox']
+            for f in image_find_list:
+                if f.lower() in producer_image_id.lower():
+                    product_table_list.append(
+                        tm.create_product_table(
+                            product=product,
+                            product_id=producer_image_id,
+                            acquisition_date=img_acquisition_date,
+                            cloud_cover=float(cloud_cover_percentage),
+                            min_lat=float(bbox[1]), min_lon=float(bbox[0]),
+                            max_lat=float(bbox[3]), max_lon=float(bbox[2]),
+                            collection=collection, size=None,
+                            preview=preview, uid=producer_image_id,
+                            image=producer_image_id, ref_url=ref_url
+                        )
+                    )
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return OutputManager(
+            extra={
+                'product_table': tm.stack_product_table(
+                    product_list=product_table_list
+                )
+            }
+        )
+    else:
+        cfg.logger.log.error('error: search failed')
+        cfg.messages.error('error: search failed')
+        return OutputManager(check=False)
+
+
+def query_sentinel2_mpc(
+        date_from, date_to, max_cloud_cover=100, result_number=50,
+        name_filter=None, coordinate_list=None, progress_message=True,
+        proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None
+) -> OutputManager:
+    """Perform the query of Sentinel-2 from Microsoft Planetary Computer.
+
+    This tool performs the query from Microsoft Planetary Computer
+    https://planetarycomputer.microsoft.com.
+
+    Args:
+        date_from: date defining the starting period of the query
+        date_to:
+        max_cloud_cover:
+        result_number:
+        name_filter:
+        coordinate_list:
+        progress_message:
+        proxy_host:
+        proxy_port:
+        proxy_user:
+        proxy_password:
+
+    Returns:
+        object OutputManger
+
+    """
+    cfg.logger.log.info('start')
+    if progress_message:
+        cfg.progress.update(process='search', message='starting', start=True)
+    product = cfg.sentinel2_mpc
+    collection = cfg.sentinel2_mpc_collection
+    base_url = 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
+    image_find_list = []
+    # filter the results based on a string
+    if name_filter:
+        name_filter_split = name_filter.replace(' ', '').split(',')
+        for f in name_filter_split:
+            image_find_list.append(f)
+    else:
+        image_find_list.append('l')
+    # loop for results
+    max_result_number = result_number
+    if max_result_number > 1000:
+        max_result_number = 1000
+    params = {
+        'collections': collection,
+        'datetime': '%sT00:00:00Z/%sT23:59:59Z' % (date_from, date_to),
+        'limit': str(max_result_number)
+    }
+    query_dict = {'eo:cloud_cover': {'lt': max_cloud_cover}}
+    if coordinate_list is None:
+        query_dict['id'] = {'ilike': f'%{name_filter}%'}
+    # coordinate list left, top, right, bottom
+    else:
+        if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
+                coordinate_list[1] - coordinate_list[3]
+        ) > 10:
+            cfg.logger.log.warning('search area extent beyond limits')
+            cfg.messages.warning('search area extent beyond limits')
+        params['bbox'] = '%s,%s,%s,%s' % (
+            coordinate_list[0], coordinate_list[3], coordinate_list[2],
+            coordinate_list[1]
+        )
+    params['query'] = json.dumps(query_dict)
+    # search
+    response, stac_data = download_tools.request_stac(
+        url=base_url, params=params, proxy_host=proxy_host,
+        proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    if response:
+        entries = stac_data['features']
+        product_table_list = []
+        e = 0
+        for entry in entries:
+            e += 1
+            step = int(80 * e / len(entries) + 20)
+            percentage = int(100 * e / len(entries))
+            cfg.progress.update(
+                message='search in progress', step=step,
+                percentage=percentage, ping=True
+            )
+            producer_image_id = entry['id']
+            ref_url = entry['links'][3]['href']
+            b02 = entry['assets']['B02']['href']
+            product_name = b02.split('/')[12]
+            preview = entry['assets']['rendered_preview']['href']
+            properties = entry['properties']
+            img_acquisition_date = datetime.datetime.strptime(
+                properties['datetime'][0:19], '%Y-%m-%dT%H:%M:%S'
+            ).strftime('%Y-%m-%d')
+            cloud_cover_percentage = properties['eo:cloud_cover']
+            path = properties['s2:mgrs_tile']
+            bbox = entry['bbox']
+            for f in image_find_list:
+                if f.lower() in product_name.lower():
+                    product_table_list.append(
+                        tm.create_product_table(
+                            product=product,
+                            product_id=producer_image_id,
+                            acquisition_date=img_acquisition_date,
+                            cloud_cover=float(cloud_cover_percentage),
+                            zone_path=path, row=None,
+                            min_lat=float(bbox[1]), min_lon=float(bbox[0]),
+                            max_lat=float(bbox[3]), max_lon=float(bbox[2]),
+                            collection=collection, size=None,
+                            preview=preview, uid=producer_image_id,
+                            image=product_name, ref_url=ref_url
+                        )
+                    )
+        cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return OutputManager(
+            extra={
+                'product_table': tm.stack_product_table(
+                    product_list=product_table_list
+                )
+            }
+        )
+    else:
+        cfg.logger.log.error('error: search failed')
+        cfg.messages.error('error: search failed')
+        return OutputManager(check=False)
 
 
 def export_product_table_as_xml(product_table, output_path=None):

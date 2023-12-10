@@ -12,6 +12,7 @@ class TestDownloadProducts(TestCase):
         )
         cfg = rs.configurations
         cfg.logger.log.debug('>>> test query database Sentinel-2')
+        rs.download_products.product_names()
         coordinate_list = [8, 43, 10, 41]
         output_manager = rs.download_products.query_sentinel_2_database(
             date_from='2020-01-01', date_to='2020-01-30', max_cloud_cover=80,
@@ -92,6 +93,60 @@ class TestDownloadProducts(TestCase):
             exporter=True
         )
         self.assertTrue(rs.files_directories.is_file(output_manager.path))
+        cfg.logger.log.debug('>>> test query Sentinel-2 MPC')
+        output_manager = rs.download_products.search(
+            product=cfg.sentinel2_mpc, date_from='2020-01-01',
+            date_to='2020-01-30', max_cloud_cover=100,
+            result_number=5, name_filter='T33TTG'
+        )
+        product_table_3 = output_manager.extra['product_table']
+        output_manager = rs.download_products.download(
+            product_table=product_table_3[product_table_3['cloud_cover'] < 28],
+            output_path=cfg.temp.dir, exporter=True
+        )
+        self.assertTrue(rs.files_directories.is_file(output_manager.path))
+        self.assertEqual(product_table_3['product'][0], cfg.sentinel2_mpc)
+        output_manager = rs.download_products.search(
+            product=cfg.landsat_mpc, date_from='1991-01-27',
+            date_to='1991-01-27', max_cloud_cover=9,
+            result_number=5, coordinate_list=[8, 43, 10, 41]
+        )
+        product_table_4 = output_manager.extra['product_table']
+        self.assertEqual(product_table_4['product'][0], cfg.landsat_mpc)
+        output_manager = rs.download_products.search(
+            product=cfg.modis_09q1_mpc, date_from='2023-01-09',
+            date_to='2023-01-09', max_cloud_cover=100,
+            result_number=5, coordinate_list=[8, 43, 10, 41]
+        )
+        product_table_5 = output_manager.extra['product_table']
+        self.assertEqual(product_table_5['product'][0], cfg.modis_09q1_mpc)
+        output_manager = rs.download_products.search(
+            product=cfg.modis_11a2_mpc, date_from='2023-01-01',
+            date_to='2023-01-30',
+            result_number=5, coordinate_list=[8, 43, 10, 41]
+        )
+        product_table_6 = output_manager.extra['product_table']
+        self.assertEqual(product_table_6['product'][0], cfg.modis_11a2_mpc)
+        output_manager = rs.download_products.download(
+            product_table_6[product_table_6['product_id'] == product_table_6[
+                'product_id'][0]],
+            output_path=cfg.temp.dir + '/test_1', band_list=['01']
+        )
+        self.assertTrue(rs.files_directories.is_file(output_manager.paths[0]))
+        output_manager = rs.download_products.search(
+            product=cfg.aster_l1t_mpc, date_from='2003-01-01',
+            date_to='2003-01-30',
+            result_number=5, coordinate_list=[8, 43, 10, 41]
+        )
+        product_table_7 = output_manager.extra['product_table']
+        self.assertEqual(product_table_7['product'][0], cfg.aster_l1t_mpc)
+        output_manager = rs.download_products.search(
+            product=cfg.cop_dem_glo_30_mpc, date_from='2003-01-01',
+            date_to='2003-01-30',
+            result_number=5, coordinate_list=[8, 43, 10, 41]
+        )
+        product_table_8 = output_manager.extra['product_table']
+        self.assertEqual(product_table_8['product'][0], cfg.cop_dem_glo_30_mpc)
 
         """# user and password required
         # download HLS bands
