@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -17,9 +18,9 @@ class TestBandClassification(TestCase):
         file_list = ['L8_2020-01-01/L8_B2.tif', 'L8_2020-01-01/L8_B3.tif',
                      'L8_2020-01-01/L8_B4.tif', 'L8_2020-01-01/L8_B5.tif',
                      'L8_2020-01-01/L8_B6.tif', 'L8_2020-01-01/L8_B7.tif']
-        root_directory = 'data/'
+        data_path = Path(__file__).parent / 'data'
         catalog.create_bandset(
-            file_list, wavelengths=['Landsat 8'], root_directory=root_directory
+            file_list, wavelengths=['Landsat 8'], root_directory=str(data_path)
             )
         # set BandSet in SpectralCatalog
         signature_catalog_1 = rs.spectral_signatures_catalog(
@@ -27,7 +28,7 @@ class TestBandClassification(TestCase):
             )
         # import vector
         signature_catalog_1.import_vector(
-            file_path='data/files/roi.gpkg',
+            file_path=str(data_path / 'files' / 'roi.gpkg'),
             macroclass_field='macroclass', class_field='class',
             macroclass_name_field='macroclass', class_name_field='class',
             calculate_signature=True
@@ -35,15 +36,16 @@ class TestBandClassification(TestCase):
 
         cfg.logger.log.debug('>>> test input multiband')
         catalog.create_bandset(
-            ['./data/S2_2020-01-05/S2_2020-01-05.tif'], bandset_number=2
-            )
+            [str(data_path / 'S2_2020-01-05' / 'S2_2020-01-05.tif')],
+            bandset_number=2
+        )
         # set BandSet in SpectralCatalog
         signature_catalog_2 = rs.spectral_signatures_catalog(
             bandset=catalog.get(2)
             )
         # import vector
         signature_catalog_2.import_vector(
-            file_path='data/files/roi.gpkg',
+            file_path=str(data_path / 'files' / 'roi.gpkg'),
             macroclass_field='macroclass', class_field='class',
             macroclass_name_field='macroclass', class_name_field='class',
             calculate_signature=True

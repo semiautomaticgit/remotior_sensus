@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -10,7 +11,8 @@ class TestOutputManager(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        path = './data/S2_2020-01-01/S2_B02.tif'
+        data_path = Path(__file__).parent / 'data'
+        path = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
         cfg.logger.log.debug('>>> test output manager')
         output = rs.output_manager(path=path)
         self.assertEqual(output.path, path)

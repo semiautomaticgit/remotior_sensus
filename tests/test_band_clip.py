@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -15,10 +16,10 @@ class TestBandClip(TestCase):
         catalog = rs.bandset_catalog()
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
-        root_directory = './data'
+        data_path = Path(__file__).parent / 'data'
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], bandset_number=1,
-            root_directory=root_directory
+            root_directory=str(data_path)
             )
         cfg.logger.log.debug('>>> test band clip input BandSet')
         # box coordinate list
@@ -35,7 +36,7 @@ class TestBandClip(TestCase):
         self.assertTrue(output.check)
         cfg.logger.log.debug('>>> test band clip input BandSet multiband')
         catalog.create_bandset(
-            ['./data/S2_2020-01-05/S2_2020-01-05.tif'],
+            [str(data_path / 'S2_2020-01-05' / 'S2_2020-01-05.tif')],
             wavelengths=['Sentinel-2'], bandset_number=2
             )
         output = rs.band_clip(input_bands=catalog.get_bandset(2),
@@ -50,13 +51,13 @@ class TestBandClip(TestCase):
         self.assertTrue(output.check)
         self.assertTrue(files_directories.is_file(output.paths[0]))
 
-        v = './data/files/roi.gpkg'
+        v = str(data_path / 'files' / 'roi.gpkg')
         output = rs.band_clip(input_bands=catalog.get_bandset(1),
                               output_path=cfg.temp.dir, prefix='clip3_',
                               vector_path=v)
         self.assertTrue(output.check)
         self.assertTrue(files_directories.is_file(output.paths[0]))
-        v = './data/files/roi.gpkg'
+        v = str(data_path / 'files' / 'roi.gpkg')
         output = rs.band_clip(input_bands=catalog.get_bandset(1),
                               output_path=cfg.temp.dir, prefix='clip4_',
                               vector_path=v, vector_field='class')

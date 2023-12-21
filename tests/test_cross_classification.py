@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -11,9 +12,10 @@ class TestCrossClassification(TestCase):
             n_processes=2, available_ram=1000, log_level=10
         )
         cfg = rs.configurations
-        p1 = './data/S2_2020-01-01/S2_B04.tif'
-        p2 = './data/S2_2020-01-01/S2_B02.tif'
-        v = './data/files/roi.gpkg'
+        data_path = Path(__file__).parent / 'data'
+        p1 = str(data_path / 'S2_2020-01-01' / 'S2_B04.tif')
+        p2 = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
+        v = str(data_path / 'files' / 'roi.gpkg')
         cfg.logger.log.debug('>>> test cross_classification')
         coordinate_list = [230250, 4674550, 230320, 4674440]
         cross = rs.cross_classification(

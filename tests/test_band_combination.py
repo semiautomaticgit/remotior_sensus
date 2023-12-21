@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -16,10 +17,10 @@ class TestBandCombination(TestCase):
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
         date = '2021-01-01'
-        root_directory = './data'
+        data_path = Path(__file__).parent / 'data'
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=1,
-            root_directory=root_directory
+            root_directory=str(data_path)
             )
         cfg.logger.log.debug('>>> test band combination input BandSet')
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
@@ -34,12 +35,13 @@ class TestBandCombination(TestCase):
         self.assertGreater(len(table_f), 0)
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=1,
-            root_directory=root_directory
+            root_directory=str(data_path)
             )
         cfg.logger.log.debug('>>> test band combination input multiband')
         catalog.create_bandset(
-            ['./data/S2_2020-01-05/S2_2020-01-05.tif'], bandset_number=2
-            )
+            [str(data_path / 'S2_2020-01-05' / 'S2_2020-01-05.tif')],
+            bandset_number=2
+        )
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         combination = rs.band_combination(
             input_bands=catalog.get_bandset(2), output_path=temp
@@ -63,9 +65,11 @@ class TestBandCombination(TestCase):
             )
         self.assertGreater(len(table_f), 0)
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
-        file_list = ['./data/S2_2020-01-01/S2_B02.tif',
-                     './data/S2_2020-01-01/S2_B03.tif',
-                     './data/S2_2020-01-01/S2_B04.tif']
+        file_list = [
+            str(data_path / 'S2_2020-01-01' / 'S2_B02.tif'),
+            str(data_path / 'S2_2020-01-01' / 'S2_B03.tif'),
+            str(data_path / 'S2_2020-01-01' / 'S2_B04.tif')
+        ]
         cfg.logger.log.debug('>>> test band combination input file list')
         combination = rs.band_combination(input_bands=file_list,
                                           output_path=temp)

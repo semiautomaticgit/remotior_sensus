@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
@@ -13,7 +14,8 @@ class TestBandSetCatalog(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        data_directory = './data/S2_2020-01-01'
+        data_path = Path(__file__).parent / 'data'
+        data_directory = str(data_path / 'S2_2020-01-01')
         cfg.logger.log.debug('>>> test bandset catalog create')
         # create BandSet Catalog
         catalog = rs.bandset_catalog()
@@ -88,10 +90,9 @@ class TestBandSetCatalog(TestCase):
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
         date = '2021-01-01'
-        root_directory = './data'
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=2,
-            root_directory=root_directory
+            root_directory=str(data_path)
         )
         # find BandSet from name list
         name_list = ['ba', 'S2_B']
@@ -115,7 +116,7 @@ class TestBandSetCatalog(TestCase):
         coordinate_list = [230250, 4674550, 230320, 4674440]
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=3,
-            root_directory=root_directory, box_coordinate_list=coordinate_list
+            root_directory=str(data_path), box_coordinate_list=coordinate_list
         )
         self.assertEqual(
             catalog.get(3).box_coordinate_list,
@@ -243,8 +244,8 @@ class TestBandSetCatalog(TestCase):
         # add band to BandSet
         bandset_1_count = catalog.get_bandset(1).get_band_count()
         catalog.add_band_to_bandset(
-            path='./data/S2_2020-01-01/S2_B02.tif', bandset_number=1,
-            band_number=1, raster_band=1
+            path=str(data_path / 'S2_2020-01-01' / 'S2_B02.tif'),
+            bandset_number=1, band_number=1, raster_band=1
         )
         self.assertGreater(
             catalog.get_bandset(1).get_band_count(), bandset_1_count
@@ -361,7 +362,7 @@ class TestBandSetCatalog(TestCase):
         self.assertTrue(catalog.get(1).crs is not None)
         histogram = catalog.calculate_scatter_plot_histogram(
             bandset_number=1, band_x=1, band_y=2,
-            vector_path='./data/files/roi.gpkg'
+            vector_path=str(data_path / 'files' / 'roi.gpkg')
         )
         self.assertTrue(histogram is not None)
         # create virtual raster

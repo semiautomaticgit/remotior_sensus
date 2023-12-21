@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -41,10 +42,10 @@ class TestSpectralSignatures(TestCase):
         catalog = rs.bandset_catalog()
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif', 'S2_2020-01-01/S2_B05.tif']
-        root_directory = 'data'
+        data_path = Path(__file__).parent / 'data'
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'],
-            root_directory=root_directory
+            root_directory=str(data_path)
             )
         # set BandSet in SpectralCatalog
         signature_catalog_2 = rs.spectral_signatures_catalog(
@@ -70,8 +71,9 @@ class TestSpectralSignatures(TestCase):
         cfg.logger.log.debug('>>> test import spectral signature csv')
         # signature with standard deviation
         signature_catalog_2.import_spectral_signature_csv(
-            csv_path='data/files/spectral_signature_1.csv', macroclass_id=4,
-            class_id=4, macroclass_name='imported_1', class_name='imported_1'
+            csv_path=str(data_path / 'files' / 'spectral_signature_1.csv'),
+            macroclass_id=4, class_id=4, macroclass_name='imported_1',
+            class_name='imported_1'
         )
         self.assertEqual(
             signature_catalog_2.table[
@@ -80,8 +82,9 @@ class TestSpectralSignatures(TestCase):
         )
         # signature without standard deviation
         signature_catalog_2.import_spectral_signature_csv(
-            csv_path='data/files/spectral_signature_2.csv', macroclass_id=5,
-            class_id=5, macroclass_name='imported_2', class_name='imported_2'
+            csv_path=str(data_path / 'files' / 'spectral_signature_2.csv'),
+            macroclass_id=5, class_id=5, macroclass_name='imported_2',
+            class_name='imported_2'
         )
         self.assertEqual(
             signature_catalog_2.table[
@@ -92,9 +95,10 @@ class TestSpectralSignatures(TestCase):
         # import vector
         cfg.logger.log.debug('>>> test import vector')
         signature_catalog_2.import_vector(
-            file_path='data/files/roi.gpkg', macroclass_value=7,
-            class_field='class', macroclass_name_field='macroclass',
-            class_name_field='class', calculate_signature=True
+            file_path=str(data_path / 'files' / 'roi.gpkg'),
+            macroclass_value=7, class_field='class',
+            macroclass_name_field='macroclass', class_name_field='class',
+            calculate_signature=True
         )
         self.assertEqual(
             signature_catalog_2.table[
@@ -126,10 +130,10 @@ class TestSpectralSignatures(TestCase):
         catalog_3 = rs.bandset_catalog()
         file_list = ['S2_2020-01-04/S2_B02.tif', 'S2_2020-01-04/S2_B03.tif',
                      'S2_2020-01-04/S2_B04.tif']
-        root_directory = 'data'
+        data_path = Path(__file__).parent / 'data'
         catalog_3.create_bandset(
             file_list, wavelengths=['Sentinel-2'],
-            root_directory=root_directory
+            root_directory=str(data_path)
             )
         region_vector = rs.shared_tools.region_growing_polygon(
             coordinate_x=230303, coordinate_y=4674704,

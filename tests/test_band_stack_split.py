@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -16,10 +17,10 @@ class TestBandStackSplit(TestCase):
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif']
         date = '2021-01-01'
-        root_directory = './data'
+        data_path = Path(__file__).parent / 'data'
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=1,
-            root_directory=root_directory
+            root_directory=str(data_path)
             )
         cfg.logger.log.debug('>>> test band stack')
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)

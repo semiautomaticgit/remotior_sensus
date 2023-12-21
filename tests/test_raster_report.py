@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -11,7 +12,8 @@ class TestRasterReport(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        p = './data/S2_2020-01-01/S2_B02.tif'
+        data_path = Path(__file__).parent / 'data'
+        p = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
         cfg.logger.log.debug('>>> test raster_report')
         report = rs.raster_report(p)
         table = read_write_files.open_text_file(report.path)

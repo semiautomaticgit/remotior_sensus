@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -14,13 +15,14 @@ class TestRasterReclassification(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        p = './data/S2_2020-01-01/S2_B02.tif'
+        data_path = Path(__file__).parent / 'data'
+        p = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
         cfg.logger.log.debug('>>> test unique values list')
         unique_list = unique_values_table(raster_path=p)
         self.assertGreater(len(unique_list), 0)
         unique_list = unique_values_table(raster_path=p, incremental=True)
         self.assertGreater(len(unique_list), 0)
-        reclass_file = './data/files/reclass.csv'
+        reclass_file = str(data_path / 'files' / 'reclass.csv')
         unique_list = _import_reclassification_table(csv_path=reclass_file)
         self.assertGreater(len(unique_list.extra['table']), 0)
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)

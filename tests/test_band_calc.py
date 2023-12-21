@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -17,13 +18,15 @@ class TestBandCalc(TestCase):
         file_list = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                      'S2_2020-01-01/S2_B04.tif', 'S2_2020-01-01/S2_B08.tif']
         date = '2021-01-01'
-        root_directory = './data'
+        data_path = Path(__file__).parent / 'data'
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=1,
-            root_directory=root_directory
+            root_directory=str(data_path)
             )
-        raster_list = ['./data/S2_2020-01-02/S2_B02.tif',
-                       './data/S2_2020-01-02/S2_B03.tif']
+        raster_list = [
+            str(data_path / 'S2_2020-01-02' / 'S2_B02.tif'),
+            str(data_path / 'S2_2020-01-02' / 'S2_B03.tif')
+        ]
         name_list = ['raster1', 'raster2']
         band_names = band_calc._band_names_alias(
             raster_list, name_list, catalog
@@ -379,8 +382,10 @@ class TestBandCalc(TestCase):
         self.assertFalse(error_message)
         cfg.logger.log.debug('>>> test band calc')
         # simple calculation
-        raster_list = ['./data/S2_2020-01-01/S2_B02.tif',
-                       './data/S2_2020-01-01/S2_B03.tif']
+        raster_list = [
+            str(data_path / 'S2_2020-01-01' / 'S2_B02.tif'),
+            str(data_path / 'S2_2020-01-01' / 'S2_B03.tif')
+        ]
         name_list = ['raster1', 'raster2']
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         expression = (cfg.variable_band_quotes + name_list[0]
@@ -395,8 +400,10 @@ class TestBandCalc(TestCase):
         self.assertTrue(output.check)
         self.assertTrue(files_directories.is_file(output.paths[0]))
         # calculation with not overlapping rasters
-        raster_list = ['./data/S2_2020-01-01/S2_B02.tif',
-                       './data/S2_2020-01-03/S2_B03.tif']
+        raster_list = [
+            str(data_path / 'S2_2020-01-01' / 'S2_B02.tif'),
+            str(data_path / 'S2_2020-01-03' / 'S2_B03.tif')
+        ]
         # virtual output
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         expression = (cfg.variable_band_quotes + name_list[0]
@@ -524,8 +531,9 @@ class TestBandCalc(TestCase):
         cfg.logger.log.debug('>>> test multiband raster as bandset')
         catalog_2 = rs.bandset_catalog()
         catalog_2.create_bandset(
-            ['./data/S2_2020-01-05/S2_2020-01-05.tif'], bandset_number=1
-            )
+            [str(data_path / 'S2_2020-01-05' / 'S2_2020-01-05.tif')],
+            bandset_number=1
+        )
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         expression = '{}{}{}{}{}{}'.format(
             cfg.variable_band_quotes, cfg.variable_bandset_name,

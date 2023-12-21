@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -11,9 +12,10 @@ class TestTableManager(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        file1 = './data/files/file1.csv'
-        file2 = './data/files/file2.csv'
-        file3 = './data/files/file1.dbf'
+        data_path = Path(__file__).parent / 'data'
+        file1 = str(data_path / 'files' / 'file1.csv')
+        file2 = str(data_path / 'files' / 'file2.csv')
+        file3 = str(data_path / 'files' / 'file1.dbf')
         cfg.logger.log.debug('>>> test open file')
         matrix_file = rs.table_manager.open_file(
             file1, field_names=['id', 'main', 'field1', 'field2', 'field3',
