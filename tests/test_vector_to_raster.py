@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -12,8 +13,9 @@ class TestVectorToRaster(TestCase):
             )
         cfg = rs.configurations
         cfg.logger.log.debug('>>> test vector to raster')
-        v = './data/files/roi.gpkg'
-        r = './data/S2_2020-01-01/S2_B02.tif'
+        data_path = Path(__file__).parent / 'data'
+        v = str(data_path / 'files' / 'roi.gpkg')
+        r = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
         temp = cfg.temp.temporary_file_path(
             name='raster', name_suffix=cfg.tif_suffix
         )

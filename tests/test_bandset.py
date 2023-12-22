@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -15,7 +16,8 @@ class TestBandSet(TestCase):
         # create BandSet Catalog
         catalog = rs.bandset_catalog()
         cfg.logger.log.debug('>>> test bandset')
-        data_directory = './data/S2_2020-01-01'
+        data_path = Path(__file__).parent / 'data'
+        data_directory = str(data_path / 'S2_2020-01-01')
         file_list = files_directories.files_in_directory(
             data_directory, sort_files=True, path_filter='S',
             suffix_filter=cfg.tif_suffix
@@ -104,7 +106,7 @@ class TestBandSet(TestCase):
         cfg.logger.log.debug('>>> test bandset dates')
         bandset = rs.bandset.create(
             file_list, wavelengths=['Sentinel-2'], dates=cfg.date_auto,
-            root_directory='./data', catalog=catalog
+            root_directory=str(data_path), catalog=catalog
         )
         # get BandSet attributes function
         bs = bandset.get_band_attributes
@@ -151,7 +153,7 @@ class TestBandSet(TestCase):
         wavelengths.append(3)
         wavelengths.append(2)
         bandset_w = rs.bandset.create(
-            file_list, wavelengths=wavelengths, root_directory='./data',
+            file_list, wavelengths=wavelengths, root_directory=str(data_path),
             catalog=catalog
         )
         bandset_w.sort_bands_by_wavelength()
@@ -160,15 +162,16 @@ class TestBandSet(TestCase):
         coordinate_list = [230250, 4674550, 230320, 4674440]
         bandset = rs.bandset.create(
             file_list, wavelengths=['Sentinel-2'], dates=cfg.date_auto,
-            root_directory='./data', box_coordinate_list=coordinate_list,
+            root_directory=str(data_path), box_coordinate_list=coordinate_list,
             catalog=catalog
         )
         self.assertEqual(bandset.box_coordinate_list, coordinate_list)
         # export as xml
         temp = cfg.temp.temporary_file_path(name_suffix='.xml')
         bandset.export_as_xml(temp)
-        bandset2 = rs.bandset.create(file_list, root_directory='./data',
-                                     catalog=catalog)
+        bandset2 = rs.bandset.create(
+            file_list, root_directory=str(data_path), catalog=catalog
+        )
         bandset2.import_as_xml(temp)
         for i in range(len(bandset.bands[0])):
             if str(bandset.bands[0][i]) != 'NaT':
@@ -177,7 +180,7 @@ class TestBandSet(TestCase):
         # create BandSet Catalog
         catalog_2 = rs.bandset_catalog()
         bandset = rs.bandset.create(
-            paths=['./data/S2_2020-01-05/S2_2020-01-05.tif'],
+            paths=[str(data_path / 'S2_2020-01-05' / 'S2_2020-01-05.tif')],
             wavelengths=[cfg.satSentinel2], catalog=catalog_2
         )
         self.assertGreater(len(bandset.bands), 0)

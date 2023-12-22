@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
@@ -11,8 +12,11 @@ class TestBandResample(TestCase):
             n_processes=2, available_ram=1000, log_level=10
             )
         cfg = rs.configurations
-        file_list = ['./data/S2_2020-01-01/S2_B02.tif',
-                     './data/S2_2020-01-01/S2_B03.tif']
+        data_path = Path(__file__).parent / 'data'
+        file_list = [
+            str(data_path / 'S2_2020-01-01' / 'S2_B02.tif'),
+            str(data_path / 'S2_2020-01-01' / 'S2_B03.tif')
+        ]
         cfg.logger.log.debug('>>> test band resample')
         resample = rs.band_resample(
             input_bands=file_list, output_path=cfg.temp.dir, resampling='mode',
