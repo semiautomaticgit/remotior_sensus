@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.3.01
+________
+
+* Added functions for interactive interface in Jupyter environment
+* Fixed Sentinel-2 band 8A identification in preprocess products
+
 v0.2.01
 ________
 

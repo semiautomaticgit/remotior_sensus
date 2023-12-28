@@ -25,7 +25,6 @@ try:
     import matplotlib.pyplot as mpl_plot
 except Exception as error:
     str(error)
-    print('plot tools: matplotlib error')
 
 
 # prepare plot
@@ -100,7 +99,8 @@ def add_lines_to_plot(
 
 # create plot
 def create_plot(
-        ax, plots, plot_names, x_ticks=None, y_ticks=None, v_lines=None
+        ax, plots, plot_names, x_ticks=None, y_ticks=None, v_lines=None,
+        return_plot=None
 ):
     if x_ticks is None:
         x_ticks = [0, 1]
@@ -115,7 +115,11 @@ def create_plot(
         ).set_draggable(True)
     ax.set_xticks(x_ticks)
     ax.set_yticks(y_ticks)
-    plt.show()
+    if return_plot is True:
+        return plt
+    else:
+        plt.show()
+        return True
 
 
 # create plot

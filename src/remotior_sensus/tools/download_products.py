@@ -1599,9 +1599,11 @@ def query_landsat_mpc(
         'limit': str(max_result_number)
     }
     query_dict = {'eo:cloud_cover': {'lt': max_cloud_cover}}
-    if coordinate_list is None:
+    if coordinate_list is None and name_filter is not None:
         query_dict['id'] = {'ilike': f'%{name_filter}%'}
     # coordinate list left, top, right, bottom
+    elif coordinate_list is None:
+        cfg.logger.log.debug('coordinate_list is None')
     else:
         if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
                 coordinate_list[1] - coordinate_list[3]
@@ -1726,9 +1728,11 @@ def query_modis_09q1_mpc(
         'limit': str(max_result_number)
     }
     query_dict = {}
-    if coordinate_list is None:
+    if coordinate_list is None and name_filter is not None:
         query_dict['id'] = {'ilike': f'%{name_filter}%'}
     # coordinate list left, top, right, bottom
+    elif coordinate_list is None:
+        cfg.logger.log.debug('coordinate_list is None')
     else:
         if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
                 coordinate_list[1] - coordinate_list[3]
@@ -1852,9 +1856,11 @@ def query_modis_11a2_mpc(
         'limit': str(max_result_number)
     }
     query_dict = {}
-    if coordinate_list is None:
+    if coordinate_list is None and name_filter is not None:
         query_dict['id'] = {'ilike': f'%{name_filter}%'}
     # coordinate list left, top, right, bottom
+    elif coordinate_list is None:
+        cfg.logger.log.debug('coordinate_list is None')
     else:
         if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
                 coordinate_list[1] - coordinate_list[3]
@@ -1976,9 +1982,11 @@ def query_cop_dem_glo_30_mpc(
         max_result_number = 1000
     params = {'collections': collection, 'limit': str(max_result_number)}
     query_dict = {}
-    if coordinate_list is None:
+    if coordinate_list is None and name_filter is not None:
         query_dict['id'] = {'ilike': f'%{name_filter}%'}
     # coordinate list left, top, right, bottom
+    elif coordinate_list is None:
+        cfg.logger.log.debug('coordinate_list is None')
     else:
         if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
                 coordinate_list[1] - coordinate_list[3]
@@ -2103,9 +2111,11 @@ def query_aster_l1t_mpc(
         'limit': str(max_result_number)
     }
     query_dict = {'eo:cloud_cover': {'lt': max_cloud_cover}}
-    if coordinate_list is None:
+    if coordinate_list is None and name_filter is not None:
         query_dict['id'] = {'ilike': f'%{name_filter}%'}
     # coordinate list left, top, right, bottom
+    elif coordinate_list is None:
+        cfg.logger.log.debug('coordinate_list is None')
     else:
         if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
                 coordinate_list[1] - coordinate_list[3]
@@ -2209,6 +2219,7 @@ def query_sentinel2_mpc(
     base_url = 'https://planetarycomputer.microsoft.com/api/stac/v1/search'
     image_find_list = []
     # filter the results based on a string
+    cfg.logger.log.debug('name_filter: %s' % name_filter)
     if name_filter:
         name_filter_split = name_filter.replace(' ', '').split(',')
         for f in name_filter_split:
@@ -2225,9 +2236,11 @@ def query_sentinel2_mpc(
         'limit': str(max_result_number)
     }
     query_dict = {'eo:cloud_cover': {'lt': max_cloud_cover}}
-    if coordinate_list is None:
+    if coordinate_list is None and name_filter is not None:
         query_dict['id'] = {'ilike': f'%{name_filter}%'}
     # coordinate list left, top, right, bottom
+    elif coordinate_list is None:
+        cfg.logger.log.debug('coordinate_list is None')
     else:
         if abs(coordinate_list[0] - coordinate_list[2]) > 10 or abs(
                 coordinate_list[1] - coordinate_list[3]

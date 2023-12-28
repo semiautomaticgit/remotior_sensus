@@ -48,6 +48,9 @@ refresh_time = 1.0
 sys_64bit = None
 file_sys_encoding = None
 sys_name = None
+# default bandset catalog for applications
+default_catalog = None
+default_signature_catalog = None
 # notification options
 sound_notification = None
 smtp_notification = None

@@ -32,7 +32,7 @@ def is_directory(path):
     return os.path.isdir(path)
 
 
-# get parent directory of input_raster
+# get parent directory of input
 def parent_directory(path):
     try:
         if len(path) > 0:
@@ -41,6 +41,21 @@ def parent_directory(path):
             return directory
         else:
             cfg.logger.log.debug('no directory')
+            return ''
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        return False
+
+
+# get base name
+def get_base_name(path):
+    try:
+        if len(path) > 0:
+            base_name = os.path.basename(path)
+            cfg.logger.log.debug('base_name: %s' % base_name)
+            return base_name
+        else:
+            cfg.logger.log.debug('no path')
             return ''
     except Exception as err:
         cfg.logger.log.error(str(err))

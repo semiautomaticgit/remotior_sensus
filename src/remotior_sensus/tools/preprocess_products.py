@@ -700,18 +700,20 @@ def create_product_table(
             metadata_doc = minidom.parse(metadata)
             # Sentinel-2
             try:
-                spacecraft_name = \
+                spacecraft_name = (
                     metadata_doc.getElementsByTagName('SPACECRAFT_NAME')[
                         0].firstChild.data
+                )
                 if spacecraft_name:
                     product_name = cfg.sentinel2
             except Exception as err:
                 str(err)
             # Landsat
             try:
-                spacecraft_id = \
+                spacecraft_id = (
                     metadata_doc.getElementsByTagName('SPACECRAFT_ID')[
                         0].firstChild.data
+                )
                 if spacecraft_id:
                     product_name = cfg.landsat
             except Exception as err:
@@ -724,7 +726,8 @@ def create_product_table(
     if product_name == cfg.sentinel2:
         cfg.logger.log.debug(cfg.sentinel2)
         scale_value = 1 / 10000
-        sentinel2_bands = cfg.satellites[cfg.satSentinel2][2]
+        sentinel2_bands = [s2_band.lower() for s2_band
+                           in cfg.satellites[cfg.satSentinel2][2]]
         # open metadata
         if metadata_doc:
             try:
@@ -801,14 +804,10 @@ def create_product_table(
         if len(offset_value_list) == 0:
             offset_value_list = [0] * len(band_names)
         else:
-            band_id_list = [
-                '01', '02', '03', '04', '05', '06', '07', '08', '8a', '09',
-                '10', '11', '12'
-            ]
             new_offset_value_list = []
             for n in band_number_list:
                 new_offset_value_list.append(
-                    offset_value_list[band_id_list.index(n.lower())]
+                    offset_value_list[sentinel2_bands.index(n.lower())]
                 )
             offset_value_list = new_offset_value_list
     elif product_name == cfg.landsat:
@@ -1077,7 +1076,8 @@ def create_product_table(
         spacecraft_list = [spacecraft_id] * len(band_names)
     elif product_name == cfg.sentinel2_hls:
         cfg.logger.log.debug(cfg.sentinel2_hls)
-        sentinel2_bands = cfg.satellites[cfg.satSentinel2][2]
+        sentinel2_bands = [s2_band.lower() for s2_band
+                           in cfg.satellites[cfg.satSentinel2][2]]
         # get bands
         file_list = files_directories.files_in_directory(
             input_path, sort_files=True, suffix_filter=cfg.tif_suffix

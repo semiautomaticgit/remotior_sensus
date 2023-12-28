@@ -710,7 +710,36 @@ def create_virtual_raster(
         )
         additive_factors = bandset.get_band_attributes('additive_factor')
         box_coordinate_list = bandset.box_coordinate_list
-        band_number_list = bandset.get_raster_band_list()
+        if band_number_list is None:
+            band_number_list = bandset.get_raster_band_list()
+        else:
+            input_raster_list = [input_raster_list[i-1]
+                                 for i in band_number_list]
+            lefts = [lefts[i-1] for i in band_number_list]
+            tops = [tops[i-1] for i in band_number_list]
+            rights = [rights[i-1] for i in band_number_list]
+            bottoms = [bottoms[i-1] for i in band_number_list]
+            wavelengths = [wavelengths[i-1] for i in band_number_list]
+            wavelength_units = [wavelength_units[i-1]
+                                for i in band_number_list]
+            p_x_sizes = [p_x_sizes[i-1] for i in band_number_list]
+            p_y_sizes = [p_y_sizes[i-1] for i in band_number_list]
+            x_counts = [x_counts[i-1] for i in band_number_list]
+            y_counts = [y_counts[i-1] for i in band_number_list]
+            data_types = [data_types[i-1] for i in band_number_list]
+            nodata_values = [nodata_values[i-1] for i in band_number_list]
+            x_block_sizes = [x_block_sizes[i-1] for i in band_number_list]
+            y_block_sizes = [y_block_sizes[i-1] for i in band_number_list]
+            scales = [scales[i-1] for i in band_number_list]
+            offsets = [offsets[i-1] for i in band_number_list]
+            multiplicative_factors = [multiplicative_factors[i-1]
+                                      for i in band_number_list]
+            additive_factors = [additive_factors[i-1]
+                                for i in band_number_list]
+            raster_band_number_list = bandset.get_raster_band_list()
+            new_band_number_list = [raster_band_number_list[i-1]
+                                    for i in band_number_list]
+            band_number_list = new_band_number_list
     cfg.logger.log.debug(
         'lefts: %s; rights: %s; tops: %s; bottoms: %s; p_x_sizes: %s; '
         'p_y_sizes: %s' % (
@@ -1490,6 +1519,23 @@ def force_relative_to_vrt(file_path):
     return file_path
 
 
+# get spatial reference from EPSG code o wkt
+def get_projection_from_epsg_wkt(input_epsg):
+    cfg.logger.log.debug('input_epsg: %s' % str(input_epsg))
+    input_sr = osr.SpatialReference()
+    try:
+        input_sr.ImportFromEPSG(input_epsg)
+    except Exception as err:
+        str(err)
+        try:
+            input_sr.ImportFromWkt(input_epsg)
+        except Exception as err:
+            str(err)
+            cfg.logger.log.error(str(err))
+            input_sr = None
+    return input_sr
+
+
 # project point coordinates
 def project_point_coordinates(
         point_x, point_y, input_coordinates, output_coordinates
@@ -1530,8 +1576,7 @@ def project_point_coordinates(
 # reproject vector
 def reproject_vector(
         input_vector, output, input_epsg=None, output_epsg=None,
-        vector_type='wkbMultiPolygon',
-        output_drive=None
+        vector_type='wkbMultiPolygon', output_drive=None
 ):
     if cfg.logger is not None:
         cfg.logger.log.debug('start')
@@ -1543,11 +1588,12 @@ def reproject_vector(
         proj = layer.GetSpatialRef()
         try:
             crs = proj.ExportToWkt()
-            input_sr = crs.replace(' ', '')
-            if len(input_sr) == 0:
+            crs_string = crs.replace(' ', '')
+            if len(crs_string) == 0:
                 if cfg.logger is not None:
                     cfg.logger.log.error('Error input vector')
                 return False
+            input_sr.ImportFromWkt(crs_string)
         except Exception as err:
             if cfg.logger is not None:
                 cfg.logger.log.error(str(err))
@@ -2397,3 +2443,137 @@ def gdal_warping(
     except Exception as err:
         cfg.logger.log.error(str(err))
     cfg.logger.log.debug('end; output: %s' % output)
+
+
+# create jpg image with gdal
+def jpg_gdal(
+        input_raster, output, quality=90, available_ram: int = None,
+        stretch=True
+):
+    cfg.logger.log.debug('start')
+    # GDAL config
+    try:
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+    except Exception as err:
+        str(err)
+    try:
+        _input_dataset = gdal.Open(input_raster)
+        if _input_dataset is None:
+            cfg.logger.log.error('unable to open the input file')
+        else:
+            _band_1 = _input_dataset.GetRasterBand(1)
+            _band_2 = _input_dataset.GetRasterBand(2)
+            _band_3 = _input_dataset.GetRasterBand(3)
+            minimum_1 = _band_1.GetMinimum()
+            maximum_1 = _band_1.GetMaximum()
+            if minimum_1 is None or maximum_1 is None:
+                minimum_1, maximum_1 = _band_1.ComputeRasterMinMax(True)
+            minimum_2 = _band_1.GetMinimum()
+            maximum_2 = _band_1.GetMaximum()
+            if minimum_2 is None or maximum_2 is None:
+                minimum_2, maximum_2 = _band_2.ComputeRasterMinMax(True)
+            minimum_3 = _band_1.GetMinimum()
+            maximum_3 = _band_1.GetMaximum()
+            if minimum_3 is None or maximum_3 is None:
+                minimum_3, maximum_3 = _band_3.ComputeRasterMinMax(True)
+            if stretch:
+                stretch_min = 1.1
+                stretch_max = 0.7
+            else:
+                stretch_min = 1
+                stretch_max = 0
+            jpg_options = gdal.TranslateOptions(
+                format='JPEG',
+                creationOptions=['QUALITY=%s' % quality],
+                outputType=gdal.GDT_Byte,
+                scaleParams=[
+                    [round(minimum_1 * stretch_min),
+                     round(maximum_1 * stretch_max), 0, 255],
+                    [round(minimum_2 * stretch_min),
+                     round(maximum_2 * stretch_max), 0, 255],
+                    [round(minimum_3 * stretch_min),
+                     round(maximum_3 * stretch_max), 0, 255]
+                ],
+            )
+            gdal.Translate(output, _input_dataset, options=jpg_options)
+            _band_1 = None
+            _band_2 = None
+            _band_3 = None
+            _input_dataset = None
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+    cfg.logger.log.debug('end; output: %s' % output)
+
+
+# create polygon from coordinates
+def coordinates_to_polygon_gdal(coordinates, input_coordinates, output=None):
+    cfg.logger.log.debug('start')
+    if output is None:
+        output = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
+    # create empty vector
+    driver = ogr.GetDriverByName('GPKG')
+    _data_source = driver.CreateDataSource(output)
+    spatial_reference = get_projection_from_epsg_wkt(input_coordinates)
+    _output_layer = _data_source.CreateLayer(
+        'region', spatial_reference, ogr.wkbPolygon
+    )
+    field_name = 'DN'
+    field_definition = ogr.FieldDefn(field_name, ogr.OFTInteger)
+    _output_layer.CreateField(field_definition)
+    feature_defn = _output_layer.GetLayerDefn()
+    feature = ogr.Feature(feature_defn)
+    ring = ogr.Geometry(ogr.wkbLinearRing)
+    geom = ogr.Geometry(ogr.wkbPolygon)
+    if coordinates[0] != coordinates[-1]:
+        coordinates.append(coordinates[0])
+    for coord in coordinates:
+        ring.AddPoint(coord[0], coord[1])
+    geom.AddGeometry(ring)
+    feature.SetGeometry(geom)
+    _output_layer.StartTransaction()
+    _output_layer.CreateFeature(feature)
+    _output_layer.CommitTransaction()
+    _output_layer = None
+    _poly = None
+    return output
+
+
+# get vector fields and type
+def get_vector_fields(input_layer):
+    # open layer
+    input_source = ogr.Open(input_layer)
+    # get input layer definition
+    input_layer = input_source.GetLayer()
+    input_layer_def = input_layer.GetLayerDefn()
+    input_field_count = input_layer_def.GetFieldCount()
+    fields = {}
+    for f in range(input_field_count):
+        f_def = input_layer_def.GetFieldDefn(f)
+        fields[f_def.GetNameRef()] = f_def.GetType()
+    return fields
+
+
+# get raster data
+def get_colored_raster(path, value_color_dictionary):
+    if not files_directories.is_file(path):
+        if cfg.logger is not None:
+            cfg.logger.log.warning('raster: %s' % path)
+    _r_d = gdal.Open(path, gdal.GA_ReadOnly)
+    if _r_d is None:
+        if cfg.logger is not None:
+            cfg.logger.log.error('raster: %s' % path)
+        return False
+    _band = _r_d.GetRasterBand(1)
+    data = _band.ReadAsArray()
+    _band = None
+    _r_d = None
+    array_3_bands = np.zeros(
+        (data.shape[0], data.shape[1], 3), dtype=np.uint8
+        )
+    for value, color in value_color_dictionary.items():
+        mask = data == value
+        array_3_bands[mask] = color
+    return array_3_bands

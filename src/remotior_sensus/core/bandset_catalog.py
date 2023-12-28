@@ -1889,7 +1889,7 @@ class BandSetCatalog(object):
                 return result
 
     def get_bandset(
-            self, bandset_number: int, attribute: Optional[str] = None
+            self, bandset_number: int = None, attribute: Optional[str] = None
     ) -> Union[None, str, list, BandSet]:
         """Get BandSet or BandSet attributes by number of the BandSet.
 
@@ -1974,6 +1974,42 @@ class BandSetCatalog(object):
             output_as_number=output_number
         )
         return result
+
+    def get_bbox(self, bandset_number: int = None) -> Union[None, list]:
+        """Get BandSet bounding box.
+
+        This function gets the bounding box coordinates of a BandSet.
+
+        Args:
+            bandset_number: number of the BandSet
+
+        Returns:
+            The bounding box coordinates [left, top, right, bottom].
+
+        Examples:
+            Get the bounding box of the BandSet 1.
+                >>> catalog = BandSetCatalog()
+                >>> names = catalog.get_bandset(bandset_number=1)
+                >>> print(names)
+                ['file1', 'file2', 'file3']
+
+            Get the BandSet 1.
+                >>> catalog = BandSetCatalog()
+                >>> bandset_1 = catalog.get_bandset(bandset_number=1)
+                >>> print(bandset_1)
+                BandSet
+        """
+        bbox = None
+        try:
+            left = min(self.get_bandset(bandset_number, 'left'))
+            top = max(self.get_bandset(bandset_number, 'top'))
+            right = max(self.get_bandset(bandset_number, 'right'))
+            bottom = min(self.get_bandset(bandset_number, 'bottom'))
+            bbox = [left, top, right, bottom]
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+            cfg.messages.error(str(err))
+        return bbox
 
     def reset(self):
         """Resets the BandSets Catalog.
@@ -2135,8 +2171,6 @@ class BandSetCatalog(object):
                  ... )
          """  # noqa: E501
         cfg.logger.log.debug('start')
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset = self.get_bandset_by_number(bandset_number)
         wavelength_list = bandset.get_wavelengths()
         # temporary set -1 to moved band
@@ -2188,8 +2222,6 @@ class BandSetCatalog(object):
                  ... )
          """  # noqa: E501
         cfg.logger.log.debug('start')
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset = self.get_bandset(bandset_number)
         # remove from table
         bandset.bands = bandset.bands[
@@ -2237,8 +2269,6 @@ class BandSetCatalog(object):
                 ... )
         """  # noqa: E501
         cfg.logger.log.debug('start')
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         self.get_bandset_by_number(bandset_number).add_new_band(
             path=path, band_number=band_number, raster_band=raster_band,
             band_name=band_name, date=date,
@@ -2247,6 +2277,9 @@ class BandSetCatalog(object):
             additive_factor=additive_factor,
             wavelength=wavelength, unit=unit
         )
+        # update crs
+        if self.get_bandset_by_number(bandset_number).crs is None:
+            self.update_crs(bandset_number=bandset_number)
         cfg.logger.log.debug('end')
 
     def sort_bands_by_wavelength(self, bandset_number: Optional[int] = None):
@@ -2263,8 +2296,6 @@ class BandSetCatalog(object):
                 >>> catalog.sort_bands_by_wavelength(bandset_number=1)
          """  # noqa: E501
         cfg.logger.log.debug('bandset_number: %s' % bandset_number)
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         self.get_bandset(bandset_number).sort_bands_by_wavelength()
 
     def sort_bands_by_name(
@@ -2285,8 +2316,6 @@ class BandSetCatalog(object):
                 >>> catalog.sort_bands_by_name(bandset_number=1)
          """  # noqa: E501
         cfg.logger.log.debug('bandset_number: %s' % bandset_number)
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         self.get_bandset(bandset_number).sort_bands_by_name(
             keep_wavelength_order=keep_wavelength_order
         )
@@ -2519,8 +2548,6 @@ class BandSetCatalog(object):
 
     def clear_bandset(self, bandset_number=None):
         """Function to clear a BandSet."""
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset = self.get_bandset(bandset_number)
         bandset.reset()
         cfg.logger.log.debug('clear bandset')
@@ -2528,8 +2555,6 @@ class BandSetCatalog(object):
     def print_bandset(self, bandset_number=None):
         """Function to print a BandSet bands and attributes."""
         cfg.logger.log.debug('print bandset')
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset = self.get_bandset(bandset_number)
         # print bandset
         bandset.print()
@@ -2834,8 +2859,6 @@ class BandSetCatalog(object):
                 >>> catalog = BandSetCatalog()
                 >>> catalog.get_crs(bandset_number=1)
         """  # noqa: E501
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         crs = self.get_bandset(bandset_number).crs
         return crs
 
@@ -2877,9 +2900,7 @@ class BandSetCatalog(object):
                 'bandset_number'] == bandset_number] = box_coordinate_list[3]
 
     # set satellite wavelengths
-    def set_satellite_wavelength(
-            self, satellite_name, bandset_number=None
-    ):
+    def set_satellite_wavelength(self, satellite_name, bandset_number=None):
         """Sets BandSet center wavelength based on satellite.
 
         Sets BandSet center wavelength based on satellite name.
@@ -2896,8 +2917,6 @@ class BandSetCatalog(object):
                 ... )
         """  # noqa: E501
         cfg.logger.log.debug('satellite_name: %s' % str(satellite_name))
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset_x = self.get_bandset_by_number(bandset_number)
         bands = bandset_x.bands
         if bands is not None:
@@ -2913,6 +2932,9 @@ class BandSetCatalog(object):
                                 and satellite != cfg.no_satellite):
                             (sat_wl, sat_unit,
                              sat_bands) = cfg.satellites[satellite]
+                            # get lower name of bands
+                            sat_bands = [s2_band.lower() for s2_band
+                                         in sat_bands]
                             break
             if sat_wl is not None:
                 if sat_wl == cfg.no_satellite:
@@ -2956,9 +2978,7 @@ class BandSetCatalog(object):
                 bandset_x.sort_bands_by_wavelength()
 
     # set band wavelengths
-    def set_wavelength(
-            self, wavelength_list, unit, bandset_number=None
-    ):
+    def set_wavelength(self, wavelength_list, unit, bandset_number=None):
         """Sets BandSet center wavelength based on list.
 
         Sets BandSet center wavelength based on list.
@@ -2975,8 +2995,6 @@ class BandSetCatalog(object):
                 ... bandset_number=1, wavelength_list=[1, 2, 3], unit='µm (1 E-6m)'
                 ... )
         """  # noqa: E501
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset_x = self.get_bandset_by_number(bandset_number)
         bands = bandset_x.bands
         if bands is not None:
@@ -2992,9 +3010,7 @@ class BandSetCatalog(object):
             bandset_x.sort_bands_by_wavelength()
 
     # set band path
-    def set_paths(
-            self, path_list, bandset_number=None
-    ):
+    def set_paths(self, path_list, bandset_number=None):
         """Sets BandSet band path.
 
         Sets BandSet band path based on list of paths.
@@ -3010,8 +3026,6 @@ class BandSetCatalog(object):
                 ... bandset_number=1, path_list=['path_1', 'path_2']
                 ... )
         """  # noqa: E501
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset_x = self.get_bandset_by_number(bandset_number)
         bands = bandset_x.bands
         if bands is not None:
@@ -3112,8 +3126,6 @@ class BandSetCatalog(object):
                 >>> catalog = BandSetCatalog()
                 >>> catalog.get_band_count(1)
          """  # noqa: E501
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset = self.get(bandset_number=bandset_number)
         if bandset is None:
             return None
@@ -3140,8 +3152,6 @@ class BandSetCatalog(object):
                 >>> catalog = BandSetCatalog()
                 >>> catalog.get_box_coordinate_list(1)
         """  # noqa: E501
-        if bandset_number is None:
-            bandset_number = self.current_bandset
         bandset = self.get(bandset_number=bandset_number)
         if bandset is None:
             return None
@@ -3205,6 +3215,52 @@ class BandSetCatalog(object):
         raster_vector.create_virtual_raster(
             output=output_path, nodata_value=nodata_value,
             intersection=intersection, bandset=bandset
+        )
+        cfg.logger.log.debug('output_path: %s' % str(output_path))
+        return output_path
+
+    def create_jpg(
+            self, bandset_number: int = None, bands: list = None,
+            output_path: str = None, quality: int = 90,
+            nodata_value: int = None, intersection: bool = False
+    ) -> str:
+        """Creates a jpg raster of a bandset.
+
+        Createsa a jpg raster of a bandset.
+
+        Args:
+            bandset_number: number of BandSet; if None, current BandSet is used.
+            bands: list of 3 band numbers (e.g., [3, 2, 1])
+            output_path: output path of the jpg raster; if None, use temporary path.
+            quality: jpg quality, default 85.
+            nodata_value: nodata value.
+            intersection: if True get minimum extent from input intersection, if False get maximum extent from union.
+            
+        Returns:
+            Path of the output jpg file.
+            
+        Examples:
+            Create BandSet 1 jpg.
+                >>> catalog = BandSetCatalog()
+                >>> catalog.create_jpg(1)
+         """  # noqa: E501
+        bandset = self.get(bandset_number)
+        if output_path is None:
+            output_path = cfg.temp.temporary_file_path(
+                name_suffix='.jpg'
+            )
+        vrt_path = cfg.temp.temporary_file_path(
+            name_suffix=cfg.vrt_suffix
+        )
+        if bands is None:
+            bands = [3, 2, 1]
+        raster_vector.create_virtual_raster(
+            output=vrt_path, nodata_value=nodata_value,
+            intersection=intersection, bandset=bandset,
+            band_number_list=bands
+        )
+        raster_vector.jpg_gdal(
+            input_raster=vrt_path, output=output_path, quality=quality
         )
         cfg.logger.log.debug('output_path: %s' % str(output_path))
         return output_path

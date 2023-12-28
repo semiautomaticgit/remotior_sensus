@@ -577,3 +577,71 @@ def calculate_spectral_angle(values_x, values_y):
         str(err)
         value = cfg.not_available
     return value
+
+
+# project point coordinates from wkt or EPSG
+def project_point_coordinates(
+        point_x, point_y, input_coordinates, output_coordinates
+) -> Union[None, list]:
+    input_coord = raster_vector.get_projection_from_epsg_wkt(input_coordinates)
+    output_coord = raster_vector.get_projection_from_epsg_wkt(
+        output_coordinates
+    )
+    if input_coord is not None and output_coord is not None:
+        coordinates = raster_vector.project_point_coordinates(
+            point_x, point_y, input_coord, output_coord
+        )
+    else:
+        coordinates = False
+        cfg.logger.log.error('no coordinates')
+    return coordinates
+
+
+# convert image to jpg
+def image_to_jpg(input_raster, output, quality=85, available_ram: int = None):
+    raster_vector.jpg_gdal(
+        input_raster=input_raster, output=output, quality=quality,
+        available_ram=available_ram
+    )
+
+
+# convert vector to json
+def vector_to_json(input_vector, output):
+    raster_vector.reproject_vector(
+        input_vector, output, output_epsg=4326, output_drive='GeoJSON'
+    )
+
+
+# convert coordinates to polygon
+def coordinates_to_polygon(coordinates, input_coordinates, output=None):
+    output_path = raster_vector.coordinates_to_polygon_gdal(
+        coordinates=coordinates, input_coordinates=input_coordinates,
+        output=output
+    )
+    return output_path
+
+
+# get vector fields
+def get_vector_fields(input_layer):
+    fields = raster_vector.get_vector_fields(input_layer)
+    return fields
+
+
+# get raster pixel size
+def get_raster_pixel_size(input_raster):
+    info = raster_vector.image_geotransformation(input_raster)
+    return [info['pixel_size_x'], info['pixel_size_y']]
+
+
+# get raster bounding box
+def get_raster_bbox(input_raster):
+    info = raster_vector.image_geotransformation(input_raster)
+    return [info['left'], info['top'], info['right'], info['bottom']]
+
+
+# get raster data
+def get_colored_raster(input_raster, value_color_dictionary):
+    data = raster_vector.get_colored_raster(
+        path=input_raster, value_color_dictionary=value_color_dictionary
+    )
+    return data

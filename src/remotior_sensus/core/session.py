@@ -61,6 +61,7 @@ from remotior_sensus.tools import (
 from remotior_sensus.util import (
     dates_times, system_tools, files_directories, download_tools, shared_tools
 )
+from remotior_sensus.ui.jupyter import JupyterInterface
 
 
 class Session(object):
@@ -104,6 +105,7 @@ class Session(object):
         raster_split: tool :func:`~remotior_sensus.tools.raster_split`
         raster_to_vector: tool :func:`~remotior_sensus.tools.raster_to_vector`
         vector_to_raster: tool :func:`~remotior_sensus.tools.vector_to_raster`
+        jupyter: starts a Jupyter interface
 
     Examples:
         Start a session
@@ -119,6 +121,9 @@ class Session(object):
 
         Run the tool for raster report
             >>> output = rs.raster_report(raster_path='file.tif', output_path='output.txt')
+
+        Start an interactive Jupyter interface
+            >>> rs.jupyter().download_interface()
 
         Stop a session at the end to clear temporary directory
             >>> rs.close()
@@ -282,6 +287,8 @@ class Session(object):
             self.download_tools = download_tools
             self.shared_tools = shared_tools
             self.files_directories = files_directories
+            # jupyter interface
+            self.jupyter = self._jupyter_interface
         else:
             self.configurations = None
 
@@ -327,7 +334,7 @@ class Session(object):
         """Sets or changes the parameters of an existing Session.
 
         Sets the parameters of an existing Session such as number
-        of processes or temporary directory.
+        of processes or temporary directory. 
 
         Args:
             n_processes: number of parallel processes.
@@ -417,6 +424,10 @@ class Session(object):
                self.configurations.available_ram,
                self.configurations.temp.dir)
         )
+
+    """Jupyter functions"""
+    def _jupyter_interface(self):
+        return JupyterInterface(self)
 
 
 def _check_dependencies(configuration_module: configurations) -> bool:

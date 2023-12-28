@@ -1174,7 +1174,9 @@ class SpectralSignaturesCatalog(object):
         return output_path
 
     # display plot of signatures using Matplotlib
-    def add_signatures_to_plot_by_id(self, signature_id_list):
+    def add_signatures_to_plot_by_id(
+            self, signature_id_list, return_plot=False
+    ):
         cfg.logger.log.debug(
             'add_signatures_to_plot_by_id: %s'
             % str(signature_id_list)
@@ -1198,10 +1200,11 @@ class SpectralSignaturesCatalog(object):
                     value_list=value_list, color_list=color_list
                 )
             )
-            plot_tools.create_plot(
+            plot = plot_tools.create_plot(
                 ax=ax, plots=plots, plot_names=plot_names, x_ticks=x_ticks,
-                y_ticks=y_ticks, v_lines=v_lines
+                y_ticks=y_ticks, v_lines=v_lines, return_plot=return_plot
             )
+            return plot
         except Exception as err:
             cfg.logger.log.error(str(err))
             return False
