@@ -800,7 +800,10 @@ class JupyterInterface(object):
                 if change['new'] is True:
                     selected_bands.append(change['owner'].description)
                 else:
-                    selected_bands.remove(change['owner'].description)
+                    try:
+                        selected_bands.remove(change['owner'].description)
+                    except Exception as err:
+                        str(err)
 
         """
         search_label = widgets.Label(value='Search products',
@@ -1191,7 +1194,9 @@ class JupyterInterface(object):
             # if not preview ask for output file
             if preview_point is None:
                 browser_selector_val.value = 1
-                c_output_path = str(new_file_text.value)
+                c_output_path = str(
+                    '%s/%s' % (browser_dir, new_file_text.value)
+                ).replace('//', '/')
                 # TODO implement save classifier
                 if save_classifier is True:
                     if not c_output_path.lower().endswith(
@@ -2763,7 +2768,7 @@ class JupyterInterface(object):
         )
         display(
             widgets.VBox([
-                messages_row, bandset_rows, classification_rows,
+                bandset_rows, classification_rows, messages_row,
                 map_label, training_map_rows, plot_rows, browser_rows
             ], layout=widgets.Layout(width='100%'))
         )

@@ -124,10 +124,11 @@ def create_parent_directory(file_path):
 # create directory of a path
 def create_directory(path):
     try:
-        if not is_directory(path):
-            os.makedirs(path)
-            cfg.logger.log.debug('path: %s' % path)
-            return path
+        if len(path) > 0:
+            if not is_directory(path):
+                os.makedirs(path)
+                cfg.logger.log.debug('path: %s' % path)
+                return path
     except Exception as err:
         cfg.logger.log.error(str(err))
         return False

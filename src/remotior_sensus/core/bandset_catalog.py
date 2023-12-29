@@ -127,6 +127,7 @@ class BandSet(object):
             self.bands = tm.create_band_table(band_number='empty')
         else:
             self.bands = tm.create_bandset_table(bands_list)
+            self.sort_bands_by_wavelength()
         # unique ID
         self.uid = bandset_uid
         if date is None:
@@ -813,6 +814,9 @@ class BandSet(object):
             unit = cfg.no_unit
         if satellite is not None and satellite != cfg.no_satellite:
             sat_wl, sat_unit, sat_bands = cfg.satellites[satellite]
+            # get lower name of bands
+            sat_bands = [s2_band.lower() for s2_band
+                         in sat_bands]
         else:
             sat_wl = sat_unit = sat_bands = None
         # create band list
