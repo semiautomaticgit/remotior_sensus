@@ -31,7 +31,10 @@ try:
     import ipywidgets as widgets
     from IPython.display import display
 except Exception as error:
-    cfg.logger.log.error(str(error))
+    try:
+        cfg.logger.log.error(str(error))
+    except Exception as error:
+        str(error)
 
 try:
     from ipyleaflet import (
@@ -39,12 +42,18 @@ try:
         GeoJSON, Marker, WidgetControl
     )
 except Exception as error:
-    cfg.logger.log.error(str(error))
+    try:
+        cfg.logger.log.error(str(error))
+    except Exception as error:
+        str(error)
 
 try:
     from PIL import Image
 except Exception as error:
-    cfg.logger.log.error(str(error))
+    try:
+        cfg.logger.log.error(str(error))
+    except Exception as error:
+        str(error)
 
 
 ipywidgets_version = widgets.__version__
@@ -2058,6 +2067,7 @@ class JupyterInterface(object):
             nonlocal c_name_input_text, mc_color_input, c_color_input
             if cfg.default_signature_catalog is None:
                 error_message('Missing training input file')
+                return
             cfg.default_signature_catalog.import_vector(
                 file_path=last_region_path,
                 macroclass_value=int(mc_id_input.value),

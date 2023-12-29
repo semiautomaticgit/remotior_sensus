@@ -1,6 +1,11 @@
 Changelog
 ===============
 
+v0.3.02
+________
+
+* Fixed Jupyter interface
+
 v0.3.01
 ________
 

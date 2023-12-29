@@ -2000,15 +2000,19 @@ class BandSetCatalog(object):
                 BandSet
         """
         bbox = None
-        try:
-            left = min(self.get_bandset(bandset_number, 'left'))
-            top = max(self.get_bandset(bandset_number, 'top'))
-            right = max(self.get_bandset(bandset_number, 'right'))
-            bottom = min(self.get_bandset(bandset_number, 'bottom'))
-            bbox = [left, top, right, bottom]
-        except Exception as err:
-            cfg.logger.log.error(str(err))
-            cfg.messages.error(str(err))
+        box_coordinates = self.get_bandset(bandset_number).box_coordinate_list
+        if box_coordinates is None:
+            try:
+                left = min(self.get_bandset(bandset_number, 'left'))
+                top = max(self.get_bandset(bandset_number, 'top'))
+                right = max(self.get_bandset(bandset_number, 'right'))
+                bottom = min(self.get_bandset(bandset_number, 'bottom'))
+                bbox = [left, top, right, bottom]
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+                cfg.messages.error(str(err))
+        else:
+            bbox = box_coordinates
         return bbox
 
     def reset(self):
