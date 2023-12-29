@@ -30,6 +30,7 @@ from remotior_sensus.core import configurations as cfg
 try:
     import ipywidgets as widgets
     from IPython.display import display
+    ipywidgets_version = widgets.__version__
 except Exception as error:
     try:
         cfg.logger.log.error(str(error))
@@ -55,8 +56,6 @@ except Exception as error:
     except Exception as error:
         str(error)
 
-
-ipywidgets_version = widgets.__version__
 """ Progress messages """
 msg_label_main = msg_label = messages_row = progress_widget = None
 tot_remaining = ''
