@@ -815,8 +815,7 @@ class BandSet(object):
         if satellite is not None and satellite != cfg.no_satellite:
             sat_wl, sat_unit, sat_bands = cfg.satellites[satellite]
             # get lower name of bands
-            sat_bands = [s2_band.lower() for s2_band
-                         in sat_bands]
+            sat_bands = [s_band.lower() for s_band in sat_bands]
         else:
             sat_wl = sat_unit = sat_bands = None
         # create band list
@@ -858,8 +857,21 @@ class BandSet(object):
                         e = str(err)
                         try:
                             # numbers in format 1, 2, ...
-                            b = band_name.lower()[-2:].lstrip('0')
-                            wl = float(sat_wl[sat_bands.index(b)])
+                            try:
+                                # 2 digits
+                                b = band_name.lower()[-2:].lstrip('0')
+                                assert int(b)
+                                try:
+                                    wl = float(sat_wl[sat_bands.index(b)])
+                                except Exception as err:
+                                    str(err)
+                                    # value not in list
+                                    wl = len(file_list) + counter - 1
+                            except Exception as err:
+                                str(err)
+                                # 1 digit
+                                b = band_name.lower()[-1:].lstrip('0')
+                                wl = float(sat_wl[sat_bands.index(b)])
                         except Exception as err:
                             e = '{}; {}'.format(err, e)
                             # get values from list
@@ -2941,7 +2953,7 @@ class BandSetCatalog(object):
                             (sat_wl, sat_unit,
                              sat_bands) = cfg.satellites[satellite]
                             # get lower name of bands
-                            sat_bands = [s2_band.lower() for s2_band
+                            sat_bands = [s_band.lower() for s_band
                                          in sat_bands]
                             break
             if sat_wl is not None:
@@ -2970,17 +2982,32 @@ class BandSetCatalog(object):
                             str(err)
                         # get band number from names
                         try:
+                            unit = sat_unit
                             # numbers in format 01, 02, ...
                             b = band_name.lower()[-2:]
                             wl = float(sat_wl[sat_bands.index(b)])
                         except Exception as err:
-                            str(err)
+                            e = str(err)
                             try:
                                 # numbers in format 1, 2, ...
-                                b = band_name.lower()[-2:].lstrip('0')
-                                wl = float(sat_wl[sat_bands.index(b)])
+                                try:
+                                    # 2 digits
+                                    b = band_name.lower()[-2:].lstrip('0')
+                                    assert int(b)
+                                    try:
+                                        wl = float(sat_wl[sat_bands.index(b)])
+                                    except Exception as err:
+                                        str(err)
+                                        # value not in list
+                                        wl = bands.shape[0] + counter - 2
+                                except Exception as err:
+                                    str(err)
+                                    # 1 digit
+                                    b = band_name.lower()[-1:].lstrip('0')
+                                    wl = float(sat_wl[sat_bands.index(b)])
                             except Exception as err:
-                                str(err)
+                                e = '{}; {}'.format(err, e)
+                                cfg.logger.log.error('%s: %s' % (err, e))
                         band['wavelength'] = wl
                         band['wavelength_unit'] = unit
                 bandset_x.sort_bands_by_wavelength()

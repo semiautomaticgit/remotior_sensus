@@ -566,8 +566,12 @@ def get_copernicus_token(
         proxies=proxies
         )
     response_text = json.loads(response.text)
-    access_token = response_text['access_token']
-    session_state = response_text['session_state']
+    try:
+        access_token = response_text['access_token']
+        session_state = response_text['session_state']
+    except Exception as err:
+        str(err)
+        access_token = session_state = None
     return access_token, session_state
 
 

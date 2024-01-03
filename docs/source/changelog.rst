@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.3.05
+________
+
+* Fixed Copernicus access token error
+* Fixed automatic band wavelength definition in BandSet
+
 v0.3.04
 ________
 

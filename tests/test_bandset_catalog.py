@@ -370,6 +370,19 @@ class TestBandSetCatalog(TestCase):
         self.assertTrue(files_directories.is_file(virtual))
         stack = catalog.create_bandset_stack(bandset_number=1)
         self.assertTrue(files_directories.is_file(stack))
+        file_list = ['L8_2020-01-01/L8_B10.tif', 'L8_2020-01-01/L8_B1.tif',
+                     'L8_2020-01-01/L8_B2.tif', 'L8_2020-01-01/L8_B3.tif',
+                     'L8_2020-01-01/L8_B4.tif', 'L8_2020-01-01/L8_B5.tif']
+        catalog.create_bandset(
+            file_list, bandset_number=4, root_directory=str(data_path)
+        )
+        catalog.set_satellite_wavelength(
+            satellite_name=cfg.satLandsat8, bandset_number=4
+        )
+        self.assertEqual(
+            catalog.get(4).bands[0].wavelength,
+            cfg.satellites[cfg.satLandsat8][0][0]
+        )
 
         # clear temporary directory
         rs.close()
