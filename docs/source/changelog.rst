@@ -1,7 +1,7 @@
 Changelog
 ===============
 
-v0.3.05
+v0.3.5
 ________
 
 * Fixed Copernicus access token error
