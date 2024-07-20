@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestBandPCA(TestCase):
@@ -26,7 +25,7 @@ class TestBandPCA(TestCase):
         output = rs.band_pca(input_bands=catalog.get_bandset(1),
                              output_path=temp)
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         cfg.logger.log.debug('>>> test band PCA input BandSet with coordinate')
         coordinate_list = [230250, 4674550, 230320, 4674440]
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
@@ -34,14 +33,14 @@ class TestBandPCA(TestCase):
                              output_path=temp,
                              extent_list=coordinate_list)
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         cfg.logger.log.debug('>>> test band PCA input BandSet with coordinate')
         bs = catalog.get_bandset(1)
         bs.box_coordinate_list = [230250, 4674550, 230320, 4674440]
         output = rs.band_pca(input_bands=catalog.get_bandset(1),
                              extent_list=coordinate_list)
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
 
         # clear temporary directory
         rs.close()

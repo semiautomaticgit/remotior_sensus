@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -47,8 +47,9 @@ from remotior_sensus.util import (
 def raster_report(
         raster_path: str, output_path: Optional[str] = None,
         nodata_value: Optional[int] = None, extent_list: Optional[list] = None,
-        n_processes: Optional[int] = None, available_ram: Optional[int] = None
-):
+        n_processes: Optional[int] = None, available_ram: Optional[int] = None,
+        progress_message: Optional[bool] = True
+) -> OutputManager:
     """Calculation of a report providing information extracted from a raster.
 
     This tool allows for the calculation of a report providing information
@@ -63,6 +64,8 @@ def raster_report(
         extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -75,7 +78,7 @@ def raster_report(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     raster_path = files_directories.input_path(raster_path)
     if extent_list is not None:
@@ -112,6 +115,7 @@ def raster_report(
     if cfg.multiprocess.output is False:
         cfg.logger.log.error('unable to calculate')
         cfg.messages.error('unable to calculate')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     unique_val = cfg.multiprocess.output
     # create table

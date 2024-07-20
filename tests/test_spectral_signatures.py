@@ -26,7 +26,7 @@ class TestSpectralSignatures(TestCase):
             )
         self.assertEqual(signature_catalog.table.shape[0], 2)
         cfg.logger.log.debug('>>> test save Spectral Signature Catalog')
-        temp = cfg.temp.temporary_file_path(name_suffix='.scpx')
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.scpx_suffix)
         signature_catalog.save(output_path=temp)
         self.assertTrue(rs.files_directories.is_file(temp))
         signature_catalog_x = rs.spectral_signatures_catalog()
@@ -107,13 +107,13 @@ class TestSpectralSignatures(TestCase):
         )
         # import vector
         cfg.logger.log.debug('>>> test remove signature')
-        temp = cfg.temp.temporary_file_path(name_suffix='.scpx')
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.scpx_suffix)
         signature_catalog_2.save(output_path=temp)
         self.assertTrue(rs.files_directories.is_file(temp))
         sig_id = signature_catalog_2.table[
             signature_catalog_2.table['macroclass_id'] == 7].signature_id[0]
         signature_catalog_2.remove_signature_by_id(signature_id=sig_id)
-        temp = cfg.temp.temporary_file_path(name_suffix='.scpx')
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.scpx_suffix)
         signature_catalog_2.save(output_path=temp)
         self.assertTrue(rs.files_directories.is_file(temp))
         shape = signature_catalog_2.table.shape[0]

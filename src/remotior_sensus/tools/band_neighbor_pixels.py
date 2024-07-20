@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -27,8 +27,9 @@ Typical usage example:
     >>> # start the process
     >>> neighbor = rs.band_neighbor_pixels(
     ... input_bands=['file1.tif', 'file2.tif'],
-    ... size=1,output_path='directory_path',stat_name='Mean',
-    ... circular_structure=True,prefix='neighbor_')
+    ... size=1, output_path='directory_path', stat_name='Mean',
+    ... circular_structure=True, prefix='neighbor_'
+    ... )
 """
 
 from typing import Union, Optional
@@ -51,8 +52,10 @@ def band_neighbor_pixels(
         output_data_type: Optional[str] = None,
         virtual_output: Optional[bool] = None, prefix: Optional[str] = '',
         extent_list: Optional[list] = None,
+        multiple_resolution: Optional[bool] = True,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None,
-        bandset_catalog: Optional[BandSetCatalog] = None
+        bandset_catalog: Optional[BandSetCatalog] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Performs band neighbor pixels.
 
@@ -81,15 +84,22 @@ def band_neighbor_pixels(
         structure: optional path to csv file of structures, if None then the
             structure is created from size.
         circular_structure: if True use circular structure.
-        stat_percentile: integer value for percentile parameter.
         stat_name: statistic name as in configurations.statistics_list.
-        output_data_type: optional raster output data type, if None the data type is the same as input raster.
-        virtual_output: if True (and output_path is directory), save output as virtual raster of multiprocess parts.
+        stat_percentile: integer value for percentile parameter.
+        output_data_type: optional raster output data type, if None the data 
+            type is the same as input raster.
+        virtual_output: if True (and output_path is directory), save output as 
+            virtual raster of multiprocess parts.
         prefix: optional string for output name prefix.
         extent_list: list of boundary coordinates left top right bottom.
+        multiple_resolution: if True, keep the original resolution of 
+            individual raster; 
+            if False, use the resolution of the first raster for all the bands.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -97,12 +107,16 @@ def band_neighbor_pixels(
 
     Examples:
         Perform the band neighbor of size 10 pixels with the function Sum
-            >>> neighbor = band_neighbor_pixels(input_bands=['file1.tif', 'file2.tif'],size=10,output_path='directory_path',stat_name='Sum',circular_structure=True)
+            >>> neighbor = band_neighbor_pixels(
+            ... input_bands=['file1.tif', 'file2.tif'], size=10,
+            ... output_path='directory_path', stat_name='Sum',
+            ... circular_structure=True
+            ... )
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     # prepare process files
     prepared = shared_tools.prepare_process_files(
@@ -110,6 +124,7 @@ def band_neighbor_pixels(
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
         multiple_output=True, multiple_input=True,
+        multiple_resolution=multiple_resolution,
         virtual_output=virtual_output
     )
     input_raster_list = prepared['input_raster_list']
@@ -134,6 +149,7 @@ def band_neighbor_pixels(
         except Exception as err:
             cfg.logger.log.error(err)
             cfg.messages.error(str(err))
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
     else:
         function_numpy = stat_numpy.replace('array', 'A, axis=2')
@@ -149,6 +165,7 @@ def band_neighbor_pixels(
         except Exception as err:
             cfg.logger.log.error(err)
             cfg.messages.error(str(err))
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
     # process calculation
     n = 0

@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -54,10 +54,12 @@ def band_resample(
         compress=None, compress_format=None,
         prefix: Optional[str] = '',
         extent_list: Optional[list] = None,
+        multiple_resolution: Optional[bool] = True,
         n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
-        bandset_catalog: Optional[BandSetCatalog] = None
-):
+        bandset_catalog: Optional[BandSetCatalog] = None,
+        progress_message: Optional[bool] = True
+) -> OutputManager:
     """Performs band resample and reprojection.
 
     This tool performs the resampling and reprojection of raster bands. 
@@ -78,22 +80,34 @@ def band_resample(
             number of BandSet.
         output_path: string of output path directory or list of paths.
         epsg_code: optional EPSG code for output.
-        align_raster: string path of raster used for aligning output pixels and projections.
+        align_raster: string path of raster used for aligning output pixels and 
+            projections.
         overwrite: if True, output overwrites existing files.
-        resampling: method of resample such as nearest_neighbour (default), average, sum, maximum, minimum, mode, median, first_quartile, third_quartile.
+        resampling: method of resample such as nearest_neighbour (default), 
+            average, sum, maximum, minimum, mode, median, first_quartile, 
+            third_quartile.
         nodata_value: value to be considered as nodata.
-        x_y_resolution: integer pixel size of output raster or pixel size as list of x, y.
-        resample_pixel_factor: define output resolution by multiplying original pixel size to this value.
-        output_data_type: optional raster output data type, if None the data type is the same as input raster.
+        x_y_resolution: integer pixel size of output raster or pixel size as 
+            list of x, y.
+        resample_pixel_factor: define output resolution by multiplying original 
+            pixel size to this value.
+        output_data_type: optional raster output data type, if None the data 
+            type is the same as input raster.
         same_extent: if True, output extent is the same as align_raster.
-        virtual_output: if True (and output_path is directory), save output as virtual raster of multiprocess parts.
+        virtual_output: if True (and output_path is directory), save output as 
+            virtual raster of multiprocess parts.
         prefix: optional string for output name prefix.
         extent_list: list of boundary coordinates left top right bottom.
+        multiple_resolution: if True, keep the original resolution of 
+            individual raster; 
+            if False, use the resolution of the first raster for all the bands.
         compress: if True, compress output.
         compress_format: format of compressions such as LZW or DEFLATE.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -101,14 +115,15 @@ def band_resample(
 
     Examples:
         Perform the band resample
-            >>> band_resample(input_bands=['path_1', 'path_2'],
-            ... output_path='output_path', resampling='mode',
-            ... resample_pixel_factor=2)
+            >>> band_resample(
+            ... input_bands=['path_1', 'path_2'], output_path='output_path', 
+            ... resampling='mode', resample_pixel_factor=2
+            ... )
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     if resampling == 'nearest_neighbour':
         resample = 'near'
@@ -136,12 +151,14 @@ def band_resample(
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
         multiple_output=True, multiple_input=True,
+        multiple_resolution=multiple_resolution,
         virtual_output=virtual_output
     )
     input_raster_list = prepared['input_raster_list']
     if len(input_raster_list) == 0:
         cfg.logger.log.error('no input')
         cfg.messages.error('no input')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     raster_info = prepared['raster_info']
     n_processes = prepared['n_processes']
@@ -156,6 +173,7 @@ def band_resample(
     except Exception as err:
         cfg.logger.log.error(str(err))
         cfg.messages.error(str(err))
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     if epsg_code is None:
         epsg = False
@@ -264,6 +282,7 @@ def band_resample(
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error(str(err))
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
             if same_extent is False:
                 try:

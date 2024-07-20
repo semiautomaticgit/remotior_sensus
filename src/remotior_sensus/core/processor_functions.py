@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -64,96 +64,82 @@ except Exception as error:
     str(error)
 
 
+# function to calculate percentile with the closest observation for band_calc
+def percentile_calc(array, percentile=90, axis=0):
+    if type(array) is list:
+        array = np.stack(array)
+    # count values that are not nan
+    value_count = np.sum(~np.isnan(array), axis=axis)
+    # sort array
+    sorted_array = np.sort(array, axis=axis)
+    # calculate percentile index
+    perc_index = np.round(
+        (value_count - 1) * float(percentile) / 100
+    ).astype(int)
+    # get percentile values
+    result = np.take_along_axis(
+        sorted_array, np.expand_dims(perc_index, axis=axis), axis=axis
+    ).squeeze(axis)
+    return result
+
+
 # band calculation
-# noinspection PyShadowingBuiltins
+# noinspection PyShadowingBuiltins,PyUnusedLocal
 def band_calculation(*argv):
     # expose numpy functions
-    log = np.log
-    _log = log
-    log10 = np.log10
-    _log10 = log10
-    sqrt = np.sqrt
-    _sqrt = sqrt
-    cos = np.cos
-    _cos = cos
-    arccos = np.arccos
-    _arccos = arccos
-    sin = np.sin
-    _sin = sin
-    arcsin = np.arcsin
-    _arcsin = arcsin
-    tan = np.tan
-    _tan = tan
-    arctan = np.arctan
-    _arctan = arctan
-    exp = np.exp
-    _exp = exp
-    min = np.nanmin
-    _min = min
-    max = np.nanmax
-    _max = max
-    sum = np.nansum
-    _sum = sum
-    percentile = np.nanpercentile
-    _percentile = percentile
-    median = np.nanmedian
-    _median = median
-    mean = np.nanmean
-    _mean = mean
-    std = np.nanstd
-    _std = std
-    where = np.where
-    _where = where
+    log = np.ma.log
+    log10 = np.ma.log10
+    sqrt = np.ma.sqrt
+    cos = np.ma.cos
+    arccos = np.ma.arccos
+    sin = np.ma.sin
+    arcsin = np.ma.arcsin
+    tan = np.ma.tan
+    arctan = np.ma.arctan
+    exp = np.ma.exp
+    min = np.ma.min
+    max = np.ma.max
+    sum = np.ma.sum
+    percentile = percentile_calc
+    median = np.ma.median
+    mean = np.ma.mean
+    std = np.ma.std
+    where = np.ma.where
     nan = np.nan
-    _nan = nan
     # array variable name as defined in cfg.array_function_placeholder
-    _array_function_placeholder = argv[1]
+    output_no_data = argv[0][2]
+    _array = argv[1][0]
+    _array_mask = argv[1][1]
+    _array_function_placeholder = np.ma.array(_array, mask=_array_mask)
     nodata_mask = argv[2]
     function_argument = argv[7]
     cfg.logger.log.debug('function_argument: %s' % str(function_argument))
-    if (_array_function_placeholder.dtype == np.float32
-            or _array_function_placeholder.dtype == np.float64):
-        cfg.logger.log.debug(
-            '_array_function_placeholder.shape: %s; '
-            '_array_function_placeholder.dtype: %s; '
-            '_array_function_placeholder.n_bytes: %s'
-            % (
-                str(_array_function_placeholder.shape),
-                str(_array_function_placeholder.dtype),
-                str(_array_function_placeholder.nbytes)
-               )
-        )
-        _array_function_placeholder = ArrayLike(_array_function_placeholder)
     cfg.logger.log.debug(
-        '_array_function_placeholder.shape: %s'
-        % str(_array_function_placeholder.shape)
+        '_array_function_placeholder.shape: %s; type: %s'
+        % (str(_array_function_placeholder.shape),
+           type(_array_function_placeholder))
     )
     # perform operation
     try:
-        _o = eval(function_argument)
+        _o: np.ma.core.MaskedArray = eval(function_argument)
     except Exception as err:
         cfg.logger.log.error(str(err))
         return False
     # if not array
-    if not isinstance(_o, np.ndarray):
-        cfg.logger.log.error('not array')
+    if (not isinstance(_o, np.ma.core.MaskedArray)
+            and not isinstance(_o, np.ndarray)):
+        cfg.logger.log.error('not array ' + str(type(_o)))
         return False
     # check nodata
     cfg.logger.log.debug(
-        '_o.shape: %s; nodata_mask.shape: %s; _o.n_bytes: %s; _o.dtype: %s'
-        % (
-            str(_o.shape), str(nodata_mask.shape), str(_o.nbytes),
-            str(_o.dtype)
-        )
+        '_o.shape: %s; _o.n_bytes: %s; _o.dtype: %s'
+        % (str(_o.shape), str(_o.nbytes), str(_o.dtype))
     )
     if _o.dtype == bool:
         _o = _o.astype(int)
-    if nodata_mask is not None:
-        np.copyto(
-            _o, nodata_mask.reshape(_o.shape),
-            where=nodata_mask[::, ::].reshape(_o.shape) != 0
-        )
-    return [_o, None]
+    # replace nodata
+    _o[::, ::].data[_o.mask] = output_no_data
+    return [[_o.data, _o.mask], None]
 
 
 # classification maximum likelihood
@@ -161,7 +147,7 @@ def classification_maximum_likelihood(*argv):
     scale = argv[0][0]
     offset = argv[0][1]
     output_no_data = argv[0][2]
-    _array_function_placeholder = argv[1]
+    _array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     x = argv[4]
     y = argv[5]
@@ -235,7 +221,7 @@ def classification_maximum_likelihood(*argv):
                 distance_array[::, ::][
                     distance_array == cfg.nodata_val] = output_no_data
                 distance_array[::, ::][
-                    nodata_mask == output_no_data] = output_no_data
+                    nodata_mask == 1] = output_no_data
                 write_sig = raster_vector.write_raster(
                     output_signature_raster[s], x - ro_x, y - ro_y,
                     distance_array, output_no_data, scale, offset
@@ -248,7 +234,7 @@ def classification_maximum_likelihood(*argv):
         classification_array[::, ::][
             classification_array == cfg.nodata_val] = output_no_data
         classification_array[::, ::][
-            nodata_mask == output_no_data] = output_no_data
+            nodata_mask == 1] = output_no_data
         write_class = raster_vector.write_raster(
             out_class, x - ro_x, y - ro_y, classification_array,
             output_no_data, scale, offset
@@ -259,7 +245,7 @@ def classification_maximum_likelihood(*argv):
             previous_array[::, ::][
                 classification_array == cfg.nodata_val] = output_no_data
             previous_array[::, ::][
-                nodata_mask == output_no_data] = output_no_data
+                nodata_mask == 1] = output_no_data
             write_alg = raster_vector.write_raster(
                 out_alg, x - ro_x, y - ro_y, previous_array, output_no_data,
                 scale, offset
@@ -278,7 +264,7 @@ def classification_minimum_distance(*argv):
     scale = argv[0][0]
     offset = argv[0][1]
     output_no_data = argv[0][2]
-    _array_function_placeholder = argv[1]
+    _array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     x = argv[4]
     y = argv[5]
@@ -340,8 +326,7 @@ def classification_minimum_distance(*argv):
         if len(output_signature_raster) > 0:
             distance_array[::, ::][
                 distance_array == cfg.nodata_val_Int32] = output_no_data
-            distance_array[::, ::][
-                nodata_mask == output_no_data] = output_no_data
+            distance_array[::, ::][nodata_mask == 1] = output_no_data
             write_sig = raster_vector.write_raster(
                 output_signature_raster[s], x - ro_x, y - ro_y, distance_array,
                 output_no_data, scale, offset
@@ -350,8 +335,7 @@ def classification_minimum_distance(*argv):
     # write classification
     classification_array[::, ::][
         classification_array == cfg.nodata_val_Int32] = output_no_data
-    classification_array[::, ::][
-        nodata_mask == output_no_data] = output_no_data
+    classification_array[::, ::][nodata_mask == 1] = output_no_data
     write_class = raster_vector.write_raster(
         out_class, x - ro_x, y - ro_y, classification_array, output_no_data,
         scale, offset
@@ -361,7 +345,7 @@ def classification_minimum_distance(*argv):
     if out_alg is not None:
         previous_array[::, ::][
             classification_array == cfg.nodata_val_Int32] = output_no_data
-        previous_array[::, ::][nodata_mask == output_no_data] = output_no_data
+        previous_array[::, ::][nodata_mask == 1] = output_no_data
         write_alg = raster_vector.write_raster(
             out_alg, x - ro_x, y - ro_y, previous_array, output_no_data, scale,
             offset
@@ -378,7 +362,7 @@ def classification_spectral_angle_mapping(*argv):
     scale = argv[0][0]
     offset = argv[0][1]
     output_no_data = argv[0][2]
-    _array_function_placeholder = argv[1]
+    _array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     x = argv[4]
     y = argv[5]
@@ -443,8 +427,7 @@ def classification_spectral_angle_mapping(*argv):
         if len(output_signature_raster) > 0:
             distance_array[::, ::][
                 distance_array == cfg.nodata_val_Int32] = output_no_data
-            distance_array[::, ::][
-                nodata_mask == output_no_data] = output_no_data
+            distance_array[::, ::][nodata_mask == 1] = output_no_data
             write_sig = raster_vector.write_raster(
                 output_signature_raster[s], x - ro_x, y - ro_y, distance_array,
                 output_no_data, scale, offset
@@ -453,8 +436,7 @@ def classification_spectral_angle_mapping(*argv):
     # write classification
     classification_array[::, ::][
         classification_array == cfg.nodata_val_Int32] = output_no_data
-    classification_array[::, ::][
-        nodata_mask == output_no_data] = output_no_data
+    classification_array[::, ::][nodata_mask == 1] = output_no_data
     write_class = raster_vector.write_raster(
         out_class, x - ro_x, y - ro_y, classification_array, output_no_data,
         scale, offset
@@ -464,7 +446,7 @@ def classification_spectral_angle_mapping(*argv):
     if out_alg is not None:
         previous_array[::, ::][
             classification_array == cfg.nodata_val_Int32] = output_no_data
-        previous_array[::, ::][nodata_mask == output_no_data] = output_no_data
+        previous_array[::, ::][nodata_mask == 1] = output_no_data
         write_alg = raster_vector.write_raster(
             out_alg, x - ro_x, y - ro_y, previous_array, output_no_data, scale,
             offset
@@ -476,12 +458,49 @@ def classification_spectral_angle_mapping(*argv):
     return [True, out_class]
 
 
+# calculation of spectral distance
+def spectral_distance(*argv):
+    # array variable name as defined in cfg.array_function_placeholder
+    output_no_data = argv[0][2]
+    _array_function_placeholder = argv[1][0]
+    nodata_mask = argv[2]
+    # number of bands
+    function_argument = argv[7]
+    # algorithm name
+    function_variable = argv[8][0]
+    threshold = argv[8][1]
+    cfg.logger.log.debug(
+        'function_argument: %s; function_variable: %s'
+        % (str(function_argument), str(function_variable))
+    )
+    a = _array_function_placeholder[::, ::, :function_argument]
+    b = _array_function_placeholder[::, ::, function_argument:]
+    if function_variable.lower() == cfg.minimum_distance_a:
+        # euclidean distance
+        _o = np.sqrt(((a - b) ** 2).sum(axis=2))
+    else:
+        # spectral angle
+        _o = np.arccos(
+            (a * b).sum(axis=2) /
+            np.sqrt((a ** 2).sum(axis=2) * (b ** 2).sum(axis=2))
+        ) * 180 / np.pi
+    if threshold is not None:
+        _o = _o > threshold
+    # check nodata
+    cfg.logger.log.debug(
+        '_o: %s; nodata_mask: %s' % (str(_o.shape), str(nodata_mask.shape))
+    )
+    if nodata_mask is not None:
+        _o[::, ::][nodata_mask == 1] = output_no_data
+    return [[_o, None], None]
+
+
 # classification through scikit-learn model
 def classification_scikit(*argv):
     scale = argv[0][0]
     offset = argv[0][1]
     output_no_data = argv[0][2]
-    _array_function_placeholder = argv[1]
+    _array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     x = argv[4]
     y = argv[5]
@@ -498,6 +517,9 @@ def classification_scikit(*argv):
         for n in range(0, _array_function_placeholder.shape[2]):
             _array_function_placeholder[::, ::, n] = eval(normalization[0][n])
     for n in range(_array_function_placeholder.shape[2]):
+        # replace nodata
+        _array_function_placeholder[::, ::, n][
+            nodata_mask == 1] = cfg.nodata_val
         if x_array is None:
             x_array = _array_function_placeholder[::, ::, n].ravel()
         else:
@@ -515,8 +537,7 @@ def classification_scikit(*argv):
         )
         _prediction = None
         # write classification
-        classification_array[::, ::][
-            nodata_mask == output_no_data] = output_no_data
+        classification_array[::, ::][nodata_mask == 1] = output_no_data
         try:
             write_class = raster_vector.write_raster(
                 out_class, x - x_min_piece, y - y_min_piece,
@@ -557,8 +578,7 @@ def classification_scikit(*argv):
             if threshold is not False:
                 classification_array[::, ::][
                     prediction_proba_array < threshold] = output_no_data
-            prediction_proba_array[::, ::][
-                nodata_mask == output_no_data] = output_no_data
+            prediction_proba_array[::, ::][nodata_mask == 1] = output_no_data
             write_alg = raster_vector.write_raster(
                 out_alg, x - x_min_piece, y - y_min_piece,
                 prediction_proba_array, output_no_data, scale, offset
@@ -573,11 +593,9 @@ def classification_scikit(*argv):
             )
             _prediction = None
             # write classification
-            classification_array[::, ::][
-                nodata_mask == output_no_data] = output_no_data
+            classification_array[::, ::][nodata_mask == 1] = output_no_data
         # write classification
-        classification_array[::, ::][
-            nodata_mask == output_no_data] = output_no_data
+        classification_array[::, ::][nodata_mask == 1] = output_no_data
         write_class = raster_vector.write_raster(
             out_class, x - x_min_piece, y - y_min_piece, classification_array,
             output_no_data, scale, offset
@@ -594,7 +612,7 @@ def classification_pytorch(*argv):
     scale = argv[0][0]
     offset = argv[0][1]
     output_no_data = argv[0][2]
-    _array_function_placeholder = argv[1]
+    _array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     x = argv[4]
     y = argv[5]
@@ -610,6 +628,9 @@ def classification_pytorch(*argv):
         for n in range(0, _array_function_placeholder.shape[2]):
             _array_function_placeholder[::, ::, n] = eval(normalization[0][n])
     for n in range(_array_function_placeholder.shape[2]):
+        # replace nodata
+        _array_function_placeholder[::, ::, n][
+            nodata_mask == 1] = cfg.nodata_val
         if x_array is None:
             x_array = _array_function_placeholder[::, ::, n].ravel()
         else:
@@ -631,8 +652,7 @@ def classification_pytorch(*argv):
         )
         _prediction = None
         # write classification
-        classification_array[::, ::][
-            nodata_mask == output_no_data] = output_no_data
+        classification_array[::, ::][nodata_mask == 1] = output_no_data
         try:
             write_class = raster_vector.write_raster(
                 out_class, x - x_min_piece, y - y_min_piece,
@@ -672,8 +692,7 @@ def classification_pytorch(*argv):
             if threshold is not False:
                 classification_array[::, ::][
                     prediction_proba_array < threshold] = output_no_data
-            prediction_proba_array[::, ::][
-                nodata_mask == output_no_data] = output_no_data
+            prediction_proba_array[::, ::][nodata_mask == 1] = output_no_data
             write_alg = raster_vector.write_raster(
                 out_alg, x - x_min_piece, y - y_min_piece,
                 prediction_proba_array, output_no_data, scale, offset
@@ -687,11 +706,9 @@ def classification_pytorch(*argv):
                 _array_function_placeholder.shape[1]
             )
             # write classification
-            classification_array[::, ::][
-                nodata_mask == output_no_data] = output_no_data
+            classification_array[::, ::][nodata_mask == 1] = output_no_data
         # write classification
-        classification_array[::, ::][
-            nodata_mask == output_no_data] = output_no_data
+        classification_array[::, ::][nodata_mask == 1] = output_no_data
         write_class = raster_vector.write_raster(
             out_class, x - x_min_piece, y - y_min_piece, classification_array,
             output_no_data, scale, offset
@@ -706,7 +723,8 @@ def classification_pytorch(*argv):
 # calculate PCA
 def calculate_pca(*argv):
     # array variable name as defined in cfg.array_function_placeholder
-    _array_function_placeholder = argv[1]
+    output_no_data = argv[0][2]
+    _array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     # principal component vector
     function_argument = argv[7]
@@ -725,18 +743,18 @@ def calculate_pca(*argv):
         '_o: %s; nodata_mask: %s' % (str(_o.shape), str(nodata_mask.shape))
     )
     if nodata_mask is not None:
-        np.copyto(
-            _o, nodata_mask.reshape(_o.shape),
-            where=nodata_mask[::, ::].reshape(_o.shape) != 0
-        )
-    return [_o, None]
+        _o[::, ::][nodata_mask == 1] = output_no_data
+    # update masked array
+    _o_mask = np.zeros_like(_o, dtype=bool)
+    # TODO output mask
+    return [[_o, _o_mask], None]
 
 
 # reclassify raster
 def reclassify_raster(*argv):
     output_no_data = argv[0][2]
-    raster_array_band = argv[1]
-    nodata_mask = argv[2]
+    raster_array_band = argv[1][0]
+    raster_mask_array_band = argv[1][1]
     # conditions
     function_argument = argv[7]
     # variable raster name
@@ -745,13 +763,13 @@ def reclassify_raster(*argv):
     _o = None
     replace_nodata = True
     try:
-        old = function_argument.old_value
-        new = function_argument.old_value
-        _raster = np.nan_to_num(raster_array_band[:, :, 0])
+        old = function_argument['old_value']
+        new = function_argument['new_value']
+        assert old.astype(int).all()
+        _raster = raster_array_band[:, :, 0]
+        _raster_mask = raster_mask_array_band[:, :, 0]
         # if all integer values
-        if np.all(_raster.astype(int) == _raster) and np.all(
-                old.astype(int) == old
-        ):
+        if np.all(_raster.astype(int) == _raster):
             # create empty reclass array of length equal to maximum value
             reclass = np.zeros(
                 max(
@@ -762,6 +780,8 @@ def reclassify_raster(*argv):
             reclass[old.astype(int)] = new
             # perform reclassification
             _o = reclass[_raster.astype(int)]
+            _o[::, ::][np.isnan(_o)] = _raster[::, ::][np.isnan(_o)]
+            _o_mask = _raster_mask
         else:
             # raise exception to try expressions
             raise Exception
@@ -770,6 +790,7 @@ def reclassify_raster(*argv):
         _raster = None
         # raster array
         _o = np.copy(raster_array_band[:, :, 0])
+        _o_mask = np.copy(raster_mask_array_band[:, :, 0])
         _x = raster_array_band[:, :, 0]
         for i in range(function_argument.shape[0]):
             cfg.logger.log.debug(str(function_argument[i]))
@@ -777,9 +798,10 @@ def reclassify_raster(*argv):
             if 'nan' in function_argument[i][cfg.old_value]:
                 try:
                     # replace nodata
-                    _o[::, ::][nodata_mask == output_no_data] = int(
+                    _o[::, ::][_o_mask] = np.array(
                         float(function_argument[i][cfg.new_value])
                     )
+                    _o_mask[_o_mask] = 0
                     replace_nodata = False
                 except Exception as err:
                     str(err)
@@ -824,36 +846,40 @@ def reclassify_raster(*argv):
     if replace_nodata:
         try:
             # replace nodata
-            _o[::, ::][nodata_mask == output_no_data] = output_no_data
+            _o[::, ::][_o_mask] = output_no_data
+            _o_mask = np.zeros_like(_o, dtype=bool)
         except Exception as err:
             str(err)
     cfg.logger.log.debug('end')
-    return [_o, None]
+    return [[_o, _o_mask], None]
 
 
 # calculate bands covariance
 def bands_covariance(*argv):
     cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    raster_array_band = argv[1]
+    raster_array_band = argv[1][0]
     nodata_mask = argv[2]
     band_number = argv[7]
     band_dict = argv[8]
     covariance_dictionary = {}
+    if band_dict['normalize'] is True:
+        for _x in band_number:
+            raster_array_band[::, ::, _x] = ((raster_array_band[::, ::, _x]
+                                             - band_dict['mean_%s' % _x])
+                                             / np.sqrt(
+                        band_dict['variance_%s' % _x])
+                                             )
     # iterate bands
     for _x in band_number:
         # calculate covariance SUM((x - Mean_x) * (y - Mean_y))
         for _y in band_number:
             # mask nodata
             if _x == _y:
-                x = raster_array_band[::, ::, _x][
-                    nodata_mask != output_no_data].ravel()
+                x = raster_array_band[::, ::, _x][nodata_mask != 1].ravel()
                 y = x
             else:
-                x = raster_array_band[::, ::, _x][
-                    nodata_mask != output_no_data].ravel()
-                y = raster_array_band[::, ::, _y][
-                    nodata_mask != output_no_data].ravel()
+                x = raster_array_band[::, ::, _x][nodata_mask != 1].ravel()
+                y = raster_array_band[::, ::, _y][nodata_mask != 1].ravel()
             # covariance
             cov = ((x - band_dict['mean_%s' % _x]) * (
                     y - band_dict['mean_%s' % _y])).sum()
@@ -865,16 +891,17 @@ def bands_covariance(*argv):
 # calculate raster pixel count
 def raster_pixel_count(*argv):
     cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    raster_array_band = argv[1]
+    raster_array_band = argv[1][0]
     nodata_mask = argv[2]
     band_number = argv[7]
-    band = raster_array_band[nodata_mask != output_no_data].ravel()
+    band = raster_array_band[nodata_mask != 1].ravel()
     count = band.shape[0]
     band_sum = np.nansum(band)
+    variance = np.square(band - band_sum/count) / count
     raster_dictionary = {
         'count_%s' % str(band_number): count,
-        'sum_%s' % str(band_number): band_sum
+        'sum_%s' % str(band_number): band_sum,
+        'var_%s' % str(band_number): variance.sum()
     }
     cfg.logger.log.debug('end')
     return [None, raster_dictionary]
@@ -883,11 +910,10 @@ def raster_pixel_count(*argv):
 # calculate raster unique values with sum
 def raster_unique_values_with_sum(*argv):
     cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    raster_array_band = argv[1]
+    raster_array_band = argv[1][0]
     try:
         nodata_mask = argv[2]
-        b = raster_array_band[nodata_mask != output_no_data]
+        b = raster_array_band[nodata_mask != 1]
         stats = np.array(np.unique(b[~np.isnan(b)], return_counts=True))
     except Exception as err:
         stats = np.array(
@@ -901,19 +927,40 @@ def raster_unique_values_with_sum(*argv):
     return [None, stats]
 
 
+# calculate raster class unique values with sum
+def raster_class_unique_values_with_sum(*argv):
+    cfg.logger.log.debug('start')
+    raster_array_band = argv[1][0]
+    nodata_mask = argv[2]
+    band_number = argv[7]
+    classes = argv[8]
+    raster_dictionary = {}
+    classification = raster_array_band[::, ::, -1][nodata_mask != 1].ravel()
+    # iterate bands
+    for _x in band_number:
+        band = raster_array_band[::, ::, _x][nodata_mask != 1].ravel()
+        # iterate classes
+        for c in classes:
+            band_c = band[classification == c]
+            count = band_c.shape[0]
+            band_sum = np.nansum(band_c)
+            raster_dictionary['count_%i_%i' % (c, _x)] = count
+            raster_dictionary['sum_%i_%i' % (c, _x)] = band_sum
+    cfg.logger.log.debug('end')
+    return [None, raster_dictionary]
+
+
 # calculate raster unique values of combinations
 def raster_unique_values(*argv):
     cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    raster_array_band = argv[1]
+    raster_array_band = argv[1][0]
     nodata_mask = argv[2]
     # stack arrays
     try:
-        arr = raster_array_band[:, :, 0][nodata_mask != output_no_data].ravel()
+        arr = raster_array_band[:, :, 0][nodata_mask != 1].ravel()
         for i in range(1, raster_array_band.shape[2]):
             arr = np.vstack(
-                (arr, raster_array_band[:, :, i][
-                    nodata_mask != output_no_data].ravel())
+                (arr, raster_array_band[:, :, i][nodata_mask != 1].ravel())
             )
     except Exception as err:
         str(err)
@@ -934,7 +981,7 @@ def raster_unique_values(*argv):
 def raster_dilation(*argv):
     cfg.logger.log.debug('start')
     output_no_data = argv[0][2]
-    raster_array_band = argv[1]
+    raster_array_band = argv[1][0]
     nodata_mask = argv[2]
     structure = argv[7]
     function_variable_list = argv[8]
@@ -956,29 +1003,32 @@ def raster_dilation(*argv):
     var_array = np.array(function_variable_list)
     core = ~np.isin(a, var_array)
     # dilation
-    o = np.array(a, copy=True)
+    o = np.copy(a)
     try:
         for v in function_variable_list:
             o[(core * val_dict['arr_%s' % str(v)]) > 0] = v
     except Exception as err:
         cfg.logger.log.error(str(err))
-    o[::, ::][np.isnan(raster_array_band[:, :, 0])] = np.nan
-    o[::, ::][nodata_mask == output_no_data] = np.nan
+    # replace nodata
+    o_mask = nodata_mask == 1
+    o[::, ::][o_mask] = output_no_data
     cfg.logger.log.debug('end')
-    return [o, None]
+    return [[o, o_mask], None]
 
 
 # calculate raster erosion
 def raster_erosion(*argv):
     cfg.logger.log.debug('start')
     output_no_data = argv[0][2]
-    raster_array_band = argv[1]
+    raster_array_band = argv[1][0]
+    raster_mask_array_band = argv[1][1]
     nodata_mask = argv[2]
     structure = argv[7]
     function_variable_list = argv[8]
-    a = np.array(raster_array_band[::, ::, 0], copy=True)
+    a = np.copy(raster_array_band[::, ::, 0])
+    a_mask = np.copy(raster_mask_array_band[:, :, 0])
     np.copyto(a, cfg.nodata_val, where=np.isnan(raster_array_band[:, :, 0]))
-    np.copyto(a, cfg.nodata_val, where=nodata_mask == output_no_data)
+    np.copyto(a, cfg.nodata_val, where=nodata_mask == 1)
     # unique value list
     unique_val = np.unique(a)
     unique_val_list = list(unique_val.astype(int))
@@ -1026,18 +1076,18 @@ def raster_erosion(*argv):
                 # erosion values
                 erosion[((sum_structure - sum_unique) > 0.01) & (a == i)] = 1
         np.copyto(a, fill_value, where=erosion == 1)
-    a[::, ::][a == cfg.nodata_val] = np.nan
-    a[::, ::][np.isnan(raster_array_band[:, :, 0])] = np.nan
-    a[::, ::][nodata_mask == output_no_data] = np.nan
+    # replace nodata
+    a_mask[(nodata_mask == 1) | (a == cfg.nodata_val)] = 1
+    a[a_mask] = output_no_data
     cfg.logger.log.debug('end')
-    return [a, None]
+    return [[a, a_mask], None]
 
 
 # calculate raster resample
 def raster_resample(*argv):
     cfg.logger.log.debug('start')
     output_no_data = argv[0][2]
-    raster_array_band = argv[1]
+    raster_array_band = argv[1][0]
     x_y_size = argv[7]
     function_variable_list = argv[8]
     resize_factor_x = x_y_size[0] // function_variable_list[0]
@@ -1049,6 +1099,7 @@ def raster_resample(*argv):
     if stride_shape_y < _a.shape[0] // resize_factor_y:
         pad_y = int(round((stride_shape_y + 1) * resize_factor_y))
         pad_shape = [(0, pad_y - _a.shape[0]), (0, 0)]
+        # noinspection PyTypeChecker
         _a = np.pad(_a, pad_width=pad_shape, mode='constant',
                     constant_values=output_no_data)
     # get strides
@@ -1066,15 +1117,16 @@ def raster_resample(*argv):
                                 keepdims=True).mode
     _a = None
     o = subarray_modes.reshape(int(stride_shape_y), int(stride_shape_x))
+    # update masked array
+    o_mask = o == output_no_data
     cfg.logger.log.debug('end')
-    return [o, None]
+    return [[o, o_mask], None]
 
 
 # calculate raster neighbor
 def raster_neighbor(*argv):
     cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    raster_array_band = argv[1]
+    raster_array_band = argv[1][0]
     nodata_mask = argv[2]
     structure = argv[7]
     function_variable_list = argv[8]
@@ -1178,18 +1230,19 @@ def raster_neighbor(*argv):
             percentile=int(function_variable_list[0].split(',')[1].strip(')')),
             footprint=structure, mode='constant', cval=np.nan
         )
-    o[::, ::][o == cfg.nodata_val] = np.nan
-    o[::, ::][np.isnan(raster_array_band[:, :, 0])] = np.nan
-    o[::, ::][nodata_mask == output_no_data] = np.nan
+    # update masked array
+    o_mask = (nodata_mask == 1) | (o == cfg.nodata_val)
     cfg.logger.log.debug('end')
-    return [o, None]
+    return [[o, o_mask], None]
 
 
 # calculate cross rasters
 def cross_rasters(*argv):
     cfg.logger.log.debug('start')
-    array_function_placeholder = argv[1]
+    output_no_data = argv[0][2]
+    array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
+    output_list = argv[6]
     function_argument = argv[7]
     function_variable = argv[8]
     _a = eval(
@@ -1203,7 +1256,9 @@ def cross_rasters(*argv):
     )
     _a = None
     if nodata_mask is not None:
-        np.copyto(o, nodata_mask, where=nodata_mask[::, ::] != 0)
+        np.copyto(o, output_no_data, where=nodata_mask[::, ::] != 0,
+                  casting='unsafe'
+                  )
         stats = np.array(
             np.unique(o[nodata_mask[::, ::] == 0], return_counts=True)
         )
@@ -1221,14 +1276,16 @@ def cross_rasters(*argv):
                 cfg.logger.log.error(str(err))
                 stats = None
     cfg.logger.log.debug('end')
-    return [o, stats]
+    if output_list is None:
+        return [None, stats]
+    else:
+        return [[o, None], stats]
 
 
 # calculate spectral signature
 def spectral_signature(*argv):
     cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    array_function_placeholder = argv[1]
+    array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     # vector path
     function_argument = argv[7]
@@ -1240,7 +1297,7 @@ def spectral_signature(*argv):
         reference_raster_path=function_variable, extent=True
     )
     _a = raster_vector.read_raster(temp)
-    _a[::, ::][nodata_mask == output_no_data] = np.nan
+    _a[::, ::][nodata_mask == 1] = np.nan
     array_roi = array_function_placeholder[_a == 1]
     mean = np.nanmean(array_roi)
     std = np.nanstd(array_roi)
@@ -1252,8 +1309,7 @@ def spectral_signature(*argv):
 # get raster band values for scatter plot
 def get_values_for_scatter_plot(*argv):
     cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    array_function_placeholder = argv[1]
+    array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     # vector path
     function_argument = argv[7]
@@ -1265,7 +1321,7 @@ def get_values_for_scatter_plot(*argv):
         reference_raster_path=function_variable, extent=True
     )
     _a = raster_vector.read_raster(temp)
-    _a[::, ::][nodata_mask == output_no_data] = np.nan
+    _a[::, ::][nodata_mask == 1] = np.nan
     array_roi = array_function_placeholder[_a == 1]
     cfg.logger.log.debug('end')
     return [None, array_roi.ravel()]
@@ -1274,13 +1330,12 @@ def get_values_for_scatter_plot(*argv):
 # calculate region growing from seed value
 def region_growing(*argv):
     cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    array_function_placeholder = argv[1]
+    array_function_placeholder = argv[1][0]
     nodata_mask = argv[2]
     # roi parameters
     function_variable = argv[8]
     array_roi = array_function_placeholder
-    array_roi[::, ::][nodata_mask == output_no_data] = np.nan
+    array_roi[::, ::][nodata_mask == 1] = np.nan
     seed_x = function_variable[0]
     seed_y = function_variable[1]
     max_spectral_distance = function_variable[2]
@@ -1321,34 +1376,70 @@ def region_growing(*argv):
 
 
 # get band arrays
-def get_band_arrays(*argv):
-    cfg.logger.log.debug('start')
-    output_no_data = argv[0][2]
-    array_function_placeholder = argv[1]
-    nodata_mask = argv[2]
-    # vector path
-    function_argument = argv[7][0]
-    spectral_signatures_table = argv[7][1]
-    # reference path
-    function_variable = argv[8]
-    # iterate ROIs
-    array_dictionary = {}
-    for s in spectral_signatures_table.signature_id:
-        vector = raster_vector.get_polygon_from_vector(
-            vector_path=function_argument,
-            attribute_filter="%s = '%s'" % (cfg.uid_field_name, s)
-        )
-        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
-        raster_vector.vector_to_raster(
-            vector_path=vector, burn_values=1, output_path=temp,
-            reference_raster_path=function_variable, extent=True
-        )
-        _a = raster_vector.read_raster(temp)
-        _a[::, ::][nodata_mask == output_no_data] = np.nan
-        array_roi = array_function_placeholder[_a == 1]
-        array_dictionary[s] = array_roi.flatten()
-    cfg.logger.log.debug('end')
-    return [None, array_dictionary]
+def get_band_arrays(
+        process, progress_queue, argument_list, logger, temp
+):
+    cfg.logger = logger
+    cfg.temp = temp
+    results = []
+    n = 0
+    errors = False
+    for d in argument_list:
+        n += 1
+        try:
+            # iterate signatures
+            array_dict = {}
+            # optional calc data type, if None use input data type
+            calc_data_type = d['calc_data_type']
+            if 'field_name' in d:
+                field_name = d['field_name']
+            else:
+                field_name = str(cfg.uid_field_name)
+            for s in d['signature_id_list']:
+                r_arr_v_arr_list = []
+                nd_bool_list = []
+                # iterate rasters
+                for v in d['virtual_path_list']:
+                    extract = raster_vector.extract_vector_to_raster(
+                        vector_path=d['roi_path'],
+                        reference_raster_path=v, calc_data_type=calc_data_type,
+                        available_ram=d['available_ram'],
+                        attribute_filter="%s = '%s'" % (field_name, str(s))
+                    )
+                    if extract is False:
+                        return [None, 'error extract', str(process)]
+                    # get raster array and signature raster array
+                    r_arr_v_arr_list.append([extract[0], extract[1]])
+                    # get raster nodata array
+                    nd_bool_list.append(extract[2])
+                # create nodata array for all rasters
+                nd_array = None
+                for nd_bool in nd_bool_list:
+                    if nd_array is None:
+                        nd_array = nd_bool
+                    else:
+                        nd_array = nd_array * nd_bool
+                # create array list
+                array_list = []
+                for i in r_arr_v_arr_list:
+                    _a = i[0][nd_array]
+                    _b = i[1][nd_array]
+                    array_list.append(_a[_b == 1])
+                # calculate numpy functions
+                if 'numpy_functions' in d:
+                    result_dict = {}
+                    for f in d['numpy_functions']:
+                        for A in array_list:
+                            result_dict[f] = eval(d['numpy_functions'][f])
+                    array_dict[s] = result_dict
+                else:
+                    array_dict[s] = array_list
+            results.append(array_dict)
+            if progress_queue is not None:
+                progress_queue.put([n, len(argument_list)], False)
+        except Exception as err:
+            errors = str(err)
+    return [results, errors, str(process)]
 
 
 # fit
@@ -1451,6 +1542,7 @@ def clip_raster(
             gdal.SetConfigOption('GDAL_CACHEMAX', str(d['available_ram']))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.DontUseExceptions()
         except Exception as err:
             str(err)
         try:
@@ -1525,106 +1617,217 @@ def clip_raster(
     return [results, errors, str(process)]
 
 
-# class to override numpy ufunc
-class ArrayLike(np.ndarray):
-
-    def __new__(cls, input_array):
-        obj = input_array.view(cls)
-        return obj
-
-    def __mul__(self, other):
-        a = self
-        nan_a_mask = np.isnan(a)
-        if nan_a_mask is not None:
-            a = np.array(a, subok=True, copy=True)
-            np.copyto(a, 1, where=nan_a_mask)
-        nan_other_mask = np.isnan(other)
-        if nan_other_mask is not None:
-            other = np.array(other, subok=True, copy=True)
-            np.copyto(other, 1, where=nan_other_mask)
-        return np.multiply(a, other)
-
-    def __rmul__(self, other):
-        a = self
-        nan_a_mask = np.isnan(a)
-        if nan_a_mask is not None:
-            a = np.array(a, subok=True, copy=True)
-            np.copyto(a, 1, where=nan_a_mask)
-        nan_other_mask = np.isnan(other)
-        if nan_other_mask is not None:
-            other = np.array(other, subok=True, copy=True)
-            np.copyto(other, 1, where=nan_other_mask)
-        return np.multiply(other, a)
-
-    def __truediv__(self, other):
-        nan_mask = np.isnan(other)
-        if nan_mask is not None:
-            other = np.array(other, subok=True, copy=True)
-            np.copyto(other, 1, where=nan_mask)
-        division = np.divide(self, other)
+# edit raster
+def edit_raster(
+        process, progress_queue, argument_list, logger, temp
+):
+    cfg.logger = logger
+    cfg.temp = temp
+    results = []
+    n = 0
+    errors = False
+    for d in argument_list:
+        n += 1
+        gdal_path = d['gdal_path']
+        cfg.logger.log.debug('start')
+        if gdal_path is not None:
+            for path in gdal_path.split(';'):
+                try:
+                    os.add_dll_directory(path)
+                    cfg.gdal_path = path
+                except Exception as err:
+                    str(err)
+        from osgeo import gdal
+        # GDAL config
         try:
-            division[nan_mask] = np.nan
+            gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+            gdal.SetConfigOption('GDAL_CACHEMAX', str(d['available_ram']))
+            gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+            gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.DontUseExceptions()
         except Exception as err:
             str(err)
-        return division
-
-    def __rtruediv__(self, other):
-        a = self
-        nan_mask = np.isnan(self)
-        if nan_mask is not None:
-            a = np.array(a, subok=True, copy=True)
-            np.copyto(a, 1, where=nan_mask)
-        division = np.divide(other, a)
         try:
-            division[nan_mask] = np.nan
+            raster = d['old_array']
+            if raster is not None:
+                _r_column_start = d['column_start']
+                _r_row_start = d['row_start']
+                # write raster
+                raster_vector.write_raster(
+                    d['input_raster'], _r_column_start, _r_row_start, raster
+                )
+                results.append(None)
+                results.append(None)
+                results.append(None)
+            else:
+                constant_value = d['constant_value']
+                expression = d['expression']
+                _r_d = gdal.Open(d['input_raster'], gdal.GA_Update)
+                _v_d = gdal.Open(d['vector_raster'], gdal.GA_ReadOnly)
+                # get pixel size and top left
+                _r_d_gt = _r_d.GetGeoTransform()
+                _r_left = _r_d_gt[0]
+                _r_top = _r_d_gt[3]
+                r_p_x_size = _r_d_gt[1]
+                r_p_y_size = _r_d_gt[5]
+                _v_d_gt = _v_d.GetGeoTransform()
+                _v_left = _v_d_gt[0]
+                _v_top = _v_d_gt[3]
+                # get pixel columns
+                _r_x_size = _r_d.RasterXSize
+                _v_x_size = _v_d.RasterXSize
+                # get pixel rows
+                _r_y_size = _r_d.RasterYSize
+                _v_y_size = _v_d.RasterYSize
+                if _v_left < _r_left:
+                    orig_x = _r_left
+                else:
+                    orig_x = _v_left
+                if _v_top > _r_top:
+                    orig_y = _r_top
+                else:
+                    orig_y = _v_top
+                _r_column_start = abs(int((_r_left - orig_x) / r_p_x_size))
+                _r_row_start = abs(int((_r_top - orig_y) / r_p_y_size))
+                _v_column_start = abs(int((_v_left - orig_x) / r_p_x_size))
+                _v_row_start = abs(int((_v_top - orig_y) / r_p_y_size))
+                columns = _v_x_size - _v_column_start
+                rows = _v_y_size - _v_row_start
+                if columns < 1 or rows < 1:
+                    raise 'not enough pixels'
+                if _r_column_start + columns > _r_x_size:
+                    r_column = _r_x_size - _r_column_start
+                else:
+                    r_column = columns
+                if r_column < 0:
+                    raise 'outside raster'
+                if _r_row_start + rows > _r_y_size:
+                    r_rows = _r_y_size - _r_row_start
+                else:
+                    r_rows = rows
+                if r_rows < 0:
+                    raise 'outside raster'
+                # get raster band
+                _r_band = _r_d.GetRasterBand(1)
+                try:
+                    _r_offset = _r_band.GetOffset()
+                    _r_scale = _r_band.GetScale()
+                    if _r_offset is None:
+                        _r_offset = 0
+                    if _r_scale is None:
+                        _r_scale = 1
+                except Exception as err:
+                    str(err)
+                    _r_offset = 0
+                    _r_scale = 1
+                # set variable name as cfg.variable_raster_name
+                o_raster = _r_band.ReadAsArray(
+                    _r_column_start, _r_row_start, r_column, r_rows
+                )
+                raster = o_raster * _r_scale + _r_offset
+                # get vector raster band
+                _v_band = _v_d.GetRasterBand(1)
+                try:
+                    _v_offset = _v_band.GetOffset()
+                    _v_scale = _v_band.GetScale()
+                    if _v_offset is None:
+                        _v_offset = 0
+                    if _v_scale is None:
+                        _v_scale = 1
+                except Exception as err:
+                    str(err)
+                    _v_offset = 0
+                    _v_scale = 1
+                _v_band = _v_band.ReadAsArray(
+                    _v_column_start, _v_row_start, r_column, r_rows
+                )
+                # set variable name as cfg.variable_vector_name
+                vector = _v_band * _v_scale + _v_offset
+                # expression
+                if expression is not None:
+                    # expose numpy functions
+                    log = np.log
+                    _log = log
+                    log10 = np.log10
+                    _log10 = log10
+                    sqrt = np.sqrt
+                    _sqrt = sqrt
+                    cos = np.cos
+                    _cos = cos
+                    arccos = np.arccos
+                    _arccos = arccos
+                    sin = np.sin
+                    _sin = sin
+                    arcsin = np.arcsin
+                    _arcsin = arcsin
+                    tan = np.tan
+                    _tan = tan
+                    arctan = np.arctan
+                    _arctan = arctan
+                    exp = np.exp
+                    _exp = exp
+                    min = np.nanmin
+                    _min = min
+                    max = np.nanmax
+                    _max = max
+                    sum = np.nansum
+                    _sum = sum
+                    percentile = np.nanpercentile
+                    _percentile = percentile
+                    median = np.nanmedian
+                    _median = median
+                    mean = np.nanmean
+                    _mean = mean
+                    std = np.nanstd
+                    _std = std
+                    where = np.where
+                    _where = where
+                    nan = np.nan
+                    _nan = nan
+                    data_array = eval(expression)
+                else:
+                    data_array = np.where(
+                        vector > 0, constant_value, raster
+                    )
+                _r_band = _v_band = None
+                _r_d = _v_d = None
+                # write raster
+                raster_vector.write_raster(
+                    d['input_raster'], _r_column_start, _r_row_start,
+                    data_array / _r_scale - _r_offset
+                )
+                results.append(o_raster)
+                results.append(_r_column_start)
+                results.append(_r_row_start)
+            if progress_queue is not None:
+                progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
-            str(err)
-        return division
+            errors = str(err)
+    return [results, errors, str(process)]
 
-    def __add__(self, other):
-        a = self
-        nan_a_mask = np.isnan(a)
-        if nan_a_mask is not None:
-            a = np.array(a, subok=True, copy=True)
-            np.copyto(a, 0, where=nan_a_mask)
-        nan_other_mask = np.isnan(other)
-        if nan_other_mask is not None:
-            other = np.array(other, subok=True, copy=True)
-            np.copyto(other, 0, where=nan_other_mask)
-        return np.add(a, other)
 
-    def __radd__(self, other):
-        a = self
-        nan_a_mask = np.isnan(a)
-        if nan_a_mask is not None:
-            a = np.array(a, subok=True, copy=True)
-            np.copyto(a, 0, where=nan_a_mask)
-        nan_other_mask = np.isnan(other)
-        if nan_other_mask is not None:
-            other = np.array(other, subok=True, copy=True)
-            np.copyto(other, 0, where=nan_other_mask)
-        return np.add(other, a)
-
-    def __sub__(self, other):
-        a = self
-        nan_a_mask = np.isnan(a)
-        if nan_a_mask is not None:
-            a = np.array(a, subok=True, copy=True)
-            np.copyto(a, 0, where=nan_a_mask)
-        nan_other_mask = np.isnan(other)
-        if nan_other_mask is not None:
-            other = np.array(other, subok=True, copy=True)
-            np.copyto(other, 0, where=nan_other_mask)
-        return np.add(a, -other)
-
-    def __rsub__(self, other):
-        a = self
-        nan_a_mask = np.isnan(a)
-        if nan_a_mask is not None:
-            a = np.array(a, subok=True, copy=True)
-            np.copyto(a, 0, where=nan_a_mask)
-        nan_other_mask = np.isnan(other)
-        if nan_other_mask is not None:
-            other = np.array(other, subok=True, copy=True)
-            np.copyto(other, 0, where=nan_other_mask)
-        return np.add(other, -a)
+# pixel value
+def raster_point_values(
+        process, progress_queue, argument_list, logger, temp
+):
+    cfg.logger = logger
+    cfg.temp = temp
+    results = []
+    n = 0
+    errors = False
+    for d in argument_list:
+        n += 1
+        try:
+            pixel_value = raster_vector.get_pixel_value(
+                point_coordinates=d['point_coordinate'],
+                reference_raster_path=d['input_raster'],
+                point_crs=None, available_ram=None
+            )
+            if pixel_value == d['output_no_data']:
+                pixel_value = None
+            results.append(pixel_value)
+            if progress_queue is not None:
+                progress_queue.put([n, len(argument_list)], False)
+        except Exception as err:
+            errors = str(err)
+    return [results, errors, str(process)]

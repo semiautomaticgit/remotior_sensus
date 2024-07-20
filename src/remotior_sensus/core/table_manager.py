@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -1069,6 +1069,13 @@ def add_product_to_preprocess(
              earth_sun_distance_list]
         ), dtype=dtype_list
     )
+    cfg.logger.log.debug('rec_array.shape: %s' % rec_array.shape)
+    return rec_array
+
+
+# create generic table
+def create_generic_table(value_list, dtype_list):
+    rec_array = np.rec.fromrecords(value_list, dtype=dtype_list)
     cfg.logger.log.debug('rec_array.shape: %s' % rec_array.shape)
     return rec_array
 

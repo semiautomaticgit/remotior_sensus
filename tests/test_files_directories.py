@@ -2,8 +2,6 @@ from unittest import TestCase
 
 import remotior_sensus
 
-from remotior_sensus.util import files_directories
-
 
 class TestFilesDirectories(TestCase):
 
@@ -15,10 +13,10 @@ class TestFilesDirectories(TestCase):
         cfg.logger.log.debug('>>> test files directories')
         path = '/home/user/file.tif'
         root = '/home/user/'
-        relative_path = files_directories.absolute_to_relative_path(
+        relative_path = rs.files_directories.absolute_to_relative_path(
             path=path, root=root
             )
-        absolute_path = files_directories.relative_to_absolute_path(
+        absolute_path = rs.files_directories.relative_to_absolute_path(
             path=relative_path, root=root
         )
         self.assertEqual(absolute_path, path)

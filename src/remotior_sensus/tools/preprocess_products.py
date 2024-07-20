@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -50,9 +50,14 @@ def preprocess(
     surface temperature retrieval from LANDSAT TM 5. Remote Sensing of
     Environment, Elsevier, 90, 434-440)  approximating path radiance
     to path reflectance for level 1 data:
-    TOA reflectance = DN * reflectance_scale + reflectance_offset
-    path reflectance p = DNm - Dark Object reflectance = DNm * reflectance_scale + reflectance_offset - 0.01
-    land surface reflectance = TOA reflectance - p = (DN * reflectance_scale) - (DNm * reflectance_scale - 0.01)
+    
+        TOA reflectance = DN * reflectance_scale + reflectance_offset
+        
+        path reflectance p = DNm - Dark Object reflectance = DNm 
+        * reflectance_scale + reflectance_offset - 0.01
+        
+        land surface reflectance = TOA reflectance - p = 
+        (DN * reflectance_scale) - (DNm * reflectance_scale - 0.01)
 
     Landsat's data Collection 1 and 2
     Level 1T
@@ -61,29 +66,36 @@ def preprocess(
     (USGS, 2021. Landsat 8-9 Calibration and Validation (Cal/Val) Algorithm
     Description Document (ADD). Version 4.0. Department of the Interior
     U.S. Geological Survey, South Dakota)
-    TOA reflectance with correction for the sun angle =
-    DN * Reflectance multiplicative scaling factor + Reflectance additive
-    scaling factor / sin(Sun elevation)
+    
+        TOA reflectance with correction for the sun angle = DN * 
+        Reflectance multiplicative scaling factor + Reflectance additive 
+        scaling factor / sin(Sun elevation)
+    
     Level 2S
-    Surface reflectance = DN * Reflectance multiplicative scaling factor +
-    Reflectance additive scaling factor
+    
+        Surface reflectance = DN * Reflectance multiplicative scaling factor 
+        + Reflectance additive scaling factor
 
     Sentinel-2 data
     Level 1C
-    TOA reflectance = DN / QUANTIFICATION VALUE + OFFSET
+    
+        TOA reflectance = DN / QUANTIFICATION VALUE + OFFSET
+        
     Level 2S
-    Surface reflectance = DN / QUANTIFICATION VALUE + OFFSET
+    
+        Surface reflectance = DN / QUANTIFICATION VALUE + OFFSET
 
     Args:
         input_path: path containing the raster bands.
         output_path: string of output path directory.
-        metadata_file_path:
+        metadata_file_path: optional metadata file path.
         dos1_correction: if True, perform DOS1 correction.
-        add_bandset: if True, create a new bandset and add output bands to it; if False, add output bands to current bandset.
-        product:
-        nodata_value:
-        sensor:
-        acquisition_date:
+        add_bandset: if True, create a new bandset and add output bands to it; 
+            if False, add output bands to current bandset.
+        product: product name.
+        nodata_value: nodata value.
+        sensor: sensor name.
+        acquisition_date: acquisition date.
         output_prefix: optional string for output name prefix.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
@@ -122,7 +134,8 @@ def perform_preprocess(
         product_table: product table object.
         output_path: string of output path directory.
         dos1_correction: if True, perform DOS1 correction.
-        add_bandset: if True, create a new bandset and add output bands to it; if False, add output bands to current bandset.
+        add_bandset: if True, create a new bandset and add output bands to it; 
+            if False, add output bands to current bandset.
         output_prefix: optional string for output name prefix.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
@@ -133,12 +146,11 @@ def perform_preprocess(
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
             - paths = output list
     """  # noqa: E501
-    if progress_message:
-        cfg.logger.log.info('start')
-        cfg.progress.update(
-            process=__name__.split('.')[-1].replace('_', ' '),
-            message='starting', start=True
-        )
+    cfg.logger.log.info('start')
+    cfg.progress.update(
+        process=__name__.split('.')[-1].replace('_', ' '),
+        message='starting', start=progress_message
+    )
     cfg.logger.log.debug('product_table: %s' % str(product_table))
     if n_processes is None:
         n_processes = cfg.n_processes
@@ -488,7 +500,6 @@ def perform_preprocess(
     # HLS Landsat
     if len(landsat_hls_product) > 0:
         # raster is interpreted as variable in the calculation
-        # TODO implement copy of files instead of calculation
         string_0 = 'np.where(%s < 0, 0, %s)' % (
                 cfg.array_function_placeholder, cfg.array_function_placeholder
             )
@@ -547,6 +558,7 @@ def perform_preprocess(
         if cfg.multiprocess.output is False:
             cfg.logger.log.error('unable to calculate')
             cfg.messages.error('unable to calculate')
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
         min_dn = cfg.multiprocess.output
         for i in range(len(dos1_expressions)):
@@ -572,12 +584,14 @@ def perform_preprocess(
     if len(output_raster_path_list) == 0:
         cfg.logger.log.error('unable to process files')
         cfg.messages.error('unable to process files')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     else:
         for i in output_raster_path_list:
             if not files_directories.is_file(i):
                 cfg.logger.log.error('unable to process file: %s' % str(i))
                 cfg.messages.error('unable to process file: %s' % str(i))
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
     # add output to BandSet
     if add_bandset is not None and bandset_catalog is not None:
@@ -632,6 +646,7 @@ def perform_preprocess(
 
 
 # create product table
+# noinspection PyUnresolvedReferences
 def create_product_table(
         input_path, metadata_file_path=None, product=None, nodata_value=None,
         sensor=None, acquisition_date=None

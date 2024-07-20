@@ -1,15 +1,15 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -35,36 +35,36 @@ Typical usage example:
 It is possible to iterate BandSets.
 BandSet iteration with structure
 
-forbandsets[x1:x2]name_filter
+    forbandsets[x1:x2]name_filter
 
 or
 
-forbandsets[x1,x2,x3]name_filter
+    forbandsets[x1,x2,x3]name_filter
 
 or date iteration with structure
 
-forbandsets[YYYY-MM-DD:YYYY-MM-DD]name_filter
+    forbandsets[YYYY-MM-DD:YYYY-MM-DD]name_filter
 
 or
 
-forbandsets[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]name_filter
+    forbandsets[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]name_filter
 
-with name_filter optional filter of name of first band in the BandSet.
+with :py:attr:`name_filter`: optional filter of name of first band in the BandSet.
 
 It is possible to iterate bands in BandSet with structure
 
-forbandsinbandset[x1:x2]name_filter
+    forbandsinbandset[x1:x2]name_filter
 
 or
 
-forbandsinbandset[x1,x2,x3,...]name_filter
+    forbandsinbandset[x1,x2,x3,...]name_filter
 
 or date iteration with structure
 
-forbandsinbandset[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]name_filter
+    forbandsinbandset[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]name_filter
 
-with name_filter optional filter of name of first band in the BandSet
-"""
+with :py:attr:`name_filter`: optional filter of name of first band in the BandSet.
+"""  # noqa: E501
 
 import datetime
 import re
@@ -76,7 +76,9 @@ from remotior_sensus.core import configurations as cfg
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
-from remotior_sensus.core.processor_functions import band_calculation
+from remotior_sensus.core.processor_functions import (
+    band_calculation, percentile_calc
+)
 from remotior_sensus.util import (
     dates_times, files_directories, raster_vector, shared_tools
 )
@@ -103,7 +105,9 @@ def band_calc(
         any_nodata_mask: Optional[bool] = False,
         bandset_catalog: Optional[BandSetCatalog] = None,
         bandset_number: Optional[int] = None,
-        input_bands: Optional[BandSet] = None, point_coordinates=None
+        input_bands: Optional[BandSet] = None,
+        point_coordinates: Optional[list] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Performs band calculation.
 
@@ -122,21 +126,25 @@ def band_calc(
 
     Args:
         input_raster_list: list of input raster paths or list of lists 
-            [path, name] ignoring input_name_list.
+            [path, name] ignoring :py:attr:`input_name_list`.
         output_path: path of output file for single expression or 
             path to a directory for multiple expression outputs.
         expression_string: expression string used for calculation; multiple 
             expressions can be entered separated by new line.
         input_name_list: list of input raster names used in expressions 
-            (if name not defined in input_raster_list).
-        input_bands: input BandSet for direct expression; in expressions, bands can be refferred as "b1", "b2", etc.;
-            also, spectral band alias such as "#RED#" or "#NIR#"; also "b*" for using all the bands.
+            (if name not defined in :py:attr:`input_raster_list`).
+        input_bands: input BandSet for direct expression; in expressions, 
+            bands can be refferred as "b1", "b2", etc.;
+            also, spectral band alias such as "#RED#" or "#NIR#"; also "b*" 
+            for using all the bands.
         n_processes: number of threads for calculation.
         available_ram: number of megabytes of RAM available to processes.
-        align_raster: string path of raster used for aligning output pixels and projections.
+        align_raster: string path of raster used for aligning output pixels 
+            and projections.
         extent_raster: string path of raster used for extent reference.
         extent_list: list of coordinates for defining calculation extent 
-            [left, top, right, bottom] in the same coordinates as the reference raster.
+            [left, top, right, bottom] in the same coordinates as the reference 
+            raster.
         extent_intersection: if True the output extent is geometric 
             intersection of input raster extents, if False the output extent 
             is the maximum extent from union of input raster extents.
@@ -150,18 +158,21 @@ def band_calc(
         use_scale: float number used for scale for output.
         use_offset: float number used for offset for output.
         calc_datatype: data type used during calculation, which may differ 
-            from output_datatype, such as Float64, Float32, Int32, UInt32, Int16, UInt16, or Byte.
+            from :py:attr:`output_datatype`, such as Float64, Float32, Int32, 
+            UInt32, Int16, UInt16, or Byte.
         any_nodata_mask: if True then output nodata where any input is nodata, 
             if False then output nodata where all the inputs are nodata, 
             if None then do not apply nodata to output.
         bandset_catalog: BandSetCatalog object for using band sets in calculations.
         bandset_number: number of BandSet defined as current one.
         point_coordinates: list of a point coordinates [x, y] for pixel calculations on Bandset
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         :func:`~remotior_sensus.core.output_manager.OutputManager` object with
             - paths = [output raster paths]
-            
+
     Examples:
         Sum of two raster files
             >>> output_object = band_calc(
@@ -171,14 +182,14 @@ def band_calc(
             >>> # for instance display the output path
             >>> print(output_object.paths)
             ['output.tif']
-            
+
         Calculation setting output datatype
             >>> output_object = band_calc(
             ... input_raster_list=['file1.tif', 'file2.tif'], output_path='output.tif',
             ... expression_string='"file1 + file2"', input_name_list=['file1', 'file2'],
             ... output_datatype='Int32'
             ... )
-            
+
         Calculation setting the output extent as the maximum extent from union of input raster extents
             >>> output_object = band_calc(
             ... input_raster_list=['file1.tif', 'file2.tif'], output_path='output.tif',
@@ -199,14 +210,15 @@ def band_calc(
             output_nodata=output_nodata, output_datatype=output_datatype,
             use_scale=use_scale, use_offset=use_offset,
             calc_datatype=calc_datatype, any_nodata_mask=any_nodata_mask,
-            point_coordinates=point_coordinates
+            point_coordinates=point_coordinates,
+            progress_message=progress_message
         )
         return output
     else:
         cfg.logger.log.info('start')
         cfg.progress.update(
             process=__name__.split('.')[-1].replace('_', ' '),
-            message='starting', start=True
+            message='starting', start=progress_message
         )
         cfg.logger.log.debug(
             'input_bandset_list: %s; input_name_list: %s' % (
@@ -277,7 +289,8 @@ def _run_expression(
 
     Args:
         expression_list: list of input expression parameters.
-        output_path: output file path for single expression or directory path for multiple expressions.
+        output_path: output file path for single expression or directory path 
+            for multiple expressions.
         previous_output_list: list of previous output path and output name list.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
@@ -290,7 +303,8 @@ def _run_expression(
             False to ignore nodata pixels.
         use_value_as_nodata: use value as nodata.
         output_nodata: output nodata value.
-        output_datatype: string of data type for output raster such as Float32 or Int16.
+        output_datatype: string of data type for output raster such as 
+            Float32 or Int16.
         use_scale: optional integer number of scale for output.
         use_offset: optional integer number of offset for output.
         calc_datatype: calculation data type.
@@ -575,7 +589,7 @@ def _check_expression(
         raster_variables: raster output_name variable dictionary
         bandset_number: optional number of BandSet as current one
         output_dir_path: optional path of output directory to use as variables
-        
+
     Returns:
         Tuple of exp_list, all_out_name_list, output_message
         exp_list = [expr, expr_function, output_name, bs_number, out_path, virtual, input_rasters]
@@ -626,7 +640,7 @@ def _check_expression(
             # or forbandsets[x1,x2,x3]name_filter or date iteration with
             # structure forbandsets[YYYY-MM-DD:YYYY-MM-DD]name_filter or
             # forbandsets[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]name_filter
-            # with name_filter optional filter of name of first band in the 
+            # with name_filter optional filter of name of first band in the
             # BandSet
             if cfg.forbandsets in first_line:
                 cfg.logger.log.debug(cfg.forbandsets)
@@ -639,7 +653,7 @@ def _check_expression(
             # or forbandsinbandset[x1,x2,x3,...]name_filter or date iteration
             # with structure
             # forbandsinbandset[YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD, ...]filter
-            # with name_filter optional filter of name of first band in the 
+            # with name_filter optional filter of name of first band in the
             # BandSet
             elif cfg.forbandsinbandset in first_line:
                 cfg.logger.log.debug(cfg.forbandsinbandset)
@@ -684,14 +698,14 @@ def _check_expression(
                                         cfg.variable_band_quotes, ex_alias[0],
                                         cfg.variable_band_quotes), ex_alias[1]
                                 )
-                            # output variables after 
+                            # output variables after
                             # variable_output_separator at the end of the line
                             output_name = None
                             output_path = None
                             if len(line_split) > 0:
                                 # output variables:
-                                # output path after first 
-                                # variable_output_separator and output name 
+                                # output path after first
+                                # variable_output_separator and output name
                                 # after the second
                                 if len(line_split) == 3:
                                     output_name = \
@@ -699,8 +713,8 @@ def _check_expression(
                                             2].strip()
                                     output_path = \
                                         expressions[line_number].split(at)[1]
-                                    # output variable path in the same 
-                                    # directory as the first band of the 
+                                    # output variable path in the same
+                                    # directory as the first band of the
                                     # BandSet
                                     if (cfg.variable_output_name_bandset
                                             in output_path):
@@ -714,12 +728,12 @@ def _check_expression(
                                             )
                                         except Exception as err:
                                             cfg.logger.log.error(str(err))
-                                    # output variable path in temporary 
+                                    # output variable path in temporary
                                     # directory
                                     elif cfg.variable_output_temporary == \
                                             output_path.lower():
                                         output_path = cfg.temp.dir
-                                # output output_name after first 
+                                # output output_name after first
                                 # variable_output_separator
                                 elif len(line_split) == 2:
                                     output_path = None
@@ -806,7 +820,8 @@ def _check_expression(
                                                         '%s%s%s%s'
                                                         % (bsn, str(bandset_x),
                                                            bn,
-                                                           str(spectral_band[1]
+                                                           str(
+                                                               spectral_band[1]
                                                                )
                                                            )
                                                     )
@@ -825,7 +840,7 @@ def _check_expression(
                                     )
                                 # new line creation
                                 new_line = None
-                                # create band expressions in 
+                                # create band expressions in
                                 # forbandsinbandset iteration
                                 if (cfg.variable_band in calculation
                                         and forbandsinbandset):
@@ -1662,57 +1677,41 @@ def _replace_operator_names(
     return expression, output_message
 
 
+# noinspection PyShadowingBuiltins,PyUnusedLocal
 def _check_numpy_operators(expression, layer_number: int):
     """Checks expression using numpy operators.
 
     :param expression: expression string
     """
     # expose numpy functions
-    log = np.log
-    _log = log
-    log10 = np.log10
-    _log10 = log10
-    sqrt = np.sqrt
-    _sqrt = sqrt
-    cos = np.cos
-    _cos = cos
-    arccos = np.arccos
-    _arccos = arccos
-    sin = np.sin
-    _sin = sin
-    arcsin = np.arcsin
-    _arcsin = arcsin
-    tan = np.tan
-    _tan = tan
-    arctan = np.arctan
-    _arctan = arctan
-    exp = np.exp
-    _exp = exp
-    min = np.nanmin
-    _min = min
-    max = np.nanmax
-    _max = max
-    sum = np.nansum
-    _sum = sum
-    percentile = np.nanpercentile
-    _percentile = percentile
-    median = np.nanmedian
-    _median = median
-    mean = np.nanmean
-    _mean = mean
-    std = np.nanstd
-    _std = std
-    where = np.where
-    _where = where
+    log = np.ma.log
+    log10 = np.ma.log10
+    sqrt = np.ma.sqrt
+    cos = np.ma.cos
+    arccos = np.ma.arccos
+    sin = np.ma.sin
+    arcsin = np.ma.arcsin
+    tan = np.ma.tan
+    arctan = np.ma.arctan
+    exp = np.ma.exp
+    min = np.ma.min
+    max = np.ma.max
+    sum = np.ma.sum
+    percentile = percentile_calc
+    median = np.ma.median
+    mean = np.ma.mean
+    std = np.ma.std
+    where = np.ma.where
     nan = np.nan
-    _nan = nan
     # check expression
     expression = expression.replace(
         cfg.array_function_placeholder, '_array_function_placeholder'
     )
     cfg.logger.log.debug('layer_number: %s' % str(layer_number))
     size = layer_number * 5 * 5
-    _array_function_placeholder = np.arange(size).reshape((5, 5, layer_number))
+    _array_function_placeholder = np.ma.arange(size).reshape(
+        (5, 5, layer_number)
+    )
     eval(expression)
 
 
@@ -1733,7 +1732,8 @@ def _calculate_bandset(
         use_offset: Optional[float] = None,
         calc_datatype: Optional[str] = None,
         any_nodata_mask: Optional[bool] = False,
-        point_coordinates: Optional[list] = None
+        point_coordinates: Optional[list] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Performs band calculation using BandSet as input.
 
@@ -1769,6 +1769,8 @@ def _calculate_bandset(
             if False then output nodata where all the inputs are nodata, 
             if None then do not apply nodata to output.
         point_coordinates: list of a point coordinates [x, y]
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         :func:`~remotior_sensus.core.output_manager.OutputManager` object with
@@ -1778,7 +1780,7 @@ def _calculate_bandset(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     cfg.logger.log.debug('input_bands: %s' % (str(input_bands)))
     # create list of band names from band sets
@@ -1789,6 +1791,7 @@ def _calculate_bandset(
     )
     if output_message is not None:
         cfg.logger.log.error('expression error: %s' % output_message)
+        cfg.progress.update(failed=True)
         return OutputManager(check=False, extra={'message': output_message})
     output_list = []
     # process calculation

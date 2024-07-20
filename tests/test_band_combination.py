@@ -33,11 +33,23 @@ class TestBandCombination(TestCase):
             table, cfg.tab_delimiter
             )
         self.assertGreater(len(table_f), 0)
+        cfg.logger.log.debug('>>> test band combination no_raster_output')
+        temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+        combination = rs.band_combination(
+            input_bands=catalog.get_bandset(1), output_path=temp,
+            no_raster_output=True
+            )
+        raster, text = combination.paths
+        table = read_write_files.open_text_file(text)
+        table_f = read_write_files.format_csv_new_delimiter(
+            table, cfg.tab_delimiter
+            )
+        self.assertGreater(len(table_f), 0)
+        cfg.logger.log.debug('>>> test band combination input multiband')
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=1,
             root_directory=str(data_path)
             )
-        cfg.logger.log.debug('>>> test band combination input multiband')
         catalog.create_bandset(
             [str(data_path / 'S2_2020-01-05' / 'S2_2020-01-05.tif')],
             bandset_number=2

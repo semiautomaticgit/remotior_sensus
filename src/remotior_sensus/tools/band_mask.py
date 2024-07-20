@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -56,22 +56,24 @@ def band_mask(
         extent_list: Optional[list] = None,
         n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
-        bandset_catalog: Optional[BandSetCatalog] = None
-):
+        bandset_catalog: Optional[BandSetCatalog] = None,
+        progress_message: Optional[bool] = True
+) -> OutputManager:
     """Performs band mask.
 
     This tool allows for masking bands using a vector or raster mask.
 
     Args:
-        input_bands: reference_raster of type BandSet or list of paths or integer
-            number of BandSet.
+        input_bands: reference_raster of type BandSet or list of paths or 
+            integer number of BandSet.
         input_mask: string path of raster or vector used for masking.
         mask_values: list of values in the mask to be used for masking.
         output_path: string of output path directory or list of paths.
         overwrite: if True, output overwrites existing files.
         buffer: optional buffer size, in number of pixels, to expand the mask.
         nodata_value: value to be used as nodata in the output.
-        virtual_output: if True (and output_path is directory), save output as virtual raster of multiprocess parts.
+        virtual_output: if True (and output_path is directory), save output as 
+            virtual raster of multiprocess parts.
         prefix: optional string for output name prefix.
         extent_list: list of boundary coordinates left top right bottom.
         compress: if True, compress output.
@@ -79,6 +81,8 @@ def band_mask(
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -93,7 +97,7 @@ def band_mask(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     # prepare process files
     prepared = shared_tools.prepare_process_files(
@@ -138,6 +142,7 @@ def band_mask(
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error(str(err))
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
             input_mask = t_vector
         # convert vector to raster
@@ -184,7 +189,7 @@ def band_mask(
         expression = ''
         closing = ''
         for c in mask_values:
-            expression += 'np.where(%s[::, ::, 0] == %i, %i, ' % (
+            expression += 'np.ma.where(%s[::, ::, 0] == %i, %i, ' % (
                 cfg.array_function_placeholder, c, nodata_value)
             closing += ')'
         expression += '%s[::, ::, %i]%s' % (
@@ -195,7 +200,7 @@ def band_mask(
     # insert reference raster
     input_raster_list.insert(0, reference_raster)
     cfg.logger.log.debug('reference_raster: %s' % reference_raster)
-    cfg.logger.log.debug('input_raster_list: %s' % input_raster_list)
+    cfg.logger.log.debug('input_raster_list: %s' % str(input_raster_list))
     # prepare process files with reference
     prepared = shared_tools.prepare_process_files(
         input_bands=input_raster_list, output_path=output_path,

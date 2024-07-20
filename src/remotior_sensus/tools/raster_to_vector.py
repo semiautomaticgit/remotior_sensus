@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -40,7 +40,8 @@ def raster_to_vector(
         raster_path, output_path: Optional[str] = None,
         dissolve: Optional[bool] = None, field_name: Optional[str] = None,
         extent_list: Optional[list] = None,
-        n_processes: Optional[int] = None, available_ram: Optional[int] = None
+        n_processes: Optional[int] = None, available_ram: Optional[int] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Performs the conversion from raster to vector.
 
@@ -55,10 +56,13 @@ def raster_to_vector(
         output_path: string of output path.
         dissolve: if True, dissolve adjacent polygons having the same values;
             if False, polygons are not dissolved and the process is rapider.
-        field_name: name of the output vector field to store raster values (default = DN).
+        field_name: name of the output vector field to store raster values 
+            (default = DN).
         extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -71,7 +75,7 @@ def raster_to_vector(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     raster_path = files_directories.input_path(raster_path)
     if extent_list is not None:

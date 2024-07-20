@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -79,6 +79,30 @@ class Progress(object):
         finish_sound()
         send_smtp_message(subject=self.process, message='finished')
 
+    def failed(self):
+        """Ends progress and resets."""
+        self.remaining = ''
+        if self.message is not None:
+            message = 'failed'
+        else:
+            message = self.message
+        if self.callback is not None:
+            self.callback(
+                process=self.process, message=message, percentage=100,
+                elapsed_time=self.elapsed_time, step=100, previous_step=100,
+                failed=True
+            )
+        self.process = cfg.process
+        self.step = 0
+        self.message = cfg.message
+        self.percentage = False
+        self.start_time = None
+        self.elapsed_time = None
+        self.previous_step_time = None
+        self.previous_step = 0
+        failed_sound()
+        send_smtp_message(subject=self.process, message='failed')
+
     # get progress
     def get(self):
         return self.process, self.step, self.message, self.percentage
@@ -86,7 +110,7 @@ class Progress(object):
     # update progress
     def update(
             self, process=None, step=None, message=None, percentage=None,
-            start=None, end=None, ping=None, steps=None,
+            start=None, end=None, failed=None, ping=None, steps=None,
             minimum=None, maximum=None
     ):
         if process is not None:
@@ -116,6 +140,9 @@ class Progress(object):
         if end:
             self.finish()
             return
+        if failed:
+            self.failed()
+            return
         step_time = datetime.datetime.now()
         try:
             self.elapsed_time = (step_time - self.start_time).total_seconds()
@@ -144,7 +171,7 @@ class Progress(object):
     def print_progress_replace(
             process=None, step=None, message=None, percentage=None,
             elapsed_time=None, previous_step=None, start=None, end=None,
-            ping=0
+            failed=None, ping=0
     ):
         progress_symbols = ['○', '◔', '◑', '◕', '⬤', '⚙']
         colon = [' ', ':']
@@ -154,7 +181,7 @@ class Progress(object):
                     message, progress_symbols[-1]
                 ), end='\x1b[K'
             )
-        elif end:
+        elif end or failed:
             if elapsed_time is not None:
                 e_time = (' [elapsed {}min{}sec]'.format(
                     int(elapsed_time / 60), str(
@@ -227,7 +254,7 @@ class Progress(object):
     def print_progress(
             process=None, step=None, message=None, percentage=None,
             elapsed_time=None, previous_step=None, start=None, end=None,
-            ping=0
+            failed=None, ping=0
     ):
         progress_symbols = ['○', '◔', '◑', '◕', '⬤', '⚙']
         colon = [' ', ':']
@@ -238,7 +265,7 @@ class Progress(object):
                     message, progress_symbols[-2]
                 )
             )
-        elif end:
+        elif end or failed:
             pass
         else:
             if not percentage and percentage is not None:
@@ -287,7 +314,7 @@ class Progress(object):
                 )
             except Exception as err:
                 str(err)
-                print(str(process))
+                print('process %s' % str(process))
 
 
 # beep sound
@@ -308,6 +335,16 @@ def finish_sound():
             beeps(800, 0.2)
             beeps(600, 0.3)
             beeps(700, 0.5)
+        except Exception as err:
+            str(err)
+
+
+# finish sound
+def failed_sound():
+    if cfg.sound_notification is True:
+        try:
+            beeps(700, 0.2)
+            beeps(700, 0.1)
         except Exception as err:
             str(err)
 

@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestMosaicBands(TestCase):
@@ -21,7 +20,7 @@ class TestMosaicBands(TestCase):
         temp = cfg.temp.dir
         cfg.logger.log.debug('>>> test mosaic')
         mosaic = rs.mosaic(file_list, temp)
-        self.assertTrue(files_directories.is_file(mosaic.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
         file_list_1 = ['S2_2020-01-01/S2_B02.tif', 'S2_2020-01-01/S2_B03.tif',
                        'S2_2020-01-01/S2_B04.tif']
@@ -45,13 +44,13 @@ class TestMosaicBands(TestCase):
                         catalog.get_bandset(3)]
         cfg.logger.log.debug('>>> test mosaic BandSet')
         mosaic = rs.mosaic(bandset_list, temp)
-        self.assertTrue(files_directories.is_file(mosaic.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
         bandset_list = [1, 2]
         mosaic = rs.mosaic(
             bandset_list, output_path=temp, bandset_catalog=catalog
             )
-        self.assertTrue(files_directories.is_file(mosaic.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
 
         band_list_1 = [
@@ -74,7 +73,7 @@ class TestMosaicBands(TestCase):
             band_list, output_path=temp, bandset_catalog=catalog,
             prefix='prefix', output_name='output_name'
             )
-        self.assertTrue(files_directories.is_file(mosaic.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
 
         # clear temporary directory

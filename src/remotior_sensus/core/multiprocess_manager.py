@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -225,9 +225,12 @@ class Multiprocess(object):
                 cfg.gdal_path, p_mq, cfg.refresh_time, memory_unit,
                 cfg.log_level
             ]
+            # create nodata value list
+            if type(use_value_as_nodata) is not list:
+                use_value_as_nodata = [use_value_as_nodata]
             input_parameters = [[raster_path], calc_datatype, boundary_size,
                                 pieces[p], [scale], [offset],
-                                [use_value_as_nodata], None,
+                                use_value_as_nodata, None,
                                 input_nodata_as_value, multi_add_factors,
                                 dummy_bands, specific_output,
                                 same_geotransformation]
@@ -273,7 +276,13 @@ class Multiprocess(object):
                 self.start(self.n_processes, self.multiprocess_module)
                 return
         for r in results:
-            res = r[0].get()
+            try:
+                res = r[0].get()
+            except Exception as err:
+                cfg.logger.log.error('multiprocess: %s' % str(err))
+                cfg.messages.error('multiprocess: %s' % str(err))
+                gc.collect()
+                return
             if classification:
                 process_result[r[1]] = res[0]
                 process_output_files[r[1]] = res[1]
@@ -468,6 +477,7 @@ class Multiprocess(object):
                 f_var = function_variable[ranges[p - 1]: ranges[p]]
             else:
                 f_var = None
+            # run_separate_process
             c = self.pool.apply_async(
                 processor.function_initiator,
                 args=(process_parameters, input_parameters, output_parameters,
@@ -549,7 +559,7 @@ class Multiprocess(object):
                 # first iteration
                 multiprocess_dictionary[p] = process_result[p]
         # output files
-        if output_raster_path is not None:
+        if output_raster_path is not None and output_raster_path is not False:
             try:
                 len(process_output_files[p]) * len(process_output_files)
             except Exception as err:
@@ -1006,13 +1016,15 @@ class Multiprocess(object):
                 return False
         if n_processes is None:
             n_processes = cfg.n_processes
-        op = ' -r %s -co BIGTIFF=YES -multi -wo NUM_THREADS=%s' % (
+        op = ' -r %s -multi -wo NUM_THREADS=%s' % (
             resample_method, str(n_processes))
-        if compression is None:
-            if cfg.raster_compression:
+        if output_format == 'GTiff':
+            op += ' -co BIGTIFF=YES'
+            if compression is None:
+                if cfg.raster_compression:
+                    op += ' -co COMPRESS=%s' % compress_format
+            elif compression:
                 op += ' -co COMPRESS=%s' % compress_format
-        elif compression:
-            op += ' -co COMPRESS=%s' % compress_format
         if s_srs is not None:
             op += ' -s_srs %s' % s_srs
         if t_srs is not None:
@@ -1854,6 +1866,30 @@ class Multiprocess(object):
         cfg.logger.log.debug('end; dn_minimum_list: %s' % str(dn_minimum_list))
         self.output = dn_minimum_list
 
+    # find minimum maximum
+    def find_minimum_maximum(self):
+        cfg.logger.log.debug('start')
+        multiprocess_dictionary: Union[dict, bool] = self.output
+        if not multiprocess_dictionary:
+            cfg.logger.log.error('unable to process')
+            return
+        minimum_list = []
+        maximum_list = []
+        for x in sorted(multiprocess_dictionary):
+            try:
+                # each array is an input
+                for ar in multiprocess_dictionary[x]:
+                    minimum = np.amin(ar[1][0, ::])
+                    maximum = np.amax(ar[1][0, ::])
+                    minimum_list.append(minimum)
+                    maximum_list.append(maximum)
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+                return
+        cfg.logger.log.debug('end; minimum_list: %s; maximum_list: %s'
+                             % (str(minimum_list), str(minimum_list)))
+        self.output = [minimum_list, maximum_list]
+
     # roi arrays from output of multiprocess
     def multiprocess_roi_arrays(self):
         cfg.logger.log.debug('start')
@@ -1863,17 +1899,12 @@ class Multiprocess(object):
             return
         array_values = {}
         # calculate values
-        for x in sorted(multiprocess_dictionary):
-            for arr_x in multiprocess_dictionary[x]:
-                for s in arr_x[1]:
-                    try:
-                        if s in array_values:
-                            array_values[s].append(arr_x[1][s])
-                        else:
-                            array_values[s] = [arr_x[1][s]]
-                    except Exception as err:
-                        cfg.logger.log.error(str(err))
-                        return
+        for x in multiprocess_dictionary:
+            try:
+                array_values.update(x[0])
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+                return
         self.output = array_values
         cfg.logger.log.debug('end')
 
@@ -2164,7 +2195,8 @@ class Multiprocess(object):
             c = self.pool.apply_async(
                 function_list[p], args=(
                     p, progress_queue, argument_dict_list[p], cfg.logger,
-                    cfg.temp)
+                    cfg.temp
+                )
             )
             results.append([c, p])
         while True:
@@ -2291,7 +2323,7 @@ class Multiprocess(object):
             user=None, password=None, proxy_host=None, proxy_port=None,
             proxy_user=None, proxy_password=None, progress=None, message=None,
             min_progress=0, max_progress=100, retried=False, timeout=20,
-            copernicus=False, access_token=None
+            copernicus=False, access_token=None, ignore_errors=True
     ):
         cfg.logger.log.debug('start')
         cfg.logger.log.debug('url_list: %s' % str(url_list))
@@ -2353,12 +2385,14 @@ class Multiprocess(object):
                     cfg.logger.log.error(
                         'Error proc %s-%s' % (str(p), str(res[1]))
                     )
-                    return False
+                    if ignore_errors is not True:
+                        return False
             except Exception as err:
                 cfg.logger.log.error(
                     'Error proc %s-%s' % (str(p), str(err))
                 )
-                return False
+                if ignore_errors is not True:
+                    return False
         cfg.logger.log.debug('end; output: %s' % str(output_path_list))
         return output_path_list
 

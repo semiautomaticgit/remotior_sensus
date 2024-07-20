@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -47,6 +47,7 @@ except Exception as error:
     cfg.logger.log.error(str(error))
 try:
     from osgeo import gdal
+    gdal.DontUseExceptions()
 except Exception as error:
     cfg.logger.log.error(str(error))
 
@@ -129,7 +130,7 @@ class SpectralSignaturesCatalog(object):
             unit: unit
 
         Returns:
-            object OutputManger
+            object :func:`~remotior_sensus.core.output_manager.OutputManager`
 
         """
         cfg.logger.log.debug('start')
@@ -523,8 +524,8 @@ class SpectralSignaturesCatalog(object):
                             csv.standard_deviation[arg_min]
                         )
             if len(value_list) == 0:
-                cfg.logger.log.error('file: %s' % csv_path)
-                cfg.messages.error('error importing file %s' % csv_path)
+                cfg.logger.log.error('failed importing file: %s' % csv_path)
+                cfg.messages.error('failed importing file: %s' % csv_path)
                 return
             if len(wavelength_list) == 0:
                 wavelength_list = None
@@ -542,8 +543,8 @@ class SpectralSignaturesCatalog(object):
             )
             cfg.logger.log.debug('end; imported: %s' % csv_path)
         else:
-            cfg.logger.log.error('error file not found: %s' % csv_path)
-            cfg.messages.error('error file not found: %s' % csv_path)
+            cfg.logger.log.error('file not found: %s' % csv_path)
+            cfg.messages.error('file not found: %s' % csv_path)
 
     # import Spectral Signatures Catalog file
     def import_file(self, file_path):
@@ -849,8 +850,8 @@ class SpectralSignaturesCatalog(object):
             catalog_vector.Destroy()
             cfg.logger.log.debug('end; imported: %s' % file_path)
         else:
-            cfg.logger.log.error('error file not found: %s' % file_path)
-            cfg.messages.error('error file not found: %s' % file_path)
+            cfg.logger.log.error('file not found: %s' % file_path)
+            cfg.messages.error('file not found: %s' % file_path)
 
     # calculate spectral signatures
     def calculate_signature(self, roi_path, n_processes: int = None):
@@ -965,6 +966,7 @@ class SpectralSignaturesCatalog(object):
         root.set('version', str(cfg.version))
         root.set('macroclass_field', str(self.macroclass_field))
         root.set('class_field', str(self.class_field))
+        root.set('crs', str(self.crs))
         if self.signatures is not None:
             for signature_id in self.signatures:
                 if cfg.action is False:
@@ -979,6 +981,7 @@ class SpectralSignaturesCatalog(object):
         if signature_id_list is None:
             macroclass_list = []
         else:
+            # noinspection PyUnresolvedReferences
             macroclass_list = self.table[
                 np.in1d(self.table['signature_id'], signature_id_list)
             ].macroclass_id.tolist()
@@ -1003,8 +1006,7 @@ class SpectralSignaturesCatalog(object):
         ).toprettyxml()
         # create file inside temporary directory
         read_write_files.write_file(
-            pretty_xml,
-            '%s/macroclasses.xml' % temp_dir
+            pretty_xml, '%s/macroclasses.xml' % temp_dir
         )
         file_list.append('%s/macroclasses.xml' % temp_dir)
         # create file inside temporary directory
@@ -1012,6 +1014,7 @@ class SpectralSignaturesCatalog(object):
             if signature_id_list is None:
                 self.table.tofile(file='%s/table' % temp_dir)
             else:
+                # noinspection PyUnresolvedReferences
                 self.table[
                     np.in1d(self.table['signature_id'], signature_id_list)
                 ].tofile(file='%s/table' % temp_dir)
@@ -1062,6 +1065,7 @@ class SpectralSignaturesCatalog(object):
                 else:
                     self.macroclass_field = root.get('macroclass_field')
                     self.class_field = root.get('class_field')
+                    self.crs = root.get('crs')
                     self.macroclasses = {}
                     self.macroclasses_color_string = {}
                     for child in root:

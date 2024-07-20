@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -45,21 +45,26 @@ def band_stack(
         extent_list: Optional[list] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
         n_processes: Optional[int] = None,
-        virtual_output: Optional[bool] = None
-):
+        virtual_output: Optional[bool] = None,
+        progress_message: Optional[bool] = True
+) -> OutputManager:
     """Stack single bands.
 
     This tool allows for stacking single bands in a multiband raster.
 
     Args:
-        input_bands: list of paths of input rasters, or number of BandSet, or BandSet object.
+        input_bands: list of paths of input rasters, or number of BandSet, or 
+            BandSet object.
         output_path: string of output path.
         overwrite: if True, output overwrites existing files.
         extent_list: list of boundary coordinates left top right bottom.
-        bandset_catalog: BandSetCatalog object required if input_bands is a BandSet number.
+        bandset_catalog: BandSetCatalog object required if input_bands is a 
+            BandSet number.
         n_processes: number of parallel processes.
         virtual_output: if True (and output_path is directory), save output
             as virtual raster.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -73,7 +78,7 @@ def band_stack(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     # prepare process files
     prepared = shared_tools.prepare_process_files(

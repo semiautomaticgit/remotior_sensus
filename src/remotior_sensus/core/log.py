@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -37,7 +37,7 @@ class Log(object):
     def __init__(
             self, file_path: Optional[str] = None,
             directory: Optional[str] = None, level: Union[int, str] = None,
-            multiprocess=False, time=True
+            multiprocess=False, time=True, stream_handler=True
     ):
         """Manages logs.
 
@@ -49,6 +49,7 @@ class Log(object):
             level: level of logging (10 for DEBUG, 20 for INFO).
             multiprocess: if True, sets logging for parallel processes.
             time: if True, time is saved in log file.
+            stream_handler: if True, create stream handler.
 
         Examples:
             Create a log file and starts logging.
@@ -74,24 +75,31 @@ class Log(object):
             )
             fh.setFormatter(fhf)
             if logger.hasHandlers():
+                # try to close handlers
+                try:
+                    for fh in logger.handlers:
+                        fh.close()
+                except Exception as err:
+                    str(err)
                 logger.handlers.clear()
             logger.addHandler(fh)
             # create console handler
-            ch = logging.StreamHandler()
-            ch.setLevel(level)
-            if time:
-                chf = logging.Formatter(
-                    '%(levelname)s[%(asctime)s.%(msecs)03d] '
-                    '%(module)s.%(funcName)s[%(lineno)s] %(message)s',
-                    '%Y-%m-%dT%H:%M:%S'
-                )
-            else:
-                chf = logging.Formatter(
-                    '%(levelname)s %(module)s.%(funcName)s[%(lineno)s] '
-                    '%(message)s'
-                )
-            ch.setFormatter(chf)
-            logger.addHandler(ch)
+            if stream_handler:
+                ch = logging.StreamHandler()
+                ch.setLevel(level)
+                if time:
+                    chf = logging.Formatter(
+                        '%(levelname)s[%(asctime)s.%(msecs)03d] '
+                        '%(module)s.%(funcName)s[%(lineno)s] %(message)s',
+                        '%Y-%m-%dT%H:%M:%S'
+                    )
+                else:
+                    chf = logging.Formatter(
+                        '%(levelname)s %(module)s.%(funcName)s[%(lineno)s] '
+                        '%(message)s'
+                    )
+                ch.setFormatter(chf)
+                logger.addHandler(ch)
             logger.propagate = False
             self.log = logger
             self.file_path = file_path
@@ -117,6 +125,12 @@ class Log(object):
                 )
             ch.setFormatter(chf)
             if logger.hasHandlers():
+                # try to close handlers
+                try:
+                    for fh in logger.handlers:
+                        fh.close()
+                except Exception as err:
+                    str(err)
                 logger.handlers.clear()
             logger.addHandler(ch)
             logger.propagate = False

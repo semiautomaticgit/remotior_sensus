@@ -1,7 +1,6 @@
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestTemporary(TestCase):
@@ -12,7 +11,7 @@ class TestTemporary(TestCase):
             )
         cfg = rs.configurations
         cfg.logger.log.debug('>>> test temp directory')
-        self.assertTrue(files_directories.is_directory(cfg.temp.dir))
+        self.assertTrue(rs.files_directories.is_directory(cfg.temp.dir))
 
         # clear temporary directory
         rs.close()

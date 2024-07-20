@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -39,6 +39,7 @@ except Exception as error:
     cfg.logger.log.error(str(error))
 try:
     from osgeo import gdal
+    gdal.DontUseExceptions()
 except Exception as error:
     cfg.logger.log.error(str(error))
 
@@ -412,15 +413,17 @@ def read_array_block(
         str(err)
         offset = 0.0
         scale = 1.0
+    # force calc data type
+    if scale != 1:
+        calc_data_type = np.float32
     offset = np.asarray(offset).astype(calc_data_type)
     scale = np.asarray(scale).astype(calc_data_type)
     cfg.logger.log.debug(
         'pixel_start_column: %s; pixel_start_row: %s; block_columns: %s; '
-        'block_row: %s; scale: %s; offset: %s'
+        'block_row: %s; scale: %s; offset: %s; calc_data_type: %s'
         % (
             pixel_start_column, pixel_start_row, block_columns, block_row,
-            scale,
-            offset)
+            scale, offset, str(calc_data_type))
     )
     try:
         a = np.asarray(
@@ -487,14 +490,31 @@ def get_vector_values(vector_path, field_name):
     vector = ogr.Open(vector_path)
     i_layer = vector.GetLayer()
     i_layer_name = i_layer.GetName()
+    i_layer_definition = i_layer.GetLayerDefn()
+    # check if field is fid
+    field_index = i_layer_definition.GetFieldIndex(field_name)
     # get unique values
-    sql = 'SELECT DISTINCT "%s" FROM "%s"' % (field_name, i_layer_name)
-    unique_values = vector.ExecuteSQL(sql, dialect='SQLITE')
-    values = []
-    for i, f in enumerate(unique_values):
-        values.append(f.GetField(0))
-    # release sql results
-    vector.ReleaseResultSet(unique_values)
+    if field_index == -1:
+        # if fid
+        values = []
+        # copy not dissolved features
+        i_feature = i_layer.GetNextFeature()
+        while i_feature:
+            if cfg.action is True:
+                try:
+                    i_fid = int(i_feature.GetFID())
+                    values.append(i_fid)
+                except Exception as err:
+                    str(err)
+                i_feature = i_layer.GetNextFeature()
+    else:
+        sql = 'SELECT DISTINCT "%s" FROM "%s"' % (field_name, i_layer_name)
+        unique_values = vector.ExecuteSQL(sql, dialect='SQLITE')
+        values = []
+        for i, f in enumerate(unique_values):
+            values.append(f.GetField(0))
+        # release sql results
+        vector.ReleaseResultSet(unique_values)
     return values
 
 
@@ -1697,7 +1717,11 @@ def reproject_vector(
 def get_layer_extent(layer_path):
     _temp_vector = ogr.Open(layer_path)
     _temp_layer = _temp_vector.GetLayer()
-    min_x, max_x, min_y, max_y = _temp_layer.GetExtent()
+    feature_count = _temp_layer.GetFeatureCount()
+    if feature_count > 0:
+        min_x, max_x, min_y, max_y = _temp_layer.GetExtent()
+    else:
+        min_x = max_x = min_y = max_y = None
     _temp_layer = None
     _temp_vector = None
     return min_x, max_x, min_y, max_y
@@ -1720,7 +1744,7 @@ def vector_to_raster(
         if available_ram is None:
             available_ram = cfg.available_ram
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', available_ram)
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
     except Exception as err:
         str(err)
@@ -1860,6 +1884,221 @@ def vector_to_raster(
     if cfg.logger is not None:
         cfg.logger.log.debug('gdal rasterize: %s' % str(o_c))
     return output_path
+
+
+# extract reference vector to raster values
+def extract_vector_to_raster(
+        vector_path=None, reference_raster_path=None, all_touched=False,
+        output_format='MEM', burn_values=1, calc_data_type=None,
+        attribute_filter=None, nodata_value=0, background_value=0,
+        vector_layer=None, available_ram=None
+):
+    if cfg.logger is not None:
+        cfg.logger.log.debug('start')
+    # GDAL config
+    try:
+        if available_ram is None:
+            available_ram = cfg.available_ram
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+    except Exception as err:
+        str(err)
+    if vector_path is not None:
+        vector_crs = get_crs(vector_path)
+    elif vector_layer is not None:
+        vector_crs = get_layer_crs(vector_layer)
+    else:
+        if cfg.logger is not None:
+            cfg.logger.log.error('input vector')
+        return False
+    (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
+     scale_offset, data_type) = raster_info(reference_raster_path)
+    # get data type from input
+    if data_type == cfg.float64_dt:
+        gdal_format = gdal.GDT_Float64
+    elif data_type == cfg.float32_dt:
+        gdal_format = gdal.GDT_Float32
+    elif data_type == cfg.int32_dt:
+        gdal_format = gdal.GDT_Int32
+    elif data_type == cfg.uint32_dt:
+        gdal_format = gdal.GDT_UInt32
+    elif data_type == cfg.int16_dt:
+        gdal_format = gdal.GDT_Int16
+    elif data_type == cfg.uint16_dt:
+        gdal_format = gdal.GDT_UInt16
+    elif data_type == cfg.byte_dt:
+        gdal_format = gdal.GDT_Byte
+    else:
+        gdal_format = gdal.GDT_Float32
+    # optional calc data type, if None use input data type
+    if calc_data_type is None:
+        if data_type == cfg.float64_dt:
+            calc_data_type = np.float64
+        elif data_type == cfg.float32_dt:
+            calc_data_type = np.float32
+        elif data_type == cfg.int32_dt:
+            calc_data_type = np.int32
+        elif data_type == cfg.uint32_dt:
+            calc_data_type = np.uint32
+        elif data_type == cfg.int16_dt:
+            calc_data_type = np.int16
+        elif data_type == cfg.uint16_dt:
+            calc_data_type = np.uint16
+        elif data_type == cfg.byte_dt:
+            calc_data_type = np.uint8
+        else:
+            calc_data_type = np.float32
+    # check crs
+    same_crs = compare_crs(reference_crs, vector_crs)
+    if vector_path is not None:
+        if not same_crs:
+            input_vector = cfg.temp.temporary_file_path(
+                name_suffix=files_directories.file_extension(vector_path)
+            )
+            reproject_vector(
+                vector_path, input_vector, input_epsg=vector_crs,
+                output_epsg=reference_crs
+            )
+        else:
+            input_vector = vector_path
+        # open input _vector
+        _vector = ogr.Open(input_vector)
+        # get layer
+        try:
+            v_layer = _vector.GetLayer()
+        except Exception as err:
+            if cfg.logger is not None:
+                cfg.logger.log.error(err)
+            return False
+    elif vector_layer is not None:
+        if not same_crs:
+            if cfg.logger is not None:
+                cfg.logger.log.error('different crs')
+            return False
+        else:
+            v_layer = vector_layer
+    else:
+        v_layer = None
+    if attribute_filter is None:
+        if cfg.logger is not None:
+            cfg.logger.log.error('attribute filter')
+        return False
+    # attribute filter
+    v_layer.SetAttributeFilter(attribute_filter)
+    d = ogr.GetDriverByName('MEMORY')
+    d_s = d.CreateDataSource('memData')
+    layer_copy = d_s.CopyLayer(v_layer, d_s.GetName(), ['OVERWRITE=YES'])
+    v_min_x, v_max_x, v_min_y, v_max_y = layer_copy.GetExtent()
+    v_layer = layer_copy
+    _vector = None
+    # calculate minimum extent
+    x_size = gt[1]
+    y_size = abs(gt[5])
+    if (v_max_x - v_min_x) < x_size:
+        v_max_x = v_min_x + x_size
+    if abs(v_max_y - v_min_y) < abs(y_size):
+        v_max_y = v_min_y + abs(y_size)
+    orig_x = gt[0] + x_size * int(round((v_min_x - gt[0]) / x_size))
+    orig_y = gt[3] + y_size * int(round((v_max_y - gt[3]) / y_size))
+    grid_columns = abs(int(round((v_max_x - v_min_x) / x_size)))
+    grid_rows = abs(int(round((v_max_y - v_min_y) / y_size)))
+    pixel_start_column = abs(int(round((gt[0] - orig_x) / x_size)))
+    pixel_start_row = abs(int(round((orig_y - gt[3]) / y_size)))
+    driver = gdal.GetDriverByName(output_format)
+    # create raster _grid
+    _grid = driver.Create('', grid_columns, grid_rows, 1, gdal_format)
+    if _grid is None:
+        if cfg.logger is not None:
+            cfg.logger.log.error('error output raster')
+        return False
+    try:
+        _band = _grid.GetRasterBand(1)
+    except Exception as err:
+        if cfg.logger is not None:
+            cfg.logger.log.error(err)
+        return False
+    # set raster projection from reference
+    _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
+    _grid.SetProjection(reference_crs)
+    _band.SetNoDataValue(nodata_value)
+    _band.Fill(background_value)
+    _band = None
+    # convert reference layer to raster
+    if all_touched is False:
+        gdal.RasterizeLayer(
+            _grid, [1], v_layer, burn_values=[burn_values]
+        )
+    else:
+        gdal.RasterizeLayer(
+            _grid, [1], v_layer, burn_values=[burn_values],
+            options=['all_touched=TRUE']
+        )
+    _r_d = gdal.Open(reference_raster_path, gdal.GA_ReadOnly)
+    r_b = _r_d.GetRasterBand(1)
+    _a = read_array_block(
+        gdal_band=r_b, pixel_start_column=pixel_start_column,
+        pixel_start_row=pixel_start_row,
+        block_columns=grid_columns, block_row=grid_rows,
+        calc_data_type=calc_data_type
+    )
+    _band = _grid.GetRasterBand(1)
+    _b = read_array_block(
+        gdal_band=_band, pixel_start_column=0,
+        pixel_start_row=0, block_columns=grid_columns, block_row=grid_rows
+    )
+    _grid = _r_d = None
+    if cfg.logger is not None:
+        cfg.logger.log.debug('extract vector')
+    return _a.ravel(), _b.ravel(), _a.ravel() != nd
+
+
+# get pixel value
+def get_pixel_value(
+        point_coordinates, reference_raster_path=None, point_crs=None,
+        available_ram=None
+):
+    if cfg.logger is not None:
+        cfg.logger.log.debug('start')
+    # GDAL config
+    try:
+        if available_ram is None:
+            available_ram = cfg.available_ram
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+    except Exception as err:
+        str(err)
+    (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
+     scale_offset, data_type) = raster_info(reference_raster_path)
+    orig_x = gt[0]
+    orig_y = gt[3]
+    p_x_size = gt[1]
+    p_y_size = abs(gt[5])
+    # TODO implement reprojection
+    if point_crs is not None:
+        # check crs
+        same_crs = compare_crs(reference_crs, point_crs)
+        if not same_crs:
+            pass
+        else:
+            pass
+    # calculate pixel position
+    grid_column = abs(int(round((point_coordinates[0] - orig_x) / p_x_size)))
+    grid_row = abs(int(round((orig_y - point_coordinates[1]) / p_y_size)))
+    if grid_column < 0 or grid_row < 0:
+        return None
+    _r_d = gdal.Open(reference_raster_path, gdal.GA_ReadOnly)
+    _r_b = _r_d.GetRasterBand(1)
+    pixel_value = read_array_block(
+        _r_b, pixel_start_column=grid_column, pixel_start_row=grid_row,
+        block_columns=1, block_row=1, calc_data_type=None
+    )
+    pixel_value = float(pixel_value.item())
+    _r_b = _r_d = None
+    if cfg.logger is not None:
+        cfg.logger.log.debug('pixel value: %s' % str(pixel_value))
+    return pixel_value
 
 
 # merge all layers to new layer

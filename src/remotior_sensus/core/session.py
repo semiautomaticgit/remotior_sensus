@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -54,9 +54,11 @@ from remotior_sensus.core.temporary import Temporary
 from remotior_sensus.tools import (
     band_calc, band_classification, band_clip, band_combination, band_dilation,
     band_erosion, band_neighbor_pixels, band_pca, band_sieve, band_resample,
-    band_stack, band_mask, raster_split,
+    band_stack, band_mask, raster_split, band_clustering,
+    band_spectral_distance,
     cross_classification, download_products, mosaic, preprocess_products,
-    raster_reclassification, raster_report, raster_to_vector, vector_to_raster
+    raster_edit, raster_reclassification, raster_report, raster_to_vector,
+    raster_zonal_stats, vector_to_raster
 )
 from remotior_sensus.util import (
     dates_times, system_tools, files_directories, download_tools, shared_tools
@@ -87,6 +89,7 @@ class Session(object):
         band_calc: tool :func:`~remotior_sensus.tools.band_calc`
         band_classification: tool :func:`~remotior_sensus.tools.band_classification`
         classifier: tool :func:`~remotior_sensus.tools.band_classification.Classifier`
+        band_clustering: tool :func:`~remotior_sensus.tools.band_clustering`
         band_combination: tool :func:`~remotior_sensus.tools.band_combination`
         band_dilation: tool :func:`~remotior_sensus.tools.band_dilation`
         band_erosion: tool :func:`~remotior_sensus.tools.band_erosion`
@@ -95,15 +98,18 @@ class Session(object):
         band_pca: tool :func:`~remotior_sensus.tools.band_pca`
         band_resample: tool :func:`~remotior_sensus.tools.band_resample`
         band_sieve: tool :func:`~remotior_sensus.tools.band_sieve`
+        band_spectral_distance: tool :func:`~remotior_sensus.tools.band_spectral_distance`
         band_stack: tool :func:`~remotior_sensus.tools.band_stack`
         cross_classification: tool :func:`~remotior_sensus.tools.cross_classification`
         download_products: tool :func:`~remotior_sensus.tools.download_products`
         mosaic: tool :func:`~remotior_sensus.tools.mosaic`
         preprocess_products: tool :func:`~remotior_sensus.tools.preprocess_products`
+        raster_edit: tool :func:`~remotior_sensus.tools.raster_edit`
         raster_reclassification: tool :func:`~remotior_sensus.tools.preprocess_products`
         raster_report: tool :func:`~remotior_sensus.tools.raster_report`
         raster_split: tool :func:`~remotior_sensus.tools.raster_split`
         raster_to_vector: tool :func:`~remotior_sensus.tools.raster_to_vector`
+        raster_zonal_stats: tool :func:`~remotior_sensus.tools.raster_zonal_stats`
         vector_to_raster: tool :func:`~remotior_sensus.tools.vector_to_raster`
         jupyter: starts a Jupyter interface
 
@@ -137,7 +143,7 @@ class Session(object):
             multiprocess_module=None, messages_callback=None,
             smtp_server=None, smtp_user=None, smtp_password=None,
             smtp_recipients=None, smtp_notification=None,
-            sound_notification=None
+            sound_notification=None, log_stream_handler=True
     ):
         """Starts a session.
 
@@ -174,6 +180,7 @@ class Session(object):
             smtp_recipients: string of one or more email addresses separated by comma for SMTP notification.
             smtp_notification: optional, if True send SMTP notification.
             sound_notification: optional, if True play sound notification.
+            log_stream_handler: optional, if True create stream handler.
 
         Examples:
             Start a session
@@ -208,7 +215,7 @@ class Session(object):
         configurations.log_level = log_level
         configurations.logger = Log(
             directory=configurations.temp.dir, level=self.log_level,
-            time=log_time
+            time=log_time, stream_handler=log_stream_handler
         )
         # start progress
         if progress_callback is None:
@@ -245,6 +252,10 @@ class Session(object):
                 band_classification.band_classification
             )
             self.classifier = band_classification.Classifier
+            self.band_clustering = band_clustering.band_clustering
+            self.configurations.band_clustering = (
+                band_clustering.band_clustering
+            )
             self.band_combination = band_combination.band_combination
             self.configurations.band_combination = (
                 band_combination.band_combination
@@ -262,9 +273,16 @@ class Session(object):
             self.configurations.band_neighbor_pixels = (
                 band_neighbor_pixels.band_neighbor_pixels
             )
+            self.band_spectral_distance = (
+                band_spectral_distance.band_spectral_distance
+            )
+            self.configurations.band_spectral_distance = (
+                band_spectral_distance.band_spectral_distance
+            )
             self.band_pca = band_pca.band_pca
-            self.band_clip = band_clip.band_clip
             self.configurations.band_pca = band_pca.band_pca
+            self.band_clip = band_clip.band_clip
+            self.configurations.band_clip = band_clip.band_clip
             self.band_sieve = band_sieve.band_sieve
             self.configurations.band_sieve = band_sieve.band_sieve
             self.band_resample = band_resample.band_resample
@@ -274,14 +292,19 @@ class Session(object):
             self.cross_classification = (
                 cross_classification.cross_classification
             )
+            self.configurations.cross_classification = (
+                cross_classification.cross_classification
+            )
             self.download_products = download_products
             self.preprocess_products = preprocess_products
+            self.raster_edit = raster_edit.raster_edit
             self.raster_reclassification = (
                 raster_reclassification.raster_reclassification
             )
             self.raster_report = raster_report.raster_report
             self.raster_split = raster_split.raster_split
             self.raster_to_vector = raster_to_vector.raster_to_vector
+            self.raster_zonal_stats = raster_zonal_stats.raster_zonal_stats
             self.vector_to_raster = vector_to_raster.vector_to_raster
             self.dates_times = dates_times
             self.download_tools = download_tools
@@ -329,7 +352,7 @@ class Session(object):
             log_time: bool = None, progress_callback: FunctionType = None,
             smtp_server=None, smtp_user=None, smtp_password=None,
             smtp_recipients=None, sound_notification=None,
-            smtp_notification=None
+            smtp_notification=None, log_stream_handler=True
     ):
         """Sets or changes the parameters of an existing Session.
 
@@ -350,6 +373,7 @@ class Session(object):
             smtp_recipients: string of one or more email addresses separated by comma for SMTP notification.
             smtp_notification: optional, if True send SMTP notification.
             sound_notification: optional, if True play sound notification.
+            log_stream_handler: optional, if True create stream handler.
             
         Examples:
             Given that a session was previously started
@@ -385,23 +409,18 @@ class Session(object):
             if log_level is None:
                 self.configurations.logger = Log(
                     directory=self.configurations.temp.dir,
-                    level=self.log_level, time=log_time
+                    level=self.log_level, time=log_time,
+                    stream_handler=log_stream_handler
                 )
         if log_level:
             self.log_level = log_level
             self.configurations.log_level = log_level
-            if log_time is None:
-                log_time = True
-            # create logger
-            self.configurations.logger = Log(
-                directory=self.configurations.temp.dir, level=self.log_level,
-                time=log_time
-            )
+            self.configurations.logger.log.setLevel(log_level)
         elif log_time:
             # create logger
             self.configurations.logger = Log(
                 directory=self.configurations.temp.dir, level=self.log_level,
-                time=log_time
+                time=log_time, stream_handler=log_stream_handler
             )
         if sound_notification:
             self.configurations.sound_notification = sound_notification
@@ -476,6 +495,7 @@ def _check_dependencies(configuration_module: configurations) -> bool:
             os.add_dll_directory(configuration_module.gdal_path)
         try:
             from osgeo import gdal
+            gdal.DontUseExceptions()
         except Exception as err:
             configuration_module.logger.log.error(str(err))
             configuration_module.messages.error('dependency error: gdal')

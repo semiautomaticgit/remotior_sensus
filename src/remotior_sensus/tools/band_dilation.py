@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -46,10 +46,12 @@ def band_dilation(
         overwrite: Optional[bool] = False,
         circular_structure: Optional[bool] = None,
         prefix: Optional[str] = '', extent_list: Optional[list] = None,
+        multiple_resolution: Optional[bool] = True,
         n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
-        virtual_output: Optional[bool] = None
+        virtual_output: Optional[bool] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Perform dilation of band pixels.
 
@@ -65,12 +67,18 @@ def band_dilation(
         size: size of dilation in pixels.
         virtual_output: if True (and output_path is directory), save output
             as virtual raster of multiprocess parts
-        circular_structure: if True, use circular structure; if False, square structure.
+        circular_structure: if True, use circular structure; if False, square 
+            structure.
         prefix: optional string for output name prefix.
         extent_list: list of boundary coordinates left top right bottom.
+        multiple_resolution: if True, keep the original resolution of 
+            individual raster; 
+            if False, use the resolution of the first raster for all the bands.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
-        bandset_catalog: optional type BandSetCatalog for BandSet number
+        bandset_catalog: optional type BandSetCatalog for BandSet number.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -83,7 +91,7 @@ def band_dilation(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     # prepare process files
     prepared = shared_tools.prepare_process_files(
@@ -91,6 +99,7 @@ def band_dilation(
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog, prefix=prefix,
         multiple_output=True, multiple_input=True,
+        multiple_resolution=multiple_resolution,
         virtual_output=virtual_output
     )
     input_raster_list = prepared['input_raster_list']

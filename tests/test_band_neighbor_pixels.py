@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestNeighborPixels(TestCase):
@@ -22,7 +21,7 @@ class TestNeighborPixels(TestCase):
             input_bands=file_list, output_path=cfg.temp.dir, size=1,
             circular_structure=True, stat_name='Mean', prefix='neighbor_'
             )
-        self.assertTrue(files_directories.is_file(neighbor.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(neighbor.paths[0]))
         cfg.logger.log.debug('>>> test neighbor_pixels with coordinates')
         coordinate_list = [230250, 4674550, 230320, 4674440]
         neighbor = rs.band_neighbor_pixels(
@@ -30,7 +29,7 @@ class TestNeighborPixels(TestCase):
             circular_structure=True, stat_name='Mean', prefix='neighbor_',
             extent_list=coordinate_list
             )
-        self.assertTrue(files_directories.is_file(neighbor.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(neighbor.paths[0]))
 
         # clear temporary directory
         rs.close()

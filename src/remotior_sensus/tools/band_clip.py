@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -50,14 +50,17 @@ def band_clip(
         overwrite: Optional[bool] = False,
         prefix: Optional[str] = '',
         extent_list: Optional[list] = None,
+        multiple_resolution: Optional[bool] = True,
         n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
-        virtual_output: Optional[bool] = None
+        virtual_output: Optional[bool] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Perform band clip.
 
-    This tool allows for clipping the bands of a BandSet based on a vector or list of boundary coordinates left top right bottom.
+    This tool allows for clipping the bands of a BandSet based on a vector or 
+    list of boundary coordinates left top right bottom.
 
     Args:
         input_bands: input of type BandSet or list of paths or integer
@@ -70,9 +73,14 @@ def band_clip(
             as virtual raster of multiprocess parts
         prefix: optional string for output name prefix.
         extent_list: list of boundary coordinates left top right bottom.
+        multiple_resolution: if True, keep the original resolution of 
+            individual raster; 
+            if False, use the resolution of the first raster for all the bands.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -87,8 +95,8 @@ def band_clip(
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
-        process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        process=__name__.split('.')[-1].replace('_', ' '),
+        message='starting', start=progress_message
     )
     if n_processes is None:
         n_processes = cfg.n_processes
@@ -101,10 +109,12 @@ def band_clip(
         n_processes=n_processes, bandset_catalog=bandset_catalog,
         box_coordinate_list=extent_list,
         prefix=prefix, multiple_output=True, multiple_input=True,
-        virtual_output=virtual_output
+        multiple_resolution=multiple_resolution, virtual_output=virtual_output
     )
     input_raster_list = prepared['input_raster_list']
     if len(input_raster_list) == 0:
+        cfg.logger.log.error('empty input raster list')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     output_list = prepared['output_list']
     # build function argument list of dictionaries

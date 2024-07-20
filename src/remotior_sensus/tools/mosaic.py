@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -51,17 +51,19 @@ def mosaic(
         virtual_output: Optional[bool] = False,
         output_name: Optional[str] = None,
         reference_raster_crs: Optional[str] = None,
-        bandset_catalog: Optional[BandSetCatalog] = None
+        bandset_catalog: Optional[BandSetCatalog] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Mosaic bands.
 
     This tool performs the mosaic of corresponding bands from multiple
     BandSets.
-    A new raster is created for each band, named as output_name or first band name,
-    and followed by band number.
+    A new raster is created for each band, named as output_name or first band 
+    name, and followed by band number.
 
     Args:
-        input_bands: list of paths of input rasters, or number of BandSet, or BandSet object.
+        input_bands: list of paths of input rasters, or number of BandSet, or 
+            BandSet object.
         output_path: string of output path directory.
         overwrite: if True, output overwrites existing files.
         prefix: optional string for output name prefix.
@@ -71,8 +73,11 @@ def mosaic(
         virtual_output: if True (and output_path is directory), save output
             as virtual raster of multiprocess parts.
         output_name: string used as general name for all output bands.
-        reference_raster_crs: path to a raster to be used as crs reference; if None, the first band is used as reference.
+        reference_raster_crs: path to a raster to be used as crs reference; if 
+            None, the first band is used as reference.
         bandset_catalog: optional type BandSetCatalog for BandSet number.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -98,7 +103,7 @@ def mosaic(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     cfg.logger.log.debug('input_bands: %s' % str(input_bands))
     if n_processes is None:
@@ -117,6 +122,8 @@ def mosaic(
             band_list_list.append(band_list)
         else:
             cfg.logger.log.error('band list')
+            cfg.messages.error('band list')
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
     else:
         combination_band_list = []
@@ -136,7 +143,6 @@ def mosaic(
             else:
                 raster_list.append(i)
         if len(raster_list) > 0:
-            print('raster_list', raster_list)
             if type(raster_list[0]) is list:
                 band_list_list = raster_list
             else:
@@ -153,6 +159,7 @@ def mosaic(
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error(str(err))
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
     # mosaic every list of bands
     n = 0
@@ -206,6 +213,7 @@ def mosaic(
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error(str(err))
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
         else:
             vrt_file = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
@@ -224,6 +232,7 @@ def mosaic(
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error(str(err))
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
         n = n + 1
     cfg.progress.update(end=True)

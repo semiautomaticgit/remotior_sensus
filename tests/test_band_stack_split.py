@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestBandStackSplit(TestCase):
@@ -27,10 +26,10 @@ class TestBandStackSplit(TestCase):
         stack = rs.band_stack(input_bands=1, output_path=temp,
                               bandset_catalog=catalog)
         cfg.logger.log.debug('>>> test raster split')
-        self.assertTrue(files_directories.is_file(stack.path))
+        self.assertTrue(rs.files_directories.is_file(stack.path))
         split = rs.raster_split(raster_path=stack.path,
                                 output_path=cfg.temp.dir)
-        self.assertTrue(files_directories.is_file(split.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(split.paths[0]))
 
         # clear temporary directory
         rs.close()

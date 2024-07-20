@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -47,14 +47,29 @@ def prepare_input_list(
     cfg.logger.log.debug('band_list: %s' % str(band_list))
     information_list = []
     nodata_list = []
-    if len(band_list) == 0:
+    if band_list is None or len(band_list) == 0:
         cfg.logger.log.error('empty list')
-        return {'input_list': []}
-    if reference_raster_crs is None:
-        reference_raster_crs = raster_vector.get_crs(band_list[0])
-    # get crs from file
-    elif files_directories.is_file(reference_raster_crs):
-        reference_raster_crs = raster_vector.get_crs(reference_raster_crs)
+        return {
+            'input_list': [], 'information_list': [], 'nodata_list': [],
+            'name_list': [], 'warped': None, 'same_geotransformation': None,
+            'box_coordinates_list': None
+        }
+    try:
+        if reference_raster_crs is None:
+            reference_raster_crs = raster_vector.get_crs(band_list[0])
+        # get crs from file
+        elif files_directories.is_file(reference_raster_crs):
+            reference_raster_crs = raster_vector.get_crs(reference_raster_crs)
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        cfg.logger.log.error(
+            'unable to get raster: %s' % band_list[0]
+        )
+        return {
+            'input_list': [], 'information_list': [], 'nodata_list': [],
+            'name_list': [], 'warped': None, 'same_geotransformation': None,
+            'box_coordinates_list': None
+        }
     input_list = []
     name_list = []
     gt_list = []
@@ -70,7 +85,11 @@ def prepare_input_list(
             cfg.logger.log.error(
                 'unable to get raster info: %s' % band_list[i]
             )
-            return {'input_list': []}
+            return {
+                'input_list': [], 'information_list': [], 'nodata_list': [],
+                'name_list': [], 'warped': None,
+                'same_geotransformation': None, 'box_coordinates_list': None
+            }
         crs = raster_vector.get_crs(band_list[i])
         # check crs
         same_crs = raster_vector.compare_crs(crs, reference_raster_crs)
@@ -121,6 +140,7 @@ def prepare_input_list(
     check_xy_count_list = all(
         xy_item == xy_count_list[0] for xy_item in xy_count_list
     )
+    # check if same geotransformation, x and y pixel count
     if (check_gt_list is True and check_xy_count_list is True
             and warped is False):
         same_geotransformation = True
@@ -138,19 +158,17 @@ def prepare_input_list(
 
 # prepare process files
 def prepare_process_files(
-        input_bands: Union[list, int, BandSet], output_path: str,
+        input_bands: Union[list, int, BandSet],
+        output_path: Optional[str] = None,
         n_processes: Optional[int] = None, overwrite=False,
         bandset_catalog: Optional[BandSetCatalog] = None,
         temporary_virtual_raster=True, prefix=None, multiple_output=False,
-        multiple_input=False,
+        multiple_input=False, multiple_resolution=False,
         virtual_output=None, box_coordinate_list: Optional[list] = None
 ):
     cfg.logger.log.debug('input_bands: %s' % str(input_bands))
     if n_processes is None:
         n_processes = cfg.n_processes
-    # TODO check overwrite file
-    if overwrite:
-        pass
     # get input list
     band_list = BandSetCatalog.get_band_list(input_bands, bandset_catalog)
     raster_bands = None
@@ -171,7 +189,11 @@ def prepare_process_files(
     )
     input_raster_list = prepared_input['input_list']
     if len(input_raster_list) == 0:
-        return {'input_raster_list': []}
+        return {
+            'input_raster_list': [], 'output_path': None,
+            'virtual_output': None,
+            'n_processes': None, 'same_geotransformation': None
+        }
     raster_info = prepared_input['information_list']
     nodata_list = prepared_input['nodata_list']
     name_list = prepared_input['name_list']
@@ -220,9 +242,12 @@ def prepare_process_files(
                 extension=cfg.vrt_suffix
             )
         # check output path
-        out_path, virtual_output = files_directories.raster_output_path(
-            output_path, virtual_output
-        )
+        try:
+            out_path, virtual_output = files_directories.raster_output_path(
+                output_path, virtual_output, overwrite=overwrite
+            )
+        except Exception as err:
+            cfg.logger.log.error(str(err))
     # create virtual raster of input
     if temporary_virtual_raster or box_coordinate_list is not None:
         # if rasters with same dimension don't create virtual raster but list
@@ -234,13 +259,22 @@ def prepare_process_files(
                 if box_coordinate_list is None:
                     box_coordinate_list = box_coordinates_list[0]
                 for r in input_raster_list:
-                    temporary_virtual_raster = (
-                        raster_vector.create_temporary_virtual_raster(
-                            input_raster_list=[r],
-                            box_coordinate_list=box_coordinate_list,
-                            grid_reference=input_raster_list[0]
+                    if multiple_resolution is True:
+                        temporary_virtual_raster = (
+                            raster_vector.create_temporary_virtual_raster(
+                                input_raster_list=[r],
+                                box_coordinate_list=box_coordinate_list
+                            )
                         )
-                    )
+                    # use first raster resolution
+                    else:
+                        temporary_virtual_raster = (
+                            raster_vector.create_temporary_virtual_raster(
+                                input_raster_list=[r],
+                                box_coordinate_list=box_coordinate_list,
+                                grid_reference=input_raster_list[0]
+                            )
+                        )
                     temp_list.append(temporary_virtual_raster)
                 input_raster_list = temp_list
                 temporary_virtual_raster = True
@@ -457,6 +491,7 @@ def region_growing_polygon(
         if np.count_nonzero(region) > 0:
             try:
                 region_label, num_features = label(region)
+                # noinspection PyUnresolvedReferences
                 region_seed_value = region_label[seed_y, seed_x]
                 new_region = (region_label == region_seed_value).astype(int)
             except Exception as err:
@@ -645,3 +680,17 @@ def get_colored_raster(input_raster, value_color_dictionary):
         path=input_raster, value_color_dictionary=value_color_dictionary
     )
     return data
+
+
+# calculate random coordinates in range
+def random_points_grid(sample_number, x_min, x_max, y_min, y_max):
+    x_coordinates = np.random.uniform(x_min, x_max, sample_number)
+    y_coordinates = np.random.uniform(y_min, y_max, sample_number)
+    coordinates = list(zip(x_coordinates, y_coordinates))
+    return coordinates
+
+
+# check nan in array
+def check_nan(array):
+    check = np.isnan(np.sum(array))
+    return check

@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -42,7 +42,7 @@ such as order number or center wavelength.
 BandSets can be used as input for operations on multiple bands
 such as Principal Components Analysis, classification, mosaic,
 or band calculation.
-Multimple BandSets can be defined and identified by their reference number
+Multiple BandSets can be defined and identified by their reference number
 in the BandSet Catalog.
 
 Most BandSet functions can be accessed through the BandSet Catalog.
@@ -499,8 +499,8 @@ class BandSet(object):
             # save to file
             pretty_xml = minidom.parseString(
                 cElementTree.tostring(root)
-            ).toprettyxml()
-            read_write_files.write_file(pretty_xml, output_path)
+            ).toprettyxml(encoding='utf-8')
+            read_write_files.write_file(pretty_xml, output_path, mode='wb')
             return output_path
 
     def print(self):
@@ -747,13 +747,15 @@ class BandSet(object):
         cls.catalog = catalog
         satellite = None
         multiband = None
-        # directory
         if paths is None:
             cfg.logger.log.info('end')
             return cls(bandset_uid=bandset_uid, name=name, catalog=catalog)
-        elif len(paths) <= 2 and files_directories.is_directory(
-                files_directories.relative_to_absolute_path(
-                    paths[0], root_directory
+        # directory list
+        elif type(paths) is list and len(paths) <= 2 and (
+                files_directories.is_directory(
+                    files_directories.relative_to_absolute_path(
+                        paths[0], root_directory
+                    )
                 )
         ):
             filters = None
@@ -772,6 +774,7 @@ class BandSet(object):
                     dates = dates_times.date_string_from_directory_name(
                         paths[0]
                     )
+        # directory string
         elif type(paths) is str and files_directories.is_directory(
                 files_directories.relative_to_absolute_path(
                     paths, root_directory
@@ -786,6 +789,18 @@ class BandSet(object):
                     dates = dates_times.date_string_from_directory_name(
                         paths[0]
                     )
+        # single file string
+        elif type(paths) is str and not files_directories.is_directory(
+                files_directories.relative_to_absolute_path(
+                    paths, root_directory
+                )
+        ):
+            b_count = raster_vector.get_number_bands(paths)
+            if type(band_names) is str:
+                band_names = [band_names]
+            if b_count > 1:
+                multiband = b_count
+            file_list = [paths]
         # one file
         elif len(paths) == 1:
             b_count = raster_vector.get_number_bands(paths[0])
@@ -2584,12 +2599,12 @@ class BandSetCatalog(object):
         cfg.logger.log.debug('export bandset as xml')
         bandset = self.get_bandset(bandset_number)
         xml = bandset.export_as_xml()
-        pretty_xml = minidom.parseString(xml).toprettyxml()
+        pretty_xml = minidom.parseString(xml).toprettyxml(encoding='utf-8')
         if output_path is None:
-            return pretty_xml
+            return pretty_xml.decode('utf-8')
         else:
             # save to file
-            read_write_files.write_file(pretty_xml, output_path)
+            read_write_files.write_file(pretty_xml, output_path, mode='wb')
             return output_path
 
     def import_bandset_from_xml(self, bandset_number, xml_path):

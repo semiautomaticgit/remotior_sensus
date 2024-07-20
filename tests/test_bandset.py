@@ -3,7 +3,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestBandSet(TestCase):
@@ -18,7 +17,7 @@ class TestBandSet(TestCase):
         cfg.logger.log.debug('>>> test bandset')
         data_path = Path(__file__).parent / 'data'
         data_directory = str(data_path / 'S2_2020-01-01')
-        file_list = files_directories.files_in_directory(
+        file_list = rs.files_directories.files_in_directory(
             data_directory, sort_files=True, path_filter='S',
             suffix_filter=cfg.tif_suffix
         )
@@ -28,7 +27,7 @@ class TestBandSet(TestCase):
         multiplicative_factors = []
         additive_factors = []
         for f in range(len(file_list)):
-            raster_name = files_directories.file_name(file_list[f], False)
+            raster_name = rs.files_directories.file_name(file_list[f], False)
             band_names.append(raster_name)
             wavelengths.append(f + 1)
             multiplicative_factors.append(f + 1)
@@ -113,7 +112,7 @@ class TestBandSet(TestCase):
         # BandSet names
         bs_names = bs('name')
         self.assertEqual(
-            bs_names[0], files_directories.file_name(file_list[0], False)
+            bs_names[0], rs.files_directories.file_name(file_list[0], False)
         )
         # BandSet relative paths
         bs_paths = bandset.get_paths()
@@ -134,8 +133,8 @@ class TestBandSet(TestCase):
         # band absolute path
         b_apath = bandset.get_absolute_path(band_number=1)
         self.assertEqual(
-            files_directories.file_name(b_apath),
-            files_directories.file_name(file_list[0], False)
+            rs.files_directories.file_name(b_apath),
+            rs.files_directories.file_name(file_list[0], False)
         )
         # band x size
         b_x_size = band(1).x_size
@@ -184,6 +183,13 @@ class TestBandSet(TestCase):
             wavelengths=[cfg.satSentinel2], catalog=catalog_2
         )
         self.assertGreater(len(bandset.bands), 0)
+        # single band bandset
+        bandset = rs.bandset.create(
+            str(data_path / 'S2_2020-01-01/S2_B02.tif'),
+            band_names=band_names[0], wavelengths=wavelengths,
+            dates=date, catalog=catalog_2
+        )
+        self.assertEqual(len(bandset.bands), 1)
 
         """ commented because time consuming
         cfg.logger.log.debug('>>> test tools')
@@ -193,27 +199,27 @@ class TestBandSet(TestCase):
         )
         calc = bandset.calc(expression)
         self.assertTrue(calc.check)
-        self.assertTrue(files_directories.is_file(calc.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(calc.paths[0]))
         combination = bandset.combination()
         self.assertTrue(combination.check)
-        self.assertTrue(files_directories.is_file(combination.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(combination.paths[0]))
         dilation = bandset.dilation(value_list=[1000], size=2)
         self.assertTrue(dilation.check)
-        self.assertTrue(files_directories.is_file(dilation.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(dilation.paths[0]))
         erosion = bandset.erosion(value_list=[1000], size=1)
         self.assertTrue(erosion.check)
-        self.assertTrue(files_directories.is_file(erosion.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(erosion.paths[0]))
         pca = bandset.pca()
         self.assertTrue(pca.check)
-        self.assertTrue(files_directories.is_file(pca.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(pca.paths[0]))
         sieve = bandset.sieve(size=3, connected=True)
         self.assertTrue(sieve.check)
-        self.assertTrue(files_directories.is_file(sieve.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(sieve.paths[0]))
         neighbor_pixels = bandset.neighbor_pixels(
             size=10, circular_structure=True, stat_name='Sum'
         )
         self.assertTrue(neighbor_pixels.check)
-        self.assertTrue(files_directories.is_file(neighbor_pixels.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(neighbor_pixels.paths[0]))
         """
 
         # clear temporary directory

@@ -1,6 +1,27 @@
 Changelog
 ===============
 
+v0.4.0
+________
+
+* Added tool "Band clustering" for unsupervised K-means classification of
+  bandset
+* Added tool "Raster edit" for direct editing of pixel values based on vector
+* Added tool "Raster zonal stats" for calculating statistics of a raster
+  intersecting a vector.
+* Improved the NoData handling for multiprocess calculation
+* In "Band clip", "Band dilation", "Band erosion", "Band sieve",
+  "Band neighbor", "Band resample" added the option multiple_resolution to
+  keep original resolution of individual rasters, or use the resolution of the
+  first raster for all the bands
+* In "Cross classification" fixed area based accuracy and added kappa hat
+  metric
+* In "Band combination" added option no_raster_output to avoid the creation of
+  output raster, producing only the table of combinations
+* In "Band calc" replaced nanpercentile with optimized calculation function
+* Improved extraction of ROIs in "Band classification"
+* Minor bug fixing and removed Requests dependency
+
 v0.3.5
 ________
 

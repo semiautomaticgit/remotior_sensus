@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -32,7 +32,10 @@ Typical usage example:
     >>> import remotior_sensus
     >>> rs = remotior_sensus.Session()
     >>> # start the process
-    >>> cross = rs.cross_classification(classification_path='file1.tif',reference_path='file2.tif',output_path='output.tif')
+    >>> cross = rs.cross_classification(
+    ... classification_path='file1.tif', reference_path='file2.tif',
+    ... output_path='output.tif'
+    ... )
 """  # noqa: E501
 
 import io
@@ -46,6 +49,9 @@ from remotior_sensus.tools.band_combination import band_combination
 from remotior_sensus.util import (
     files_directories, raster_vector, read_write_files, shared_tools
 )
+from remotior_sensus.core.processor_functions import (
+    raster_unique_values_with_sum
+)
 
 
 def cross_classification(
@@ -56,7 +62,8 @@ def cross_classification(
         regression_raster: Optional[bool] = False,
         error_matrix: Optional[bool] = False,
         extent_list: Optional[list] = None,
-        n_processes: Optional[int] = None, available_ram: Optional[int] = None
+        n_processes: Optional[int] = None, available_ram: Optional[int] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Calculation of cross classification.
 
@@ -70,8 +77,10 @@ def cross_classification(
 
     Args:
         classification_path: path of raster used as classification input.
-        reference_path: path of the vector or raster file used as reference input.
-        vector_field: in case of vector reference, the name of the field used as reference value.
+        reference_path: path of the vector or raster file used as reference 
+            input.
+        vector_field: in case of vector reference, the name of the field used 
+            as reference value.
         output_path: path of the output raster.
         overwrite: if True, output overwrites existing files.
         nodata_value: value to be considered as nodata.
@@ -81,6 +90,8 @@ def cross_classification(
         extent_list: list of boundary coordinates left top right bottom.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -88,15 +99,21 @@ def cross_classification(
 
     Examples:
         Perform the cross classification between two files
-            >>> cross = cross_classification(classification_path='file1.tif',reference_path='file2.tif',output_path='output.tif')
+            >>> cross = cross_classification(
+            ... classification_path='file1.tif', reference_path='file2.tif',
+            ... output_path='output.tif'
+            ... )
 
         Perform the cross classification between two files and calculate the error matrix
-            >>> cross = cross_classification(classification_path='file1.tif',reference_path='file2.tif',output_path='output.tif',error_matrix=True)
+            >>> cross = cross_classification(
+            ... classification_path='file1.tif', reference_path='file2.tif',
+            ... output_path='output.tif', error_matrix=True
+            )
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     # check output path
     out_path, vrt_r = files_directories.raster_output_path(
@@ -114,7 +131,8 @@ def cross_classification(
                 output_path=output_path,
                 overwrite=overwrite, n_processes=n_processes,
                 box_coordinate_list=extent_list,
-                multiple_output=True, multiple_input=True
+                multiple_output=True, multiple_input=True,
+                multiple_resolution=False
             )
             input_raster_list = prepared['input_raster_list']
             n_processes = prepared['n_processes']
@@ -125,7 +143,8 @@ def cross_classification(
                 input_bands=[classification_path], output_path=output_path,
                 overwrite=overwrite, n_processes=n_processes,
                 box_coordinate_list=extent_list,
-                multiple_output=True, multiple_input=True
+                multiple_output=True, multiple_input=True,
+                multiple_resolution=False
             )
             input_raster_list = prepared['input_raster_list']
             n_processes = prepared['n_processes']
@@ -148,6 +167,7 @@ def cross_classification(
         if vector_field is None:
             cfg.logger.log.error('vector field missing')
             cfg.messages.error('vector field missing')
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
         if not same_crs:
             # project vector to raster crs
@@ -161,6 +181,7 @@ def cross_classification(
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error(str(err))
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
             reference_path = t_vector
         # convert vector to raster
@@ -195,12 +216,32 @@ def cross_classification(
         field2_name='new_val', nodata_value=cfg.nodata_val_Int64,
         join_type='left', progress_message=False
     )
+    if error_matrix is True:
+        # dummy bands for memory calculation
+        dummy_bands = 2
+        cfg.multiprocess.run(
+            raster_path=classification_path,
+            function=raster_unique_values_with_sum,
+            keep_output_argument=True, n_processes=n_processes,
+            available_ram=available_ram, dummy_bands=dummy_bands,
+            progress_message='unique values', min_progress=1, max_progress=99
+        )
+        # calculate sum of values
+        cfg.multiprocess.multiprocess_sum_array()
+        if cfg.multiprocess.output is False:
+            cfg.logger.log.error('unable to calculate')
+            cfg.messages.error('unable to calculate')
+            cfg.progress.update(failed=True)
+            return OutputManager(check=False)
+        class_pixels = cfg.multiprocess.output
+    else:
+        class_pixels = None
     # create table
     table, slope, intercept, unique_values = _cross_table(
         table=joined_table[joined_table['sum'] != cfg.nodata_val_Int64],
         crs_unit=un, pixel_size_x=p_x, pixel_size_y=p_y,
         regression_raster=regression_raster, cross_matrix=cross_matrix,
-        error_matrix=error_matrix
+        error_matrix=error_matrix, class_pixels=class_pixels
     )
     # save combination to table
     tbl_out = shared_tools.join_path(
@@ -259,7 +300,7 @@ def cross_classification(
 # noinspection PyTypeChecker
 def _cross_table(
         table, crs_unit, pixel_size_x, pixel_size_y, regression_raster=False,
-        cross_matrix=False, error_matrix=False
+        cross_matrix=False, error_matrix=False, class_pixels=None
 ):
     cfg.logger.log.debug(
         '_cross_table regression_raster=%s, cross_matrix=%s, error_matrix:%s'
@@ -362,6 +403,7 @@ def _cross_table(
         err_matrix = np.zeros((len(columns) + 1, len(columns) + 2))
         # area based error matrix
         err_matrix_unbiased = np.zeros((len(columns) + 1, len(columns) + 3))
+        total_class_pixels = class_pixels['sum'].sum()
         text.append('V_Classified')
         text.append(cv)
         text_matrix_unbiased = ['V_Classified', cv]
@@ -373,32 +415,44 @@ def _cross_table(
             text_matrix_unbiased.append(str(column))
             text_matrix_unbiased.append(cv)
             if str(column) in tm.columns(cross_matrix):
-                err_matrix[:cross_matrix[str(column)].shape[0], c] = \
-                    cross_matrix[str(column)]
+                err_matrix[:cross_matrix[
+                    str(column)].shape[0], c] = cross_matrix[str(column)]
                 # copy for accuracy metrics in case area based values are
                 # not calculated
-                err_matrix_unbiased[:cross_matrix[str(column)].shape[0], c] = \
-                    cross_matrix[str(column)]
+                err_matrix_unbiased[:cross_matrix[
+                    str(column)].shape[0], c] = cross_matrix[str(column)]
+                # total class area column
+                if column in class_pixels['new_val']:
+                    err_matrix_unbiased[c - 1, -2] = (
+                        class_pixels['sum'][
+                            class_pixels['new_val'] == column].item()
+                        * pixel_size_x * pixel_size_y
+                    )
             c += 1
         err_matrix[:len(columns), 0] = np.array(columns)
         text.append('Total')
         text.append(nl)
-        total_pixels = err_matrix.sum() - err_matrix[::, 0].sum()
-        # add column as total rows N_i
+        # add column as total rows N_i (minus first column of class value)
         err_matrix[::, -1] = err_matrix.sum(axis=1) - err_matrix[::, 0]
         # add row of total columns
         err_matrix[-1, ::] = err_matrix.sum(axis=0)
         # nodata value to be masked
         nd = -99999
         err_matrix[-1, 0] = nd
-        # area based matrix as proportion P_ij of class over total pixels
-        err_matrix_unbiased[::, 0:err_matrix_unbiased.shape[1] - 2] = \
-            err_matrix[::, 0:err_matrix.shape[1] - 1] / total_pixels
-        err_matrix_unbiased[::, err_matrix_unbiased.shape[1] - 2] = \
-            err_matrix[::, err_matrix.shape[1] - 1] * (
-                    pixel_size_x * pixel_size_y)
-        err_matrix_unbiased[::, err_matrix_unbiased.shape[1] - 1] = \
-            err_matrix[::, err_matrix.shape[1] - 1] / total_pixels
+        # calculate W_i
+        err_matrix_unbiased[::, err_matrix_unbiased.shape[1] - 1] = (
+                err_matrix_unbiased[::, -2]
+                / (total_class_pixels * pixel_size_x * pixel_size_y)
+        )
+        # area based matrix as proportion W_i * class_pixels / total_pixels
+        err_matrix_unbiased[::, 1:err_matrix_unbiased.shape[1] - 2] = (
+                np.expand_dims(err_matrix_unbiased[::, -1], axis=-1)
+                * err_matrix[::, 1:err_matrix.shape[1] - 1]
+                / np.expand_dims(err_matrix[::, -1], axis=-1)
+        )
+        # add row of total columns
+        err_matrix_unbiased[-1, 1:-1] = err_matrix_unbiased[:-1,].sum(
+            axis=0)[1:-1]
         # replace first columns
         err_matrix_unbiased[:-1, 0] = err_matrix[:-1, 0]
         err_matrix_unbiased[-1, 0] = nd
@@ -452,16 +506,13 @@ def _cross_table(
                     cv, estimated_area_text.replace('.00', '').rstrip(nl), cv,
                     str('%1.2f' % total_area).replace('.00', ''), nl)
             )
-            # standard error SE_j as summation for each class i of (Wi *
-            # P_ij - P_ij^2) / (N_i - 1)
+            # standard error SE_j as summation for each class i of
+            # (Wi * P_ij - P_ij^2) / (N_i - 1)
             # create W_i and N_i -1 matrices for calculation
-            w_i = np.zeros((len(columns), len(columns)))
-            n_i = np.zeros((len(columns), len(columns)))
-            for c in range(len(columns)):
-                w_i[::, c] = err_matrix_unbiased[:-1, -1]
-                n_i[::, c] = err_matrix[:-1, -1] - 1
-            std_err_matrix = (err_matrix_unbiased[
-                              :-1, 1:-2] * w_i - err_matrix_unbiased[
+            w_i = np.expand_dims(err_matrix_unbiased[:-1, -1], axis=-1)
+            n_i = np.expand_dims(err_matrix[:-1, -1], axis=-1) - 1
+            std_err_matrix = np.subtract(err_matrix_unbiased[
+                              :-1, 1:-2] * w_i, err_matrix_unbiased[
                                                  :-1, 1:-2] ** 2) / n_i
             std_err = np.sqrt(np.nansum(std_err_matrix, axis=0))
             std_err = std_err.reshape(1, std_err.shape[0])
@@ -471,7 +522,8 @@ def _cross_table(
             std_err_text = stream_std_err.getvalue()
             text.append('SE%s%s' % (cv, std_err_text.replace('.0000', '')))
             # standard error area
-            std_err_area = std_err * total_pixels * pixel_size_x * pixel_size_y
+            std_err_area = std_err * total_class_pixels * (
+                    pixel_size_x * pixel_size_y)
             stream_std_err_area = io.StringIO()
             np.savetxt(
                 stream_std_err_area, std_err_area, delimiter=cv, fmt='%.2f'
@@ -481,7 +533,7 @@ def _cross_table(
                 'SE area%s%s' % (cv, std_err_area_text.replace('.00', ''))
             )
             # confidence interval
-            confidence_interval = std_err * total_pixels * (
+            confidence_interval = std_err * total_class_pixels * (
                     pixel_size_x * pixel_size_y) * 1.96
             stream_confidence_interval = io.StringIO()
             np.savetxt(
@@ -496,14 +548,18 @@ def _cross_table(
             )
         # accuracy metrics
         nii_tot = 0
+        nip_x_npi = 0
+        k_hat = 0
         text_p = ['PA [%]']
         text_u = ['UA [%]']
+        text_k_hat = ['Kappa hat']
         try:
             for g in range(len(columns)):
                 nii = err_matrix_unbiased[g, g + 1]
-                nii_tot = nii_tot + nii
+                nii_tot += nii
                 nip = err_matrix_unbiased[g, 1:(len(columns) + 1)].sum()
                 npi = err_matrix_unbiased[0:len(columns), g + 1].sum()
+                nip_x_npi += nip * npi
                 if npi != 0:
                     p = 100 * nii / npi
                 else:
@@ -512,21 +568,36 @@ def _cross_table(
                     u = 100 * nii / nip
                 else:
                     u = np.nan
+                if nip != 0:
+                    k_hat_i = (((1 * nii) - (nip * npi)) /
+                               ((1 * nip) - (nip * npi)))
+                else:
+                    k_hat_i = np.nan
                 text_p.append(cv)
                 text_p.append(str('%1.4f' % p))
                 text_u.append(cv)
                 text_u.append(str('%1.4f' % u))
+                text_k_hat.append(cv)
+                text_k_hat.append(str('%1.4f' % k_hat_i))
+            k_hat = ((1 * nii_tot) - nip_x_npi) / ((1 * 1) - nip_x_npi)
         except Exception as err:
             cfg.logger.log.error(str(err))
         joined_text_p = ''.join(text_p)
         joined_text_u = ''.join(text_u)
+        joined_text_k_hat = ''.join(text_k_hat)
         text.append(joined_text_p)
         text.append(nl)
         text.append(joined_text_u)
         text.append(nl)
+        text.append(joined_text_k_hat)
+        text.append(nl)
         text.append(nl)
         text.append(
             'Overall accuracy [%] = {}'.format('%1.4f' % (nii_tot * 100))
+        )
+        text.append(nl)
+        text.append(
+            'Kappa hat classification = {}'.format('%1.4f' % k_hat)
         )
         text.append(nl)
         text.append(nl)

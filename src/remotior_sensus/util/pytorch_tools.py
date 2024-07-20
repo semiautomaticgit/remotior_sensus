@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -84,7 +84,7 @@ class PyTorchNeuralNetwork(nn_module):
         return logits
 
 
-# noinspection PyTypeChecker,PyUnresolvedReferences
+# noinspection PyTypeChecker,PyUnresolvedReferences,PyCallingNonCallable
 def train_pytorch_model(
         x_matrix, y_matrix, pytorch_model=None, activation='relu',
         batch_size=None, n_processes=0, training_portion=None,
@@ -95,6 +95,10 @@ def train_pytorch_model(
         max_progress=100
 ):
     cfg.logger.log.debug('start')
+    # convert to float as required
+    if x_matrix.dtype != np.float32 and x_matrix.dtype != np.float64:
+        x_matrix = x_matrix.astype(np.float32)
+        y_matrix = y_matrix.astype(np.float32)
     # get device
     if device == 'cuda':
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -227,12 +231,12 @@ def train_pytorch_model(
             cfg.progress.update(
                 message=f'epoch: {epoch}, training loss: {training_loss:>8f}, '
                         f'test loss: {test_loss:>8f}, '
-                        f'accuracy: {accuracy :>0.1f}%', step=step
+                        f'accuracy: {accuracy:>0.1f}%', step=step
             )
             cfg.logger.log.debug(
                 f'epoch: {epoch}, training loss: {training_loss:>8f}, '
                 f'test loss: {test_loss:>8f}, '
-                f'accuracy: {accuracy :>0.1f}%'
+                f'accuracy: {accuracy:>0.1f}%'
             )
             # check optimization tolerance
             if epoch > optimization_n_iter_no_change:

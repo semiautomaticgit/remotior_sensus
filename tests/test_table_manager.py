@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestTableManager(TestCase):
@@ -103,7 +102,7 @@ class TestTableManager(TestCase):
             fields=['name', 'id', 'calc'], nodata_value=4,
             nodata_value_output='nodata', separator=';', decimal_separator=','
         )
-        self.assertTrue(files_directories.is_file(output))
+        self.assertTrue(rs.files_directories.is_file(output))
         cfg.logger.log.debug('>>> test pivot_60')
         pivot2 = rs.table_manager.pivot_matrix(
             joined_table, row_field='name_m1',

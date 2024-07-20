@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -104,6 +104,7 @@ def function_initiator(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory)))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.DontUseExceptions()
     except Exception as err:
         str(err)
     # required for sklearn
@@ -136,7 +137,7 @@ def function_initiator(
         % (raster_list, x_size_piece, y_size_piece)
     )
     # input numpy array
-    _input_array = None
+    _input_array = _input_array_mask = None
     # iterate over input raster list
     for raster in raster_list:
         # reset section counter
@@ -225,7 +226,8 @@ def function_initiator(
         else:
             out_no_data = None
         # create output rasters if process with output files
-        if output_raster_list[0] is not None:
+        if (output_raster_list[0] is not None
+                and output_raster_list[0] is not False):
             # output geo transform
             upper_left_x_range = t_lx + x_min_piece * p_sx
             upper_left_y_range = t_ly + y_min_piece * p_sy
@@ -346,9 +348,8 @@ def function_initiator(
         # iterate over sections
         for sec in sections:
             # list of bands
-            ndv_band_list = []
             # numpy array of one band
-            _a = None
+            _a = _a_mask = None
             _a_data_type_list = []
             # if raster with same dimensions
             if same_geotransformation is True:
@@ -362,8 +363,10 @@ def function_initiator(
                         (sec.y_size, sec.x_size, len(raster)),
                         dtype=calculation_datatype
                     )
+                    _input_array_mask = _input_array > 0
                 else:
                     _input_array[:] = 0
+                    _input_array_mask = _input_array > 0
                 band_counter = 0
                 for single_raster in raster:
                     # open input_raster with GDAL
@@ -373,11 +376,11 @@ def function_initiator(
                         _r_b = _r_d.GetRasterBand(1)
                     else:
                         _r_b = _r_d.GetRasterBand(single_band_number + 1)
-                    (_a, _a_data_type,
+                    (_a, _a_mask, _a_data_type,
                      ndv_band) = get_raster_band_array(
-                        gdal, _r_b, calculation_datatype, _a, sec
+                        gdal, _r_b, calculation_datatype, _a, _a_mask, sec,
+                        input_nodata_as_value, value_as_nodata
                     )
-                    ndv_band_list.append(ndv_band)
                     _a_data_type_list.append(_a_data_type)
                     if _a is None:
                         proc_error = 'input raster'
@@ -391,10 +394,11 @@ def function_initiator(
                         _input_array[::, ::, band_counter] = _a.astype(
                             calculation_datatype
                         )
+                        _input_array_mask[::, ::, band_counter] = _a_mask
+
                     # close GDAL rasters
                     _r_b.FlushCache()
-                    _r_b = None
-                    _r_d = None
+                    _r_b = _r_d = None
                     band_counter += 1
             # rasters with different dimensions or virtual raster
             else:
@@ -408,6 +412,7 @@ def function_initiator(
                         (sec.y_size, sec.x_size, band_number),
                         dtype=calculation_datatype
                     )
+                    _input_array_mask = _input_array > 0
                 else:
                     _input_array[:] = 0
                 cfg.logger.log.debug(
@@ -422,11 +427,11 @@ def function_initiator(
                 if single_band_number is None:
                     for b in range(0, band_number):
                         _r_b = _r_d.GetRasterBand(b + 1)
-                        (_a, _a_data_type,
+                        (_a, _a_mask, _a_data_type,
                          ndv_band) = get_raster_band_array(
-                            gdal, _r_b, calculation_datatype, _a, sec
+                            gdal, _r_b, calculation_datatype, _a, _a_mask, sec,
+                            input_nodata_as_value, value_as_nodata
                         )
-                        ndv_band_list.append(ndv_band)
                         _a_data_type_list.append(_a_data_type)
                         if _a is None:
                             proc_error = 'input raster'
@@ -440,17 +445,19 @@ def function_initiator(
                             _input_array[::, ::, b] = _a.astype(
                                 calculation_datatype
                             )
+                            _input_array_mask[::, ::, b] = _a_mask
                         # close GDAL rasters
                         _r_b.FlushCache()
                         _r_b = None
                 # single band
                 else:
                     _r_b = _r_d.GetRasterBand(single_band_number + 1)
-                    (_a, _a_data_type,
+                    # noinspection PyTypeChecker
+                    (_a, _a_mask, _a_data_type,
                      ndv_band) = get_raster_band_array(
-                        gdal, _r_b, calculation_datatype, _a, sec
+                        gdal, _r_b, calculation_datatype, _a, _a_mask, sec,
+                        input_nodata_as_value, value_as_nodata
                     )
-                    ndv_band_list.append(ndv_band)
                     _a_data_type_list.append(_a_data_type)
                     if _a is None:
                         proc_error = 'input raster'
@@ -464,140 +471,22 @@ def function_initiator(
                         _input_array[::, ::, 0] = _a.astype(
                             calculation_datatype
                         )
+                        _input_array_mask[::, ::, 0] = _a_mask
                     # close GDAL rasters
                     _r_b.FlushCache()
                     _r_b = None
                 _r_d = None
-            nodata_mask = None
-            cfg.logger.log.debug(
-                'len(ndv_band_list): %s' % (len(ndv_band_list))
-            )
             cfg.logger.log.debug(
                 'calculation_datatype: %s' % calculation_datatype
             )
-            # create input array
-            for b in range(len(ndv_band_list)):
-                cfg.logger.log.debug(
-                    'sec.x_min: %s; sec.y_min: %s; sec.x_size: %s; '
-                    'sec.y_size: %s'
-                    % (sec.x_min, sec.y_min, sec.x_size, sec.y_size)
-                )
-                ndv_band = ndv_band_list[b]
-                # set nodata value
-                if (calculation_datatype == np.float32
-                        or calculation_datatype == np.float64):
-                    if ndv_band is not None:
-                        try:
-                            _input_array[::, ::, b][
-                                _input_array[::, ::, b] == ndv_band] = np.nan
-                        except Exception as err:
-                            str(err)
-                    if input_nodata_as_value:
-                        try:
-                            _input_array[::, ::, b][
-                                np.isnan(_input_array[::, ::, b])] = ndv_band
-                        except Exception as err:
-                            str(err)
-                # apply NoData mask
-                if any_nodata_mask:
-                    try:
-                        nodata_mask[0, 0]
-                    except Exception as err:
-                        str(err)
-                        nodata_mask = np.zeros(
-                            (sec.y_size, sec.x_size),
-                            dtype=calculation_datatype
-                        )
-                    if input_nodata_as_value:
-                        pass
-                    elif ndv_band is not None:
-                        try:
-                            np.copyto(
-                                nodata_mask, out_no_data,
-                                where=_input_array[::, ::, b] == np.asarray(
-                                    ndv_band
-                                )
-                            )
-                        except Exception as err:
-                            str(err)
-                    if input_nodata_as_value:
-                        pass
-                    else:
-                        try:
-                            np.copyto(
-                                nodata_mask, out_no_data,
-                                where=np.isnan(_input_array[::, ::, b])
-                            )
-                        except Exception as err:
-                            str(err)
-                    if input_nodata_as_value:
-                        pass
-                    elif value_as_nodata is not None:
-                        value_as_nodata = np.asarray(value_as_nodata).astype(
-                            _a_data_type_list[b]
-                        ).astype(calculation_datatype)
-                        try:
-                            np.copyto(
-                                nodata_mask, out_no_data,
-                                where=_input_array[
-                                      ::, ::, b] == value_as_nodata
-                            )
-                        except Exception as err:
-                            str(err)
-                # create NoData mask from NoData values
-                elif not any_nodata_mask:
-                    _all_nodata_mask = np.zeros(
-                        (sec.y_size, sec.x_size), dtype=calculation_datatype
-                    )
-                    try:
-                        nodata_mask[0, 0]
-                    except Exception as err:
-                        str(err)
-                        nodata_mask = np.ones(
-                            (sec.y_size, sec.x_size),
-                            dtype=calculation_datatype
-                        ) * out_no_data
-                    if input_nodata_as_value:
-                        pass
-                    elif ndv_band is not None:
-                        try:
-                            np.copyto(
-                                _all_nodata_mask, out_no_data,
-                                where=_input_array[::, ::, b] == ndv_band
-                            )
-                        except Exception as err:
-                            str(err)
-                    if input_nodata_as_value:
-                        pass
-                    else:
-                        try:
-                            np.copyto(
-                                _all_nodata_mask, out_no_data,
-                                where=np.isnan(_input_array[::, ::, b])
-                            )
-                        except Exception as err:
-                            str(err)
-                    if input_nodata_as_value:
-                        pass
-                    elif value_as_nodata is not None:
-                        value_as_nodata = np.asarray(value_as_nodata).astype(
-                            _a_data_type_list[b]
-                        ).astype(calculation_datatype)
-                        try:
-                            np.copyto(
-                                _all_nodata_mask, out_no_data,
-                                where=_input_array[
-                                      ::, ::, b] == value_as_nodata
-                            )
-                        except Exception as err:
-                            str(err)
-                    nodata_mask = np.where(
-                        (_all_nodata_mask == out_no_data) & (
-                                nodata_mask == out_no_data),
-                        out_no_data, 0
-                    )
-                    # release memory
-                    _all_nodata_mask = None
+            # apply any NoData mask for axis=2 that is band axis
+            if any_nodata_mask:
+                nodata_mask = _input_array_mask.any(axis=2)
+            # create NoData mask from NoData values
+            elif not any_nodata_mask:
+                nodata_mask = _input_array_mask.all(axis=2)
+            else:
+                nodata_mask = None
             cfg.logger.log.debug(
                 '_input_array.shape: %s' % str(_input_array.shape)
             )
@@ -623,8 +512,8 @@ def function_initiator(
                 function_arg = None
             # execute main function
             function_output = function(
-                [scl, offs, out_no_data], _input_array, nodata_mask,
-                sec.y_size, sec.x_min, sec.y_min, output_list,
+                [scl, offs, out_no_data], [_input_array, _input_array_mask],
+                nodata_mask, sec.y_size, sec.x_min, sec.y_min, output_list,
                 function_arg, f_variable, out_band_number,
                 [x_min_piece, y_min_piece], output_signature_raster,
                 out_class, out_alg
@@ -632,14 +521,18 @@ def function_initiator(
             # check function output list
             if isinstance(function_output, list):
                 output_argument = function_output[1]
-                output_array = function_output[0]
+                if isinstance(function_output[0], list):
+                    output_array = function_output[0][0]
+                    output_array_mask = function_output[0][1]
+                else:
+                    output_array = function_output[0]
+                    output_array_mask = None
             else:
                 proc_error = 'error function'
-                output_array = None
+                output_array = output_array_mask = None
             # classification
             if classification:
-                output_array = None
-                output_argument = None
+                output_array = output_array_mask = output_argument = None
                 output_array_list.append(
                     [classification_rasters, algorithm_rasters,
                      output_signature_raster_dic]
@@ -663,9 +556,11 @@ def function_initiator(
             cfg.logger.log.debug('output_raster_list: %s' % output_raster_list)
             # write output array
             if (classification is not True
-                    and output_raster_list[0] is not None):
+                    and (output_raster_list[0] is not None and
+                         output_raster_list[0] is not False)):
                 if specific_output is not None:
-                    output_array[np.isnan(output_array)] = out_no_data
+                    # replace nodata
+                    output_array[output_array_mask] = out_no_data
                     y_min_piece_s = specific_output_piece.y_min
                     if boundary_size is None:
                         # output minimum y (section of piece)
@@ -709,7 +604,9 @@ def function_initiator(
                         cfg.logger.log.error(str(err))
                 else:
                     try:
-                        output_array[np.isnan(output_array)] = out_no_data
+                        # replace nodata
+                        if output_array_mask is not None:
+                            output_array[output_array_mask] = out_no_data
                         if boundary_size is None:
                             # output minimum y (section of piece)
                             out_y_min = sec.y_min - y_min_piece
@@ -758,7 +655,10 @@ def function_initiator(
 
             gc.collect()
             count_section_progress += 1
-        if classification is not True and output_raster_list[0] is not None:
+        if classification is not True and (
+                output_raster_list[0] is not None
+                and output_raster_list[0] is not False
+        ):
             if run_separate_process:
                 # move temporary files of separate process
                 files_directories.move_file(
@@ -769,19 +669,16 @@ def function_initiator(
                      output_argument]
                 )
         raster_count += 1
-        """
-        now_time = datetime.datetime.now()
-        elapsed_time = (now_time - start_time).total_seconds()
-        if (process_id == '1' and elapsed_time > refresh_time
-                and run_separate_process):
-            progress_queue.put([raster_count, len(raster_list)], False)
-        """
     cfg.logger.log.debug('end')
     logger = cfg.logger.stream.getvalue()
     return output_array_list, out_files, proc_error, logger
 
 
-def get_raster_band_array(gdal, band, calculation_datatype, _a, sec):
+def get_raster_band_array(
+        gdal, band, calculation_datatype, _a, _a_mask, sec,
+        input_nodata_as_value,  value_as_nodata
+):
+    nd_val = None
     data_types = {
         cfg.float64_dt: np.float64, cfg.float32_dt: np.float32,
         cfg.int32_dt: np.int32, cfg.uint32_dt: np.uint32,
@@ -800,6 +697,11 @@ def get_raster_band_array(gdal, band, calculation_datatype, _a, sec):
         scl_b = band.GetScale()
         if scl_b is None:
             scl_b = 1
+        # get scale for nodata value
+        if type(scl_b) is float:
+            if (_a_data_type is not np.float64
+                    or _a_data_type is not np.float32):
+                _a_data_type = np.float32
         if offs_b is None:
             offs_b = 0
         nd_val = band.GetNoDataValue()
@@ -825,12 +727,20 @@ def get_raster_band_array(gdal, band, calculation_datatype, _a, sec):
             (sec.y_size, sec.x_size),
             dtype=_a_data_type
         )
+        _a_mask = _a > 0
     # band array
     raster_vector.band_read_array_block(
         band, sec.x_min, sec.y_min, sec.x_size, sec.y_size, numpy_array=_a
     )
+    # fill nodata mask if nodata value is defined
+    if nd_val is not None:
+        if input_nodata_as_value is not True:
+            _a_mask = _a == np.asarray(nd_val)
+    if value_as_nodata is not None:
+        _a_mask[_a == np.asarray(value_as_nodata)] = True
+    # rescale
     _a = _a * scl_b + offs_b
-    return _a.astype(calculation_datatype), _a_data_type, ndv_band
+    return _a.astype(calculation_datatype), _a_mask, _a_data_type, ndv_band
 
 
 # calculate block size and pixel ranges
@@ -1066,6 +976,7 @@ def gdal_translate(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.DontUseExceptions()
     except Exception as err:
         str(err)
     try:
@@ -1115,6 +1026,7 @@ def gdal_warp(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.DontUseExceptions()
     except Exception as err:
         str(err)
     try:
@@ -1170,6 +1082,7 @@ def raster_to_vector_process(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.DontUseExceptions()
     except Exception as err:
         str(err)
     # open input with GDAL
@@ -1292,6 +1205,7 @@ def raster_sieve_process(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.DontUseExceptions()
     except Exception as err:
         str(err)
     # open input with GDAL
@@ -1403,6 +1317,7 @@ def vector_to_raster(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.DontUseExceptions()
     except Exception as err:
         str(err)
     # open input with GDAL
@@ -1606,12 +1521,36 @@ def download_file_processor(input_parameters, process_parameters=None):
                 callback=progress_queue.put, log=cfg.logger.log
             )
         if downloaded is None:
-            cfg.logger.log.debug('error downloading: %s' % url_list[url])
-            logger = cfg.logger.stream.getvalue()
-            return (
-                False, output_path_list,
-                'error downloading: %s' % url_list[url], logger
-            )
+            # second try
+            if copernicus is True:
+                downloaded = download_tools.download_copernicus_file(
+                    url=url_list[url], output_path=output_path_list[url],
+                    authentication_uri=authentication_uri,
+                    proxy_host=proxy_host, proxy_port=proxy_port,
+                    proxy_user=proxy_user, proxy_password=proxy_password,
+                    progress=True, retried=retried, timeout=timeout,
+                    callback=progress_queue.put, log=cfg.logger.log,
+                    access_token=access_token
+                )
+            else:
+                downloaded = download_tools.download_file(
+                    url=url_list[url], output_path=output_path_list[url],
+                    authentication_uri=authentication_uri, user=user,
+                    password=password, proxy_host=proxy_host,
+                    proxy_port=proxy_port,
+                    proxy_user=proxy_user, proxy_password=proxy_password,
+                    progress=True, retried=retried, timeout=timeout,
+                    callback=progress_queue.put, log=cfg.logger.log
+                )
+            if downloaded is None:
+                cfg.logger.log.debug('error downloading: %s' % url_list[url])
+                logger = cfg.logger.stream.getvalue()
+                return (
+                    False, output_path_list,
+                    'error downloading: %s' % url_list[url], logger
+                )
+            else:
+                check, output_path = downloaded
         else:
             check, output_path = downloaded
         if check is False:

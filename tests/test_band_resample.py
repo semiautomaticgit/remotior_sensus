@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestBandResample(TestCase):
@@ -22,7 +21,7 @@ class TestBandResample(TestCase):
             input_bands=file_list, output_path=cfg.temp.dir, resampling='mode',
             resample_pixel_factor=2, prefix='resample_'
             )
-        self.assertTrue(files_directories.is_file(resample.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(resample.paths[0]))
 
         # reproject band set (input files from bandset)
         reproject = rs.band_resample(
@@ -33,7 +32,7 @@ class TestBandResample(TestCase):
             output_data_type=None, same_extent=False, virtual_output=False,
             compress=True, compress_format='LZW'
             )
-        self.assertTrue(files_directories.is_file(reproject.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(reproject.paths[0]))
 
         # clear temporary directory
         rs.close()

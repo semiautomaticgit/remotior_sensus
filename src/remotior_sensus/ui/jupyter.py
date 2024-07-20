@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -2161,8 +2161,8 @@ class JupyterInterface(object):
             new_path = str('%s/%s' % (
                 browser_dir, new_file_text.value
             )).replace('//', '/')
-            if not new_path.endswith('.scpx'):
-                new_path += '.scpx'
+            if not new_path.endswith(cfg.scpx_suffix):
+                new_path += cfg.scpx_suffix
             input_bandset = cfg.default_catalog.current_bandset
             training_label.value = (
                 f"<div style='color:white; weight:bold; background: #5a5a5a'>"
@@ -2192,7 +2192,7 @@ class JupyterInterface(object):
                 "'", '').replace('[', '').replace(']', '')
             files = selected_file_paths.value.split(',')
             for file in files:
-                if len(file) > 0 and file.endswith('.scpx'):
+                if len(file) > 0 and file.endswith(cfg.scpx_suffix):
                     try:
                         input_bandset = cfg.default_catalog.current_bandset
                         if cfg.default_signature_catalog is None:

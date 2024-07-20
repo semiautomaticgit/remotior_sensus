@@ -3,7 +3,6 @@ from unittest import TestCase
 
 import remotior_sensus
 from remotior_sensus.tools import band_calc
-from remotior_sensus.util import files_directories
 
 
 class TestBandCalc(TestCase):
@@ -398,7 +397,7 @@ class TestBandCalc(TestCase):
             input_name_list=name_list, extent_intersection=False
         )
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         # calculation with not overlapping rasters
         raster_list = [
             str(data_path / 'S2_2020-01-01' / 'S2_B02.tif'),
@@ -417,7 +416,7 @@ class TestBandCalc(TestCase):
             output_datatype=cfg.int32_dt, any_nodata_mask=False
         )
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         # add output to BandSet number defined after
         # variable_bandset_number_separator in the output name
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
@@ -434,7 +433,7 @@ class TestBandCalc(TestCase):
         )
         self.assertGreater(catalog.get_band_count(1), band_count)
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         # bandset calculation
         expression = (
                 cfg.variable_band_quotes + cfg.variable_bandset_name
@@ -447,7 +446,7 @@ class TestBandCalc(TestCase):
             bandset_catalog=catalog
         )
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         # NDVI calculation
         expression = (
                 '(' + cfg.variable_band_quotes + cfg.variable_nir_name
@@ -463,7 +462,7 @@ class TestBandCalc(TestCase):
             bandset_catalog=catalog
         )
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         # NDVI calculation with expression alias
         cfg.logger.log.debug('>>> test calculation with expression alias')
         expression = (cfg.variable_band_quotes + cfg.variable_ndvi_name
@@ -474,7 +473,7 @@ class TestBandCalc(TestCase):
             bandset_catalog=catalog
         )
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         expression = (
                 cfg.variable_band_quotes + cfg.variable_bandset_name
                 + cfg.variable_current_bandset
@@ -489,7 +488,7 @@ class TestBandCalc(TestCase):
             bandset_catalog=catalog
         )
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         # direct expression
         bandset = catalog.get_bandset(1)
         expression = (
@@ -501,7 +500,7 @@ class TestBandCalc(TestCase):
         calc = bandset.execute(rs.band_calc, output_path=temp,
                                expression_string=expression)
         self.assertTrue(calc.check)
-        self.assertTrue(files_directories.is_file(calc.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(calc.paths[0]))
         # direct expression NDVI calculation
         expression = (
                 '(' + cfg.variable_band_quotes + cfg.variable_nir_name
@@ -516,7 +515,7 @@ class TestBandCalc(TestCase):
         calc = bandset.execute(rs.band_calc, output_path=temp,
                                expression_string=expression)
         self.assertTrue(calc.check)
-        self.assertTrue(files_directories.is_file(calc.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(calc.paths[0]))
         cfg.logger.log.debug('>>> test bandset calculation with ndvi')
         expression = (
                 cfg.variable_band_quotes + cfg.variable_ndvi_name
@@ -526,7 +525,7 @@ class TestBandCalc(TestCase):
         calc = bandset.execute(rs.band_calc, output_path=temp,
                                expression_string=expression)
         self.assertTrue(calc.check)
-        self.assertTrue(files_directories.is_file(calc.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(calc.paths[0]))
         # calculation with multiband raster as bandset
         cfg.logger.log.debug('>>> test multiband raster as bandset')
         catalog_2 = rs.bandset_catalog()
@@ -545,7 +544,7 @@ class TestBandCalc(TestCase):
             extent_intersection=False, bandset_catalog=catalog_2
         )
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
 
         # clear temporary directory
         rs.close()

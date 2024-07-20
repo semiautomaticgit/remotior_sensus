@@ -2,10 +2,10 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
+# noinspection PyProtectedMember
 from remotior_sensus.tools.raster_reclassification import (
     unique_values_table, _import_reclassification_table
 )
-from remotior_sensus.util import files_directories
 
 
 class TestRasterReclassification(TestCase):
@@ -30,20 +30,20 @@ class TestRasterReclassification(TestCase):
             raster_path=p, output_path=temp,
             reclassification_table=unique_list.extra['table']
             )
-        self.assertTrue(files_directories.is_file(reclassification_2.path))
+        self.assertTrue(rs.files_directories.is_file(reclassification_2.path))
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         reclassification = rs.raster_reclassification(
             raster_path=reclassification_2.path, output_path=temp,
             reclassification_table=[[1, -10], ['nan', 6000]]
             )
-        self.assertTrue(files_directories.is_file(reclassification.path))
+        self.assertTrue(rs.files_directories.is_file(reclassification.path))
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         coordinate_list = [230250, 4674550, 230320, 4674440]
         reclassification = rs.raster_reclassification(
             raster_path=p, output_path=temp, extent_list=coordinate_list,
             reclassification_table=[['raster <= 3000', 1], ['raster > 500', 2]]
             )
-        self.assertTrue(files_directories.is_file(reclassification.path))
+        self.assertTrue(rs.files_directories.is_file(reclassification.path))
 
         # clear temporary directory
         rs.close()

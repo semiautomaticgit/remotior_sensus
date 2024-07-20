@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestBandErosion(TestCase):
@@ -23,7 +22,7 @@ class TestBandErosion(TestCase):
             value_list=[1, 425], size=1, circular_structure=True,
             prefix='erosion_'
             )
-        self.assertTrue(files_directories.is_file(erosion.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(erosion.paths[0]))
 
         # clear temporary directory
         rs.close()

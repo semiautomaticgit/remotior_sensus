@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -42,7 +42,7 @@ from remotior_sensus.util import files_directories, shared_tools, raster_vector
 
 
 def vector_to_raster(
-        vector_path, align_raster: Union[str, BandSet, int],
+        vector_path: str, align_raster: Union[str, BandSet, int],
         vector_field: Optional[str] = None,
         constant: Optional[int] = None,
         pixel_size: Optional[int] = None,
@@ -55,6 +55,7 @@ def vector_to_raster(
         compress=None, compress_format=None,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Performs the conversion from vector to raster.
 
@@ -62,16 +63,22 @@ def vector_to_raster(
 
     Args:
         vector_path: path of vector used as input.
-        align_raster: optional string path of raster used for aligning output pixels and projections; it can also be a BandSet or an integer number of a BandSet in a Catalog.
+        align_raster: optional string path of raster used for aligning output 
+            pixels and projections; it can also be a BandSet or an integer 
+            number of a BandSet in a Catalog.
         output_path: string of output path.
         vector_field: the name of the field used as reference value.
         constant: integer value used as reference for all the polygons.
         pixel_size: size of pixel of output raster.
-        minimum_extent: if True, raster has the minimum vector extent; if False, the extent is the same as the align raster.
+        minimum_extent: if True, raster has the minimum vector extent; if 
+            False, the extent is the same as the align raster.
         extent_list: list of boundary coordinates left top right bottom.
         output_format: output format, default GTiff
-        method: method of conversion, default pixel_center, other methods are all_touched for burning all pixels touched or area_based for burning values based on area proportion.
-        area_precision: for area_based method, the higher the value, the more is the precision in area proportion calculation.
+        method: method of conversion, default pixel_center, other methods are 
+            all_touched for burning all pixels touched or area_based for 
+            burning values based on area proportion.
+        area_precision: for area_based method, the higher the value, the more 
+            is the precision in area proportion calculation.
         resample: type for resample when method is area_based.
         compress: if True, compress the output raster.
         compress_format: compress format.
@@ -79,6 +86,8 @@ def vector_to_raster(
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: BandSetCatalog object.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -91,7 +100,7 @@ def vector_to_raster(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     vector_path = files_directories.input_path(vector_path)
     if type(align_raster) is str:

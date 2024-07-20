@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -20,7 +20,6 @@ Tools to download files
 """
 
 import urllib.request
-import requests
 from datetime import datetime
 from http.cookiejar import CookieJar
 from os import stat
@@ -228,100 +227,105 @@ def download_copernicus_file(
     cfg.logger.log.debug('url: %s' % url)
     if authentication_uri is None:
         pass
-    if proxy_host is None:
-        proxies = None
-    else:
-        proxies = {
-            'https': 'https://%s:%s@%s:%s' % (
-                proxy_user, proxy_password, proxy_host, proxy_port
-            )
-        }
-    session = requests.Session()
-    session.headers['Authorization'] = 'Bearer %s' % access_token
-    if proxies is not None:
-        session.proxies = proxies
-    url_r = None
+    opener, cookie_jar = general_opener(
+        proxy_host=proxy_host, proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    headers = {
+        'Authorization': 'Bearer %s' % access_token
+    }
+    request = urllib.request.Request(url, headers=headers)
+    if log is not None:
+        log.debug('url_request: %s' % str(url))
     try:
-        url_request = session.get(url, allow_redirects=False)
-        while url_request.status_code in (301, 302, 303, 307):
-            if cfg.action is True:
-                url_r = url_request.headers['Location']
-                url_request = session.get(
-                    url_r, allow_redirects=False, timeout=timeout
-                )
-            else:
-                return False, 'cancel'
-        if log is not None:
-            log.debug('url_request: %s' % str(url_r))
-        file_response = session.get(
-            url_r, verify=False, allow_redirects=True, timeout=timeout,
-            stream=True
-        )
+        urllib.request.install_opener(opener)
         try:
-            file_size = int(file_response.headers['Content-Length'])
-            # size megabyte
-            total_size = round(file_size / 1048576, 2)
+            url_request = urllib.request.urlopen(request, timeout=timeout)
             if log is not None:
-                log.debug('total_size: %s' % str(total_size))
-        except Exception as err:
-            return False, str(err)
-        block_size = int(file_size / 10)
-        if log is not None:
-            log.debug(
-                'block_size: %s; file_size: %s'
-                % (str(block_size), str(file_size))
+                log.debug('url_request: %s' % str(url_request))
+            try:
+                file_size = int(url_request.headers['Content-Length'])
+                # size megabyte
+                total_size = round(file_size / 1048576, 2)
+            except Exception as err:
+                str(err)
+                file_size = 1
+                total_size = 1
+            block_size = 1024 * 1024
+            # set initial speed for adaptive block size
+            speed = 0
+            adaptive_block_size = True
+            if log is not None:
+                log.debug(
+                    'block_size: %s; file_size: %s'
+                    % (str(block_size), str(file_size))
                 )
-        # small files
-        if file_size < 300000:
-            for chunk in file_response.iter_content(chunk_size=file_size):
-                if chunk:
-                    write_file(chunk, output_path, mode='wb')
-        else:
-            create_parent_directory(output_path)
-            with open(output_path, 'wb') as file:
-                while True:
-                    if cfg.action is True:
-                        for chunk in file_response.iter_content(
-                                chunk_size=block_size
-                        ):
-                            if chunk:
-                                if progress is True:
-                                    try:
-                                        downloaded_part_size = round(
-                                            int(stat(output_path).st_size)
-                                            / 1048576, 2
-                                        )
-                                        if message is None:
-                                            message = '({}/{} MB) {}'.format(
-                                                downloaded_part_size,
-                                                total_size, url
-                                            )
-                                        step = int(
-                                            (max_progress - min_progress)
-                                            * downloaded_part_size / total_size
-                                            + min_progress
-                                        )
-                                        percentage = int(
-                                            100 * downloaded_part_size
-                                            / total_size
-                                        )
-                                        if callback is None:
-                                            cfg.progress.update(
-                                                message=message, step=step,
-                                                percentage=percentage,
-                                                ping=True
-                                            )
-                                        else:
-                                            callback(percentage, False)
-                                    except Exception as err:
-                                        str(err)
-                                # write file
-                                file.write(chunk)
-                            else:
+            # small files
+            if block_size >= file_size:
+                response = url_request.read()
+                write_file(response, output_path, mode='wb')
+            else:
+                create_parent_directory(output_path)
+                with open(output_path, 'wb') as file:
+                    while True:
+                        if cfg.action is True:
+                            if adaptive_block_size:
+                                start_time = datetime.now()
+                            block_read = url_request.read(block_size)
+                            if not block_read:
                                 break
-                    else:
-                        return False, 'cancel'
-        return True, output_path
+                            # adapt block size
+                            if adaptive_block_size:
+                                try:
+                                    end_time = datetime.now()
+                                    time_delta = end_time - start_time
+                                    new_speed = (
+                                            block_size
+                                            / time_delta.microseconds
+                                    )
+                                    if new_speed >= speed:
+                                        block_size = block_size + 1024 * 1024
+                                        start_time = end_time
+                                        speed = new_speed
+                                except Exception as err:
+                                    str(err)
+                            if progress is True:
+                                try:
+                                    downloaded_part_size = round(
+                                        int(stat(
+                                            output_path).st_size) / 1048576, 2
+                                    )
+                                    if message is None:
+                                        message = '({}/{} MB) {}'.format(
+                                            downloaded_part_size, total_size,
+                                            url
+                                        )
+                                    step = int(
+                                        (max_progress - min_progress)
+                                        * downloaded_part_size / total_size
+                                        + min_progress
+                                    )
+                                    percentage = int(
+                                        100 * downloaded_part_size / total_size
+                                    )
+                                    if callback is None:
+                                        cfg.progress.update(
+                                            message=message, step=step,
+                                            percentage=percentage, ping=True
+                                        )
+                                    else:
+                                        callback(percentage, False)
+                                except Exception as err:
+                                    str(err)
+                            # write file
+                            file.write(block_read)
+                        else:
+                            return False, 'cancel'
+            return True, output_path
+        except Exception as err:
+            if retried:
+                pass
+            return False, str(err)
     except Exception as err:
         if retried:
             pass
@@ -334,22 +338,35 @@ def request_stac(
         proxy_password=None, retried=None
 ):
     cfg.logger.log.debug('url: %s; params: %s' % (url, str(params)))
-    if proxy_host is None:
-        proxies = None
+    opener, cookie_jar = general_opener(
+        proxy_host=proxy_host, proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    if params is None:
+        encoded_params = ''
     else:
-        proxies = {
-            'https': 'https://%s:%s@%s:%s' % (
-                proxy_user, proxy_password, proxy_host, proxy_port
-            )
-        }
-    session = requests.Session()
-    if proxies is not None:
-        session.proxies = proxies
+        encoded_params = '?' + url_encode_data(params)
+    request = urllib.request.Request(url + encoded_params)
     try:
-        url_request = session.get(url, params=params)
-        stac_data = url_request.json()
+        with opener.open(request) as response:
+            stac_data = response.read().decode('utf-8')
         return True, stac_data
     except Exception as err:
         if retried:
             pass
         return False, str(err)
+
+
+# url encode data
+def url_encode_data(data):
+    # noinspection PyUnresolvedReferences
+    return urllib.parse.urlencode(data)
+
+
+# url encode data
+def request_url(url, headers=None, data=None, method=None):
+    if headers is None:
+        headers = {}
+    return urllib.request.Request(
+        url=url, headers=headers, data=data, method=method
+    )

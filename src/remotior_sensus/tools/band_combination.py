@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -54,6 +54,7 @@ from remotior_sensus.util import (
 def band_combination(
         input_bands: Union[list, int, BandSet],
         output_path: Optional[str] = None, nodata_value: Optional[int] = None,
+        no_raster_output: Optional[bool] = False,
         overwrite: Optional[bool] = False,
         n_processes: Optional[int] = None, available_ram: Optional[int] = None,
         bandset_catalog: Optional[BandSetCatalog] = None,
@@ -73,20 +74,24 @@ def band_combination(
     statistics of each combination.
 
     Args:
-        input_bands: list of paths of input rasters, or number of BandSet, or BandSet object.
+        input_bands: list of paths of input rasters, or number of BandSet, or 
+            BandSet object.
         output_path: path of the output raster.
+        no_raster_output: if True, no output raster is written to file.
         overwrite: if True, output overwrites existing files.
         nodata_value: input value to be considered as nodata.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
-        bandset_catalog: BandSetCatalog object required if input_bands is a BandSet number.
+        bandset_catalog: BandSetCatalog object required if input_bands is a 
+            BandSet number.
         extent_list: list of boundary coordinates left top right bottom.
         column_name_list: list of strings corresponding to input bands used 
-            as column names in output table, if None then column names are extracted for input band names.
+            as column names in output table, if None then column names are 
+            extracted for input band names.
         output_table: if True then calculate output table; 
             if False then calculate only array of combinations and sum.
-        progress_message: if True then start progress message; 
-            if False does not start the progress message (useful if launched from other tools).
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         If output_table is True returns the :func:`~remotior_sensus.core.output_manager.OutputManager` object with
@@ -119,12 +124,11 @@ def band_combination(
             >>> catalog = BandSetCatalog()
             >>> combination = band_combination(input_bands=catalog.get_bandset(1),output_path='output_path')
     """  # noqa: E501
-    if progress_message:
-        cfg.logger.log.info('start')
-        cfg.progress.update(
-            process=__name__.split('.')[-1].replace('_', ' '),
-            message='starting', start=True
-        )
+    cfg.logger.log.info('start')
+    cfg.progress.update(
+        process=__name__.split('.')[-1].replace('_', ' '),
+        message='starting', start=progress_message
+    )
     # prepare process files
     prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
@@ -182,7 +186,7 @@ def band_combination(
         output_data_type = cfg.float32_dt
         calc_nodata = cfg.nodata_val_Float32
     # dummy bands for memory calculation as the number of input raster
-    dummy_bands = len(input_raster_list) + 1
+    dummy_bands = round(len(input_raster_list) * 0.5)
     cfg.multiprocess.run(
         raster_path=vrt_path, function=raster_unique_values,
         keep_output_argument=True, n_processes=n_processes,
@@ -194,6 +198,7 @@ def band_combination(
     if cfg.multiprocess.output is False:
         cfg.logger.log.error('unable to calculate')
         cfg.messages.error('unable to calculate')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     cmb = cfg.multiprocess.output
     cfg.logger.log.debug('len(cmb): %s; cmb[0]: %s' % (len(cmb), str(cmb[0])))
@@ -281,6 +286,7 @@ def band_combination(
                 break
         else:
             cfg.logger.log.error('cancel')
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
     expression = []
     for r in range(len(rnd_var_list)):
@@ -294,6 +300,10 @@ def band_combination(
     expression.pop(-1)
     joined_expression = ''.join(expression)
     cfg.logger.log.debug('joined_expression: %s' % joined_expression)
+    if no_raster_output is True:
+        output_raster_path = False
+    else:
+        output_raster_path = out_path
     # dummy bands for memory calculation
     dummy_bands = 3
     # combination calculation
@@ -302,7 +312,7 @@ def band_combination(
         function_argument=reclassification_list,
         function_variable=joined_expression, dummy_bands=dummy_bands,
         calculation_datatype=calc_data_type, use_value_as_nodata=nodata_value,
-        any_nodata_mask=True, output_raster_path=out_path,
+        any_nodata_mask=True, output_raster_path=output_raster_path,
         output_data_type=output_data_type, output_nodata_value=calc_nodata,
         compress=cfg.raster_compression, n_processes=n_processes,
         available_ram=available_ram, keep_output_argument=True,
@@ -315,6 +325,7 @@ def band_combination(
     if cfg.multiprocess.output is False:
         cfg.logger.log.error('unable to calculate')
         cfg.messages.error('unable to calculate')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     sum_val = cfg.multiprocess.output
     if not output_table:
@@ -324,9 +335,13 @@ def band_combination(
             }
         )
     else:
-        # get pixel unit
+        # get pixel unit from input raster
+        if type(vrt_path) is list:
+            raster_i = vrt_path[0]
+        else:
+            raster_i = vrt_path
         (gt, crs, un, xy_count, nd, number_of_bands, block_size, scale_offset,
-         data_type) = raster_vector.raster_info(out_path)
+         data_type) = raster_vector.raster_info(raster_i)
         p_x = gt[1]
         p_y = abs(gt[5])
         joined_table = tm.join_tables(
@@ -374,7 +389,6 @@ def band_combination(
         )
 
 
-#
 def _combination_table(
         table: np.array, combination_names: list, crs_unit: str,
         pixel_size_x: int, pixel_size_y: int

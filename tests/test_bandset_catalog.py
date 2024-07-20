@@ -4,7 +4,6 @@ from unittest import TestCase
 import numpy as np
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestBandSetCatalog(TestCase):
@@ -126,7 +125,7 @@ class TestBandSetCatalog(TestCase):
         # export as xml
         temp = cfg.temp.temporary_file_path(name_suffix='.xml')
         catalog.export_bandset_as_xml(2, output_path=temp)
-        self.assertTrue(files_directories.is_file(temp))
+        self.assertTrue(rs.files_directories.is_file(temp))
         catalog.import_bandset_from_xml(3, xml_path=temp)
         for i in range(len(catalog.get(2).bands[0])):
             if str(catalog.get(2).bands[0][i]) != 'NaT':
@@ -203,7 +202,7 @@ class TestBandSetCatalog(TestCase):
         )
         # bandset calculation
         calc = bs(3).calc('"b1" + "b2"')
-        self.assertTrue(files_directories.is_file(calc.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(calc.paths[0]))
         # bandset calculation
         catalog.get_bandset(3).calc(
             '"b1" / "b2"', point_coordinates=[230274, 4674515]
@@ -253,12 +252,13 @@ class TestBandSetCatalog(TestCase):
         # test band overview creation
         band_list = catalog.get_bandset(1).get_absolute_paths()
         temp_file = cfg.temp.temporary_file_path(name_suffix='.tif')
-        files_directories.copy_file(in_path=band_list[0], out_path=temp_file)
+        rs.files_directories.copy_file(in_path=band_list[0],
+                                       out_path=temp_file)
         # load BandSet catalog
         catalog_3 = rs.bandset_catalog()
         catalog_3.create_bandset(paths=[temp_file], bandset_number=1)
         catalog_3.build_bandset_band_overview(1)
-        self.assertTrue(files_directories.is_file(temp_file + '.ovr'))
+        self.assertTrue(rs.files_directories.is_file(temp_file + '.ovr'))
         band_1_name = catalog.get(1).get(1).name
         # sort bands by wavelength
         catalog.sort_bands_by_wavelength(bandset_number=1)
@@ -367,9 +367,9 @@ class TestBandSetCatalog(TestCase):
         self.assertTrue(histogram is not None)
         # create virtual raster
         virtual = catalog.create_virtual_raster(bandset_number=1)
-        self.assertTrue(files_directories.is_file(virtual))
+        self.assertTrue(rs.files_directories.is_file(virtual))
         stack = catalog.create_bandset_stack(bandset_number=1)
-        self.assertTrue(files_directories.is_file(stack))
+        self.assertTrue(rs.files_directories.is_file(stack))
         file_list = ['L8_2020-01-01/L8_B10.tif', 'L8_2020-01-01/L8_B1.tif',
                      'L8_2020-01-01/L8_B2.tif', 'L8_2020-01-01/L8_B3.tif',
                      'L8_2020-01-01/L8_B4.tif', 'L8_2020-01-01/L8_B5.tif']

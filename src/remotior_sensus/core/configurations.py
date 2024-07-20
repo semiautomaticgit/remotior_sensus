@@ -1,15 +1,15 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -94,6 +94,7 @@ gpkg_suffix = '.gpkg'
 txt_suffix = '.txt'
 xml_suffix = '.xml'
 rsmo_suffix = '.rsmo'
+scpx_suffix = '.scpx'
 # text delimiters
 comma_delimiter = ','
 tab_delimiter = '\t'
@@ -284,6 +285,7 @@ array_function_placeholder = '_array_function_placeholder'
 old_value = 'old_value'
 new_value = 'new_value'
 variable_raster_name = 'raster'
+variable_vector_name = 'vector'
 # calculation band name alias
 variable_bandset_name = 'bandset'
 variable_band_name = 'b'
@@ -399,6 +401,9 @@ classification_algorithms = [
     multi_layer_perceptron, multi_layer_perceptron_a,
     pytorch_multi_layer_perceptron, pytorch_multi_layer_perceptron_a
 ]
+# clustering options
+random_pixel = 'random pixel'
+band_mean = 'band mean'
 # name used in raster conversion to vector for area field
 area_field_name = 'area'
 not_available = 'n/a'

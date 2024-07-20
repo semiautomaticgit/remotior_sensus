@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestBandMask(TestCase):
@@ -27,7 +26,7 @@ class TestBandMask(TestCase):
                               bandset_catalog=catalog,
                               output_path=cfg.temp.dir)
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
         files = [
             str(data_path / 'S2_2020-01-01' / 'S2_B02.tif'),
             str(data_path / 'S2_2020-01-01' / 'S2_B03.tif'),
@@ -36,11 +35,11 @@ class TestBandMask(TestCase):
         mask_path = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
         output = rs.band_mask(input_bands=files,
                               input_mask=mask_path,
-                              prefix="mask_", buffer=1, mask_values=[1, 425],
+                              prefix='mask_', buffer=1, mask_values=[1, 425],
                               nodata_value=-32768, virtual_output=True,
                               output_path=cfg.temp.dir)
         self.assertTrue(output.check)
-        self.assertTrue(files_directories.is_file(output.paths[0]))
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
 
         # clear temporary directory
         rs.close()

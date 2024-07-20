@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -40,7 +40,7 @@ def write_file(data, output_path, create_parent_directory=True, mode='w'):
 def open_text_file(input_path):
     with open(input_path, 'r') as f:
         text = f.read()
-    cfg.logger.log.debug('input_path: %s' % input_path)
+    cfg.logger.log.debug('input_path: %s' % str(input_path))
     return text
 
 

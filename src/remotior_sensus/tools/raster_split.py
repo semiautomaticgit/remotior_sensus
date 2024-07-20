@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -40,11 +40,11 @@ from remotior_sensus.util import (
 
 def raster_split(
         raster_path: str, output_path: str = None,
-        prefix: Optional[str] = None,
-        extent_list: Optional[list] = None,
+        prefix: Optional[str] = None, extent_list: Optional[list] = None,
         n_processes: Optional[int] = None,
-        virtual_output: Optional[bool] = None
-):
+        virtual_output: Optional[bool] = None,
+        progress_message: Optional[bool] = True
+) -> OutputManager:
     """Split a multiband raster to single bands.
 
     This tool allows for splitting a multiband raster to single bands.
@@ -57,6 +57,8 @@ def raster_split(
         n_processes: number of parallel processes.
         virtual_output: if True (and output_path is directory), save output
             as virtual raster.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -70,7 +72,7 @@ def raster_split(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     raster_path = files_directories.input_path(raster_path)
     # prepare process files

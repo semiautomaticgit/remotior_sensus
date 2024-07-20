@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -52,7 +52,8 @@ def raster_reclassification(
         output_data_type: Optional[str] = None,
         extent_list: Optional[list] = None, n_processes: Optional[int] = None,
         available_ram: Optional[int] = None,
-        virtual_output: Optional[bool] = None
+        virtual_output: Optional[bool] = None,
+        progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Performs raster reclassification.
 
@@ -79,6 +80,8 @@ def raster_reclassification(
         available_ram: number of megabytes of RAM available to processes.
         virtual_output: if True (and output_path is directory), save output
             as virtual raster of multiprocess parts.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -95,7 +98,7 @@ def raster_reclassification(
     cfg.logger.log.info('start')
     cfg.progress.update(
         process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=True
+        start=progress_message
     )
     cfg.logger.log.debug('raster_path: %s' % str(raster_path))
     if n_processes is None:
@@ -123,6 +126,7 @@ def raster_reclassification(
         if csv_path is None:
             cfg.logger.log.error('unable to reclassify')
             cfg.messages.error('unable to reclassify')
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
         else:
             table = _import_reclassification_table(
@@ -133,6 +137,7 @@ def raster_reclassification(
             else:
                 cfg.logger.log.error('unable to reclassify')
                 cfg.messages.error('unable to reclassify')
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
     # if reclassification list
     elif type(reclassification_table) is list:
@@ -142,6 +147,7 @@ def raster_reclassification(
         else:
             cfg.logger.log.error('unable to reclassify')
             cfg.messages.error('unable to reclassify')
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
     # check output data type
     cfg.logger.log.debug('output_data_type: %s' % str(output_data_type))

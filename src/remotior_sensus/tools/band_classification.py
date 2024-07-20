@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -63,6 +63,7 @@ try:
     import torch
     from remotior_sensus.util.pytorch_tools import train_pytorch_model
 except Exception as error:
+    torch = train_pytorch_model = None
     if cfg.logger is not None:
         cfg.logger.log.error(str(error))
 
@@ -88,20 +89,24 @@ class Classifier(object):
 
     Attributes:
         algorithm_name: algorithm name selected form cfg.classification_algorithms.
-        spectral_signatures: a SpectralSignaturesCatalog containing spectral signatures.
-        covariance_matrices: dictionary of previously calculated covariance matrices 
-            (used in maximum_likelihood).
+        spectral_signatures: a :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturesCatalog` 
+            containing spectral signatures.
+        covariance_matrices: dictionary of previously calculated covariance 
+            matrices (used in maximum likelihood only).
         model_classifier: classifier object.
-        input_normalization: perform input normalization; options are z_score or linear_scaling.
-        normalization_values: list of normalization paramters defined for each variable
-            [normalization expressions, mean values, 
+        input_normalization: perform input normalization; options 
+            are :py:attr:`z_score` or :py:attr:`linear_scaling`.
+        normalization_values: list of normalization paramters defined for each 
+            variable [normalization expressions, mean values, 
             standar deviation values, minimum values, maximum values].
         framework_name: name of framework such as 
-            classification_framework, scikit_framework, or pytorch_framework.
+            :py:attr:`classification_framework`, :py:attr:`scikit_framework`, 
+            or :py:attr:`pytorch_framework`.
         classification_function: the actual classification function.
-        function_argument = a dictionary including arguments for the classification function
-            such as model_classifier, covariance_matrices, normalization_values, 
-            spectral_signatures_catalog.
+        function_argument = a dictionary including arguments for the 
+            classification function such as :py:attr:`model_classifier`, 
+            :py:attr:`covariance_matrices`, :py:attr:`normalization_values`, 
+            :py:attr:`spectral_signatures_catalog`.
 
     Examples:
         Fit a classifier
@@ -136,14 +141,16 @@ class Classifier(object):
         A classifier is an object which includes the 
 
         Args:
-            algorithm_name: algorithm name selected form cfg.classification_algorithms.
-            spectral_signatures: a SpectralSignaturesCatalog containing spectral signatures.
-            covariance_matrices: dictionary of previously calculated covariance matrices 
-                (used in maximum_likelihood).
+            algorithm_name: algorithm name selected form :py:attr:`cfg.classification_algorithms`.
+            spectral_signatures: a :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturesCatalog` 
+                containing spectral signatures.
+            covariance_matrices: dictionary of previously calculated covariance 
+                matrices (used in maximum likelihood only).
             model_classifier: classifier object.
-            input_normalization: perform input normalization; options are z_score or linear_scaling.
-            normalization_values: list of normalization parameters defined for each variable
-                [normalization expressions, mean values, 
+            input_normalization: perform input normalization; options are 
+                :py:attr:`z_score` or :py:attr:`linear_scaling`.
+            normalization_values: list of normalization parameters defined for 
+                each variable [normalization expressions, mean values, 
                 standard deviation values, minimum values, maximum values].
         """  # noqa: E501
         self.algorithm_name = algorithm_name
@@ -226,7 +233,7 @@ class Classifier(object):
             output_path: path of output file.
         
         Returns:
-            OutputManager object with
+            :func:`~remotior_sensus.core.output_manager.OutputManager` object with
                 - path = [output path]
             
         Examples:
@@ -285,8 +292,10 @@ class Classifier(object):
             file_path = cfg.temp.temporary_file_path(
                 name=cfg.model_classifier_framework, name_suffix='.pth'
             )
-            torch.save(self.model_classifier, file_path)
-            files.append(file_path)
+            if torch is not None:
+                # noinspection PyUnresolvedReferences
+                torch.save(self.model_classifier, file_path)
+                files.append(file_path)
         # zip files
         if files_directories.file_extension(output_path) != cfg.rsmo_suffix:
             output_path = shared_tools.join_path(
@@ -311,17 +320,18 @@ class Classifier(object):
 
         Args:
             algorithm_name: algorithm name selected form cfg.classification_algorithms.
-            spectral_signatures: a SpectralSignaturesCatalog containing spectral signatures.
+            spectral_signatures: a :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturesCatalog` 
+                containing spectral signatures.
             covariance_matrices: dictionary of previously calculated covariance matrices 
-                (used in maximum_likelihood).
+                (used in maximum likelihood only).
             model_classifier: classifier object.
-            input_normalization: perform input normalization; options are z_score or linear_scaling.
+            input_normalization: perform input normalization; options are :py:attr:`z_score` or :py:attr:`linear_scaling`.
             normalization_values: list of normalization parameters defined for each variable
                 [normalization expressions, mean values, 
                 standard deviation values, minimum values, maximum values].
 
         Returns:
-            Classifier object.
+            :func:`Classifier` object.
 
         Examples:
             Load a classifier
@@ -365,32 +375,33 @@ class Classifier(object):
         Trains a classifier using ROIs or spectral signatures.
 
         Args:
-            spectral_signatures: a SpectralSignaturesCatalog containing spectral signatures.
-            algorithm_name: algorithm name selected from cfg.classification_algorithms; 
+            spectral_signatures: a :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturesCatalog` 
+                containing spectral signatures.
+            algorithm_name: algorithm name selected from :py:attr:`cfg.classification_algorithms`; 
                 if None, minimum distance is used.
             n_processes: number of parallel processes.
             available_ram: number of megabytes of RAM available to processes.
             cross_validation: if True, perform cross validation for algorithms
-                provided through scikit-learn (random_forest, random_forest_ovr, 
-                support_vector_machine, multi_layer_perceptron).
+                provided through scikit-learn (:py:attr:`random_forest`, :py:attr:`random_forest_ovr`, 
+                :py:attr:`support_vector_machine`, :py:attr:`multi_layer_perceptron`).
             x_matrix: optional previously saved x matrix.
             y: optional previously saved y matrix.
             covariance_matrices: dictionary of previously calculated covariance matrices 
-                (used in maximum_likelihood).
+                (used in maximum likelihood only).
             svc_classification_confidence: if True, write also additional
                 classification confidence rasters as output; required information for support_vector_machine.
-            input_normalization: perform input normalization; options are z_score or linear_scaling.
-            normalization_values: list of normalization paramters defined for each variable
-                [normalization expressions, mean values, 
+            input_normalization: perform input normalization; options are :py:attr:`z_score` or :py:attr:`linear_scaling`.
+            normalization_values: list of normalization paramters defined for 
+                each variable [normalization expressions, mean values, 
                 standar deviation values, minimum values, maximum values].
-            class_weight: specific for random forest and support_vector_machine, if None each class
-                has equal weight 1, if 'balanced' weight is computed inversely
-                proportional to class frequency.
+            class_weight: specific for random forest and support vector machine, 
+                if None each class has equal weight 1, if :py:attr:`balanced` weight is 
+                computed inversely proportional to class frequency.
             find_best_estimator: specific for scikit classifiers, if True,
                 find automatically the best parameters and fit the model, if
                 integer the greater the value the more are the tested combinations.
             rf_max_features: specific for random forest, if None all features
-                are considered in node splitting, available options are 'sqrt' as
+                are considered in node splitting, available options are :py:attr:`sqrt` as
                 square root of all the features, an integer number, or
                 a float number for a fraction of all the features.
             rf_number_trees: specific for random forest, number of trees in the forest.
@@ -399,44 +410,45 @@ class Classifier(object):
             svm_c: specific for support_vector_machine through scikit,
                 sets the regularization parameter C; default = 1.
             svm_gamma: specific for support_vector_machine through scikit, 
-                sets the kernel coefficient; default = scale.
+                sets the kernel coefficient; default = :py:attr:`scale`.
             svm_kernel: specific for support_vector_machine through scikit, 
-                sets the kernel; default = rbf.
-            mlp_training_portion: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-                the proportion of data to be used as training (default = 0.9) and the remaining part
-                as test (default = 0.1).
-            mlp_hidden_layer_sizes: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
+                sets the kernel; default = :py:attr:`rbf`.
+            mlp_training_portion: specific for :py:attr:`multi_layer_perceptron` 
+                and :py:attr:`pytorch_multi_layer_perceptron`,
+                the proportion of data to be used as training (default = 0.9) 
+                and the remaining part as test (default = 0.1).
+            mlp_hidden_layer_sizes: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
                 list of values where each value defines the number of neurons in a hidden layer 
-                (e.g., [200, 100] for two hidden layers of 200 and 100 neurons respectively); default = [100].
-            mlp_alpha: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
+                (e.g., :py:attr:`[200, 100]` for two hidden layers of 200 and 100 neurons respectively); default = :py:attr:`[100]`.
+            mlp_alpha: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
                 weight decay (also L2 regularization term) for Adam optimizer (default = 0.0001).
-            mlp_learning_rate_init: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
+            mlp_learning_rate_init: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
                 sets initial learning rate (default = 0.001).
-            mlp_max_iter: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
+            mlp_max_iter: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
                 sets the maximum number of iterations (default = 200).
-            mlp_batch_size: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-                sets the number of samples per batch for optimizer; if "auto", the batch is the 
-                minimum value between 200 and the number of samples (default = auto).
-            mlp_activation: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-                sets the activation function (default relu).
-            pytorch_model: specific for pytorch_multi_layer_perceptron,
-                custom pytorch nn.Module.
-            pytorch_optimizer: specific for pytorch_multi_layer_perceptron,
+            mlp_batch_size: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
+                sets the number of samples per batch for optimizer; if :py:attr:`auto`, the batch is the 
+                minimum value between 200 and the number of samples (default = :py:attr:`auto`).
+            mlp_activation: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
+                sets the activation function (default = :py:attr:`relu`).
+            pytorch_model: specific for :py:attr:`pytorch_multi_layer_perceptron`,
+                custom pytorch :py:attr:`nn.Module`.
+            pytorch_optimizer: specific for :py:attr:`pytorch_multi_layer_perceptron`,
                 custom pytorch optimizer.
-            pytorch_loss_function: specific for pytorch_multi_layer_perceptron,
-                sets a custom loss function (default CrossEntropyLoss).
-            pytorch_optimization_n_iter_no_change: specific for pytorch_multi_layer_perceptron,
+            pytorch_loss_function: specific for :py:attr:`pytorch_multi_layer_perceptron`,
+                sets a custom loss function (default = :py:attr:`CrossEntropyLoss`).
+            pytorch_optimization_n_iter_no_change: specific for :py:attr:`pytorch_multi_layer_perceptron`,
                 sets the maximum number of epochs where the loss is not improving by 
-                at least the value pytorch_optimization_tol (default 5).
-            pytorch_optimization_tol: specific for pytorch_multi_layer_perceptron,
+                at least the value :py:attr:`pytorch_optimization_tol` (default = 5).
+            pytorch_optimization_tol: specific for :py:attr:`pytorch_multi_layer_perceptron`,
                 sets the tolerance of optimization (default = 0.0001).
-            pytorch_device: specific for pytorch_multi_layer_perceptron,
-                processing device 'cpu' (default) or 'cuda' if available.
+            pytorch_device: specific for :py:attr:`pytorch_multi_layer_perceptron`,
+                processing device :py:attr:`cpu` (default) or :py:attr:`cuda` if available.
             min_progress: minimum progress value for :func:`~remotior_sensus.core.progress.Progress`.
             max_progress: maximum progress value for :func:`~remotior_sensus.core.progress.Progress`.
 
         Returns:
-            Classifier object.
+            :func:`Classifier` object.
 
         Examples:
             Load a classifier
@@ -988,22 +1000,24 @@ class Classifier(object):
                     )
                 )
             cfg.progress.update(message='fitting')
-            (model_classifier, training_loss, test_loss,
-             accuracy) = train_pytorch_model(
-                x_matrix=x_matrix, y_matrix=y, pytorch_model=pytorch_model,
-                activation=mlp_activation, batch_size=mlp_batch_size,
-                n_processes=n_processes, training_portion=mlp_training_portion,
-                pytorch_optimizer=pytorch_optimizer,
-                hidden_layer_sizes=mlp_hidden_layer_sizes,
-                loss_function=pytorch_loss_function,
-                learning_rate_init=mlp_learning_rate_init,
-                optimization_n_iter_no_change=(
-                    pytorch_optimization_n_iter_no_change
-                ), optimization_tol=pytorch_optimization_tol,
-                weight_decay=mlp_alpha, max_iterations=mlp_max_iter,
-                device=pytorch_device, min_progress=min_progress,
-                max_progress=max_progress
-            )
+            if train_pytorch_model is not None:
+                (model_classifier, training_loss, test_loss,
+                 accuracy) = train_pytorch_model(
+                    x_matrix=x_matrix, y_matrix=y, pytorch_model=pytorch_model,
+                    activation=mlp_activation, batch_size=mlp_batch_size,
+                    n_processes=n_processes,
+                    training_portion=mlp_training_portion,
+                    pytorch_optimizer=pytorch_optimizer,
+                    hidden_layer_sizes=mlp_hidden_layer_sizes,
+                    loss_function=pytorch_loss_function,
+                    learning_rate_init=mlp_learning_rate_init,
+                    optimization_n_iter_no_change=(
+                        pytorch_optimization_n_iter_no_change
+                    ), optimization_tol=pytorch_optimization_tol,
+                    weight_decay=mlp_alpha, max_iterations=mlp_max_iter,
+                    device=pytorch_device, min_progress=min_progress,
+                    max_progress=max_progress
+                )
         cfg.logger.log.info('end')
         # return classifier
         return cls(
@@ -1025,7 +1039,7 @@ class Classifier(object):
             classification_confidence: Optional[bool] = False,
             virtual_raster: Optional[bool] = None,
             min_progress: Optional[int] = 1, max_progress: Optional[int] = 100
-    ):
+    ) -> OutputManager:
         """Runs prediction.
 
         Performs multiprocess classification using a trained classifier using 
@@ -1036,10 +1050,11 @@ class Classifier(object):
             output_raster_path: path of output file.
             n_processes: number of parallel processes.
             available_ram: number of megabytes of RAM available to processes.
-            macroclass: if True, use macroclass ID from ROIs or spectral signatures; if False use class ID.
+            macroclass: if True, use macroclass ID from ROIs or spectral 
+                signatures; if False use class ID.
             threshold: if False, classification without threshold; if True,
-                use single threshold for each signature; if float, use this value 
-                as threshold for all the signature.
+                use single threshold for each signature; if float, use this 
+                value as threshold for all the signature.
             classification_confidence: if True, write also additional
                 classification confidence rasters as output.
             signature_raster: if True, write additional rasters for each
@@ -1050,7 +1065,7 @@ class Classifier(object):
 
 
         Returns:
-            OutputManager object with
+            :func:`~remotior_sensus.core.output_manager.OutputManager` object with
                 - path = [output path]
 
         Examples:
@@ -1168,11 +1183,13 @@ def band_classification(
             or a previously defined BandSet.
         output_path: path of output file.
         overwrite: if True, output overwrites existing files.
-        spectral_signatures: a SpectralSignaturesCatalog containing spectral signatures.
-        algorithm_name: algorithm name selected from cfg.classification_algorithms; 
+        spectral_signatures: a :func:`~remotior_sensus.core.spectral_signatures.SpectralSignaturesCatalog` 
+            containing spectral signatures.
+        algorithm_name: algorithm name selected from :py:attr:`cfg.classification_algorithms`; 
             if None, minimum distance is used.
         bandset_catalog: BandSetCatalog object.
-        macroclass: if True, use macroclass ID from ROIs or spectral signatures; if False use class ID.
+        macroclass: if True, use macroclass ID from ROIs or spectral 
+            signatures; if False use class ID.
         threshold: if False, classification without threshold; if True,
             use single threshold for each signature; if float, use this value 
             as threshold for all the signature.
@@ -1183,66 +1200,75 @@ def band_classification(
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         cross_validation: if True, perform cross validation for algorithms
-            provided through scikit-learn (random_forest, random_forest_ovr, 
-            support_vector_machine, multi_layer_perceptron).
+            provided through scikit-learn (:py:attr:`random_forest`, :py:attr:`random_forest_ovr`, 
+            :py:attr:`support_vector_machine`, :py:attr:`multi_layer_perceptron`).
         load_classifier: path to a previously saved classifier.
         x_input: optional previously saved x matrix.
         y_input: optional previously saved y matrix.
-        covariance_matrices: dictionary of previously calculated covariance matrices 
-            (used in maximum_likelihood).
-        input_normalization: perform input normalization; options are z_score or linear_scaling.
+        covariance_matrices: dictionary of previously calculated covariance 
+            matrices (used in :py:attr:`maximum_likelihood`).
+        input_normalization: perform input normalization; options are :py:attr:`z_score` 
+            or :py:attr:`linear_scaling`.
         only_fit: perform only classifier fitting.
         save_classifier: save classifier to file.
-        class_weight: specific for random forest and support_vector_machine, if None each class
-            has equal weight 1, if 'balanced' weight is computed inversely
-            proportional to class frequency.
+        class_weight: specific for random forest and support vector machine, 
+            if None each class has equal weight 1, if 'balanced' weight is 
+            computed inversely proportional to class frequency.
         find_best_estimator: specific for scikit classifiers, if True,
             find automatically the best parameters and fit the model, if
             integer the greater the value the more are the tested combinations.
         rf_max_features: specific for random forest, if None all features
-            are considered in node splitting, available options are 'sqrt' as
+            are considered in node splitting, available options are :py:attr:`sqrt` as
             square root of all the features, an integer number, or
             a float number for a fraction of all the features.
-        rf_number_trees: specific for random forest, number of trees in the forest.
+        rf_number_trees: specific for random forest, number of trees in the 
+            forest.
         rf_min_samples_split: specific for random forest through scikit, 
-            sets the minimum number of samples required to split an internal node; default = 2.
+            sets the minimum number of samples required to split an internal 
+            node; default = 2.
         svm_c: specific for support_vector_machine through scikit,
             sets the regularization parameter C; default = 1.
         svm_gamma: specific for support_vector_machine through scikit, 
-            sets the kernel coefficient; default = scale.
+            sets the kernel coefficient; default = :py:attr:`scale`.
         svm_kernel: specific for support_vector_machine through scikit, 
-            sets the kernel; default = rbf.
-        mlp_training_portion: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-            the proportion of data to be used as training (default = 0.9) and the remaining part
+            sets the kernel; default = :py:attr:`rbf`.
+        mlp_training_portion: specific for :py:attr:`multi_layer_perceptron` and 
+            :py:attr:`pytorch_multi_layer_perceptron`, the proportion of data to be used 
+            as training (default = 0.9) and the remaining part
             as test (default = 0.1).
-        mlp_hidden_layer_sizes: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-            list of values where each value defines the number of neurons in a hidden layer 
-            (e.g., [200, 100] for two hidden layers of 200 and 100 neurons respectively); default = [100].
-        mlp_alpha: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-            weight decay (also L2 regularization term) for Adam optimizer (default = 0.0001).
-        mlp_learning_rate_init: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-            sets initial learning rate (default = 0.001).
-        mlp_max_iter: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
+        mlp_hidden_layer_sizes: specific for :py:attr:`multi_layer_perceptron` and 
+            :py:attr:`pytorch_multi_layer_perceptron`, list of values where each value 
+            defines the number of neurons in a hidden layer (e.g., :py:attr:`[200, 100]` 
+            for two hidden layers of 200 and 100 neurons respectively); 
+            default = :py:attr:`[100]`.
+        mlp_alpha: specific for :py:attr:`multi_layer_perceptron` and 
+            :py:attr:`pytorch_multi_layer_perceptron`, weight decay (also L2 
+            regularization term) for Adam optimizer (default = 0.0001).
+        mlp_learning_rate_init: specific for :py:attr:`multi_layer_perceptron` and 
+            :py:attr:`pytorch_multi_layer_perceptron`, sets initial learning rate (default
+            = 0.001).
+        mlp_max_iter: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
             sets the maximum number of iterations (default = 200).
-        mlp_batch_size: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-            sets the number of samples per batch for optimizer; if "auto", the batch is the 
-            minimum value between 200 and the number of samples (default = auto).
-        mlp_activation: specific for multi_layer_perceptron and pytorch_multi_layer_perceptron,
-            sets the activation function (default relu).
-        pytorch_model: specific for pytorch_multi_layer_perceptron,
-            custom pytorch nn.Module.
-        pytorch_optimizer: specific for pytorch_multi_layer_perceptron,
+        mlp_batch_size: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
+            sets the number of samples per batch for optimizer; if :py:attr:`auto`, the batch is the 
+            minimum value between 200 and the number of samples (default = :py:attr:`auto`).
+        mlp_activation: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
+            sets the activation function (default = :py:attr:`relu`).
+        pytorch_model: specific for :py:attr:`pytorch_multi_layer_perceptron`,
+            custom pytorch :py:attr:`nn.Module`.
+        pytorch_optimizer: specific for :py:attr:`pytorch_multi_layer_perceptron`,
             custom pytorch optimizer.
-        pytorch_loss_function: specific for pytorch_multi_layer_perceptron,
-            sets a custom loss function (default CrossEntropyLoss).
-        pytorch_optimization_n_iter_no_change: specific for pytorch_multi_layer_perceptron,
+        pytorch_loss_function: specific for :py:attr:`pytorch_multi_layer_perceptron`,
+            sets a custom loss function (default :py:attr:`CrossEntropyLoss`).
+        pytorch_optimization_n_iter_no_change: specific for :py:attr:`pytorch_multi_layer_perceptron`,
             sets the maximum number of epochs where the loss is not improving by 
-            at least the value pytorch_optimization_tol (default 5).
-        pytorch_optimization_tol: specific for pytorch_multi_layer_perceptron,
+            at least the value :py:attr:`pytorch_optimization_tol` (default = 5).
+        pytorch_optimization_tol: specific for :py:attr:`pytorch_multi_layer_perceptron`,
             sets the tolerance of optimization (default = 0.0001).
-        pytorch_device: specific for pytorch_multi_layer_perceptron,
-            processing device 'cpu' (default) or 'cuda' if available.
-        progress_message: progress message.
+        pytorch_device: specific for :py:attr:`pytorch_multi_layer_perceptron`,
+            processing device :py:attr:`cpu` (default) or :py:attr:`cuda` if available.
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
 
     Returns:
         If only_fit is True returns :func:`~remotior_sensus.core.output_manager.OutputManager` object with
@@ -1253,16 +1279,16 @@ def band_classification(
             - extra = {'model_path': output model path}
     """  # noqa: E501
     cfg.logger.log.info('start')
-    if progress_message:
-        cfg.progress.update(
-            process=__name__.split('.')[-1].replace('_', ' '),
-            message='starting', start=True
-        )
+    cfg.progress.update(
+        process=__name__.split('.')[-1].replace('_', ' '),
+        message='starting', start=progress_message
+    )
     if algorithm_name is None:
         algorithm_name = cfg.minimum_distance
     elif algorithm_name not in cfg.classification_algorithms:
         cfg.logger.log.error('unknown algorithm name')
         cfg.messages.error('unknown algorithm name')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     cfg.progress.update(message='starting the classifier', step=1)
     cfg.logger.log.debug('algorithm_name: %s' % str(algorithm_name))
@@ -1270,12 +1296,13 @@ def band_classification(
     prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
-        multiple_input=True
+        multiple_input=True, multiple_resolution=False
     )
     input_raster_list = prepared['input_raster_list']
     out_path = prepared['output_path']
     vrt_r = prepared['virtual_output']
     n_processes = prepared['n_processes']
+    same_geotransformation = prepared['same_geotransformation']
     if load_classifier is not None:
         loaded_classifier = _load_model(load_classifier)
         if loaded_classifier.check:
@@ -1283,6 +1310,7 @@ def band_classification(
         else:
             cfg.logger.log.error('failed loading classifier')
             cfg.messages.error('failed loading classifier')
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
     else:
         # get spectral signature file
@@ -1304,9 +1332,13 @@ def band_classification(
             spectral_signatures=spectral_signatures,
             input_normalization=input_normalization, macroclass=macroclass,
             n_processes=n_processes, available_ram=available_ram,
-            min_progress=1, max_progress=5, algorithm_name=algorithm_name
+            min_progress=1, max_progress=5, algorithm_name=algorithm_name,
+            same_geotransformation=same_geotransformation
         )
         if x_y_matrices.check is False:
+            cfg.logger.log.error('error collecting matrices')
+            cfg.messages.error('error collecting matrices')
+            cfg.progress.update(failed=True)
             return OutputManager(check=False)
         x_matrix = x_y_matrices.extra['x']
         y = x_y_matrices.extra['y']
@@ -1356,7 +1388,6 @@ def band_classification(
         )
         if prediction.check:
             cfg.logger.log.info('end; prediction: %s' % str(prediction.path))
-
             try:
                 alg_raster = prediction.extra['algorithm_raster']
             except Exception as err:
@@ -1373,6 +1404,13 @@ def band_classification(
                     'model_path': output_model, 'algorithm_raster': alg_raster,
                     'signature_rasters': sig_rasters
                 }
+            )
+        else:
+            return OutputManager(
+                path=None,
+                extra={'model_path': None, 'algorithm_raster': None,
+                       'signature_rasters': None
+                       }
             )
     else:
         cfg.logger.log.info(
@@ -1432,127 +1470,187 @@ def _get_x_y_arrays_from_rois(
         raster_paths, roi_path, spectral_signatures, macroclass=True,
         n_processes: int = None, available_ram: int = None,
         algorithm_name=None, input_normalization=None,
-        min_progress=None, max_progress=None
+        min_progress=None, max_progress=None, same_geotransformation=None
 ):
     """Gets x y arrays from rois."""
     cfg.logger.log.debug('raster_paths: %s' % str(raster_paths))
     if n_processes is None:
         n_processes = cfg.n_processes
-    min_x, max_x, min_y, max_y = raster_vector.get_layer_extent(roi_path)
-    virtual_path_list = []
-    for p in raster_paths:
-        temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
-        virtual = raster_vector.create_virtual_raster(
-            input_raster_list=[p], output=temp_path,
-            box_coordinate_list=[min_x, max_y, max_x, min_y]
+    if same_geotransformation is True:
+        virtual_path_list = raster_paths
+    else:
+        virtual_path_list = []
+        # TODO check
+        for p in raster_paths:
+            temp_path = cfg.temp.temporary_file_path(
+                name_suffix=cfg.vrt_suffix)
+            virtual = raster_vector.create_virtual_raster(
+                input_raster_list=[p], output=temp_path
+            )
+            virtual_path_list.append(virtual)
+    # get id of geometries
+    try:
+        # get selected signatures
+        signatures_table = spectral_signatures.table[
+            spectral_signatures.table.selected == 1
+            ]
+        signature_ids = signatures_table[
+            signatures_table.geometry == 1].signature_id.tolist()
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        return OutputManager(
+            extra={'x': None, 'y': None, 'covariance_matrices': None,
+                   'normalization_values': [None, None, None, None, None]}
         )
-        virtual_path_list.append(virtual)
-    # get band arrays
-    cfg.multiprocess.run_separated(
-        raster_path_list=virtual_path_list, function=get_band_arrays,
-        function_argument=[[roi_path, spectral_signatures.table]] * len(
-            raster_paths
-        ), function_variable=virtual_path_list, n_processes=n_processes,
-        available_ram=available_ram, keep_output_argument=True,
-        progress_message='get band arrays', min_progress=min_progress,
-        max_progress=max_progress
-    )
-    # array for each roi
-    cfg.multiprocess.multiprocess_roi_arrays()
-    if cfg.multiprocess.output is False:
-        return OutputManager(check=False)
-    array_dictionary = cfg.multiprocess.output
-    x_matrix = y = normalization = means = stds = max_s = min_s = None
-    covariance_matrices_dict = {}
-    for s in array_dictionary:
-        if macroclass:
-            class_value = spectral_signatures.table[
-                spectral_signatures.table.signature_id == s].macroclass_id[0]
-        else:
-            class_value = spectral_signatures.table[
-                spectral_signatures.table.signature_id == s].class_id[0]
-        matrix = np.stack(array_dictionary[s])
-        if x_matrix is None:
-            x_matrix = matrix
-            y = np.ones(matrix.shape[1]) * class_value
-        else:
-            x_matrix = np.hstack([x_matrix, matrix])
-            y = np.concatenate([y, np.ones(matrix.shape[1]) * class_value])
-    # normalization
-    if input_normalization is not None:
-        normalization = []
-        means = []
-        stds = []
-        max_s = []
-        min_s = []
-        if input_normalization == cfg.z_score:
-            for b in range(0, x_matrix.shape[0]):
-                mean = x_matrix[b, ::].mean()
-                means.append(mean)
-                std = x_matrix[b, ::].std()
-                stds.append(std)
-                expression = '(%s[::, ::, n] - %s) / (%s + 0.000001)' % (
-                    cfg.array_function_placeholder, str(mean), str(std))
-                x_matrix[b, ::] = (x_matrix[b, ::] - mean) / (std + 0.000001)
-                normalization.append(expression)
-        elif input_normalization == cfg.linear_scaling:
-            for b in range(0, x_matrix.shape[0]):
-                minimum = x_matrix[b, ::].min()
-                min_s.append(minimum)
-                maximum = x_matrix[b, ::].max()
-                max_s.append(maximum)
-                expression = '(%s[::, ::, n] - %s) / (%s - %s)' % (
-                    cfg.array_function_placeholder, str(minimum), str(maximum),
-                    str(minimum))
-                x_matrix[b, ::] = (x_matrix[b, ::] - minimum) / (
-                        maximum - minimum)
-                normalization.append(expression)
-    if (algorithm_name == cfg.maximum_likelihood
-            or algorithm_name == cfg.maximum_likelihood_a):
+    if len(signature_ids) > 0:
+        if n_processes > len(signature_ids):
+            n_processes = len(signature_ids)
+        signature_ids_index_list = list(
+            range(0, len(signature_ids),
+                  round(len(signature_ids) / n_processes))
+        )
+        signature_ids_index_list.append(len(signature_ids))
+        # build function argument list of dictionaries
+        argument_list = []
+        function_list = []
+        for signature_ids_index in range(1, len(signature_ids_index_list)):
+            # signature ids
+            signature_id_list = signature_ids[
+                signature_ids_index_list[signature_ids_index - 1]:
+                signature_ids_index_list[signature_ids_index]
+            ]
+            argument_list.append(
+                {
+                    'signature_id_list': signature_id_list,
+                    'roi_path': roi_path,
+                    'virtual_path_list': virtual_path_list,
+                    'available_ram': available_ram,
+                    # optional calc_data_type
+                    'calc_data_type': None
+                }
+            )
+            function_list.append(get_band_arrays)
+        cfg.multiprocess.run_iterative_process(
+            function_list=function_list, argument_list=argument_list,
+            min_progress=min_progress, max_progress=max_progress
+        )
+        # array for each roi
+        cfg.multiprocess.multiprocess_roi_arrays()
+        if cfg.multiprocess.output is False:
+            return OutputManager(check=False)
+        array_dictionary = cfg.multiprocess.output
+        x_matrix = y = normalization = means = stds = max_s = min_s = None
+        covariance_matrices_dict = {}
         for s in array_dictionary:
-            cfg.logger.log.debug('s: %s' % str(s))
-            matrix = np.stack(array_dictionary[s])
-            # normalization
-            if input_normalization is not None:
-                if input_normalization == cfg.z_score:
-                    for b in range(0, matrix.shape[0]):
-                        matrix[b, ::] = (matrix[b, ::] - means[b]) / (
-                                stds[b] + 0.000001)
-                elif input_normalization == cfg.linear_scaling:
-                    for b in range(0, matrix.shape[0]):
-                        matrix[b, ::] = (matrix[b, ::] - min_s[b]) / (
-                                max_s[b] - min_s[b])
-            # covariance matrix (degree of freedom = 1 for unbiased estimate)
-            cov_matrix = np.ma.cov(np.ma.masked_invalid(matrix), ddof=1)
+            if macroclass:
+                class_value = spectral_signatures.table[
+                    spectral_signatures.table.signature_id
+                    == s].macroclass_id[0]
+            else:
+                class_value = spectral_signatures.table[
+                    spectral_signatures.table.signature_id == s].class_id[0]
             try:
-                # inverse
-                inv = np.linalg.inv(cov_matrix)
-                if np.isnan(inv[0, 0]):
-                    pass
-                else:
-                    covariance_matrices_dict[s] = cov_matrix
+                matrix = np.stack(array_dictionary[s])
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error('covariance matrix')
-    return OutputManager(
-        extra={
-            'x': x_matrix.T, 'y': y,
-            'covariance_matrices': covariance_matrices_dict,
-            'normalization_values': [normalization, means, stds, min_s, max_s]
-        }
-    )
+                return OutputManager(
+                    extra={
+                        'x': None, 'y': None, 'covariance_matrices': None,
+                        'normalization_values': [None, None, None, None, None]
+                    }
+                )
+            if x_matrix is None:
+                x_matrix = matrix
+                y = np.ones(matrix.shape[1]) * class_value
+            else:
+                x_matrix = np.hstack([x_matrix, matrix])
+                y = np.concatenate([y, np.ones(matrix.shape[1]) * class_value])
+        # normalization
+        if input_normalization is not None:
+            normalization = []
+            means = []
+            stds = []
+            max_s = []
+            min_s = []
+            if input_normalization == cfg.z_score:
+                for b in range(0, x_matrix.shape[0]):
+                    mean = x_matrix[b, ::].mean()
+                    means.append(mean)
+                    std = x_matrix[b, ::].std()
+                    stds.append(std)
+                    expression = '(%s[::, ::, n] - %s) / (%s + 0.000001)' % (
+                        cfg.array_function_placeholder, str(mean), str(std))
+                    x_matrix[b, ::] = (x_matrix[b, ::] - mean) / (std
+                                                                  + 0.000001)
+                    normalization.append(expression)
+            elif input_normalization == cfg.linear_scaling:
+                for b in range(0, x_matrix.shape[0]):
+                    minimum = x_matrix[b, ::].min()
+                    min_s.append(minimum)
+                    maximum = x_matrix[b, ::].max()
+                    max_s.append(maximum)
+                    expression = '(%s[::, ::, n] - %s) / (%s - %s)' % (
+                        cfg.array_function_placeholder, str(minimum),
+                        str(maximum), str(minimum))
+                    x_matrix[b, ::] = (x_matrix[b, ::] - minimum) / (
+                            maximum - minimum)
+                    normalization.append(expression)
+        if (algorithm_name == cfg.maximum_likelihood
+                or algorithm_name == cfg.maximum_likelihood_a):
+            for s in array_dictionary:
+                cfg.logger.log.debug('s: %s' % str(s))
+                matrix = np.stack(array_dictionary[s])
+                # normalization
+                if input_normalization is not None:
+                    if input_normalization == cfg.z_score:
+                        for b in range(0, matrix.shape[0]):
+                            matrix[b, ::] = (matrix[b, ::] - means[b]) / (
+                                    stds[b] + 0.000001)
+                    elif input_normalization == cfg.linear_scaling:
+                        for b in range(0, matrix.shape[0]):
+                            matrix[b, ::] = (matrix[b, ::] - min_s[b]) / (
+                                    max_s[b] - min_s[b])
+                # covariance matrix (degree of freedom=1 for unbiased estimate)
+                cov_matrix = np.ma.cov(np.ma.masked_invalid(matrix), ddof=1)
+                try:
+                    # inverse
+                    inv = np.linalg.inv(cov_matrix)
+                    if np.isnan(inv[0, 0]):
+                        pass
+                    else:
+                        covariance_matrices_dict[s] = cov_matrix
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    cfg.messages.error('covariance matrix')
+        return OutputManager(
+            extra={
+                'x': x_matrix.T, 'y': y,
+                'covariance_matrices': covariance_matrices_dict,
+                'normalization_values': [normalization, means, stds, min_s,
+                                         max_s]
+            }
+        )
+    else:
+        cfg.logger.log.error('no signatures')
+        return OutputManager(
+            extra={'x': None, 'y': None, 'covariance_matrices': None,
+                   'normalization_values': [None, None, None, None, None]}
+        )
 
 
 def _collect_x_y_matrices(
         x_matrix=None, y=None, covariance_matrices=None,
         input_raster_list=None, spectral_signatures=None,
         input_normalization=None, macroclass=None, n_processes: int = None,
-        available_ram: int = None,
+        available_ram: int = None, same_geotransformation=None,
         min_progress=0, max_progress=100, algorithm_name=None
 ):
     """Collects x and y matrices."""
     normalization_values = None
     if x_matrix is None:
+        if spectral_signatures is None:
+            return OutputManager(check=False)
         # calculate x y arrays
         x_y_arrays = _get_x_y_arrays_from_rois(
             raster_paths=input_raster_list,
@@ -1561,7 +1659,8 @@ def _collect_x_y_matrices(
             n_processes=n_processes, available_ram=available_ram,
             algorithm_name=algorithm_name,
             input_normalization=input_normalization, min_progress=min_progress,
-            max_progress=max_progress
+            max_progress=max_progress,
+            same_geotransformation=same_geotransformation
         )
         if x_y_arrays.check is False:
             return OutputManager(check=False)
@@ -1643,8 +1742,8 @@ def _load_model(model_path):
                     algorithm_name = variable[1]
                 elif variable[0] == cfg.input_normalization_framework:
                     input_normalization = variable[1]
-            if input_normalization is not None and \
-                    input_normalization.lower() == 'none':
+            if (input_normalization is not None
+                    and input_normalization.lower() == 'none'):
                 input_normalization = None
             # scikit framework
             if (
@@ -1655,7 +1754,8 @@ def _load_model(model_path):
                     or algorithm_name == cfg.support_vector_machine
                     or algorithm_name == cfg.support_vector_machine_a
                     or algorithm_name == cfg.multi_layer_perceptron
-                    or algorithm_name == cfg.multi_layer_perceptron_a):
+                    or algorithm_name == cfg.multi_layer_perceptron_a
+            ):
                 framework_name = cfg.scikit_framework
             # pytorch framework
             elif (algorithm_name == cfg.pytorch_multi_layer_perceptron
@@ -1674,7 +1774,9 @@ def _load_model(model_path):
             if framework_name == cfg.scikit_framework:
                 model_classifier = pickle.load(open(f, 'rb'))
             elif framework_name == cfg.pytorch_framework:
-                model_classifier = torch.load(f)
+                if torch is not None:
+                    # noinspection PyUnresolvedReferences
+                    model_classifier = torch.load(f)
     classifier = Classifier.load_classifier(
         algorithm_name=algorithm_name, spectral_signatures=spectral_signatures,
         covariance_matrices=covariance_matrices,

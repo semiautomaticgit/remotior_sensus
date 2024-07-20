@@ -2,7 +2,6 @@ from pathlib import Path
 from unittest import TestCase
 
 import remotior_sensus
-from remotior_sensus.util import files_directories
 
 
 class TestVectorToRaster(TestCase):
@@ -21,10 +20,10 @@ class TestVectorToRaster(TestCase):
         )
         raster = rs.vector_to_raster(vector_path=v, align_raster=r,
                                      constant=1, output_path=temp)
-        self.assertTrue(files_directories.is_file(raster.path))
+        self.assertTrue(rs.files_directories.is_file(raster.path))
         raster = rs.vector_to_raster(vector_path=v, align_raster=r,
                                      vector_field='class')
-        self.assertTrue(files_directories.is_file(raster.path))
+        self.assertTrue(rs.files_directories.is_file(raster.path))
         temp = cfg.temp.temporary_file_path(
             name='raster', name_suffix=cfg.tif_suffix
         )
@@ -32,7 +31,7 @@ class TestVectorToRaster(TestCase):
                                      vector_field='class', method='area_based',
                                      area_precision=2,
                                      minimum_extent=False, output_path=temp)
-        self.assertTrue(files_directories.is_file(raster.path))
+        self.assertTrue(rs.files_directories.is_file(raster.path))
 
         # clear temporary directory
         rs.close()

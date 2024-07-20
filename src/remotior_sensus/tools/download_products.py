@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -22,7 +22,6 @@ and Sentinel-2 datasets.
 
 import datetime
 import json
-import requests
 from xml.dom import minidom
 from xml.etree import cElementTree
 
@@ -51,9 +50,9 @@ def search(
 
     This tool performs the query of image products, currently Landsat,
     Sentinel-2, Harmonized Landsat Sentinel-2.
-    
+
     Sentinel-2 data can be searched from multiple sources.
-    
+
     Query using Copernicus Data Space Ecosystem API
     https://documentation.dataspace.copernicus.eu/#/APIs/OData
     (from https://documentation.dataspace.copernicus.eu:
@@ -66,10 +65,10 @@ def search(
 
     Sentinel-2 metadata are downloaded through the following Google service:
     https://storage.googleapis.com/gcp-public-data-sentinel-2 .
-    
+
     Alternatively, query the collections from Microsoft Planetary Computer
     https://planetarycomputer.microsoft.com
-    
+
     Performs the query of Harmonized Landsat Sentinel-2 through NASA CMR Search
     https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html.
 
@@ -171,6 +170,7 @@ def search(
     return result
 
 
+# noinspection PyUnresolvedReferences
 def query_sentinel_2_database(
         date_from, date_to, max_cloud_cover=100, result_number=50,
         name_filter=None, coordinate_list=None, progress_message=True,
@@ -309,7 +309,8 @@ def query_sentinel_2_database(
         json_file = cfg.temp.temporary_file_path(name_suffix='.json')
         check = cfg.multiprocess.multi_download_file(
             url_list=[url], output_path_list=[json_file],
-            message='submitting request', progress=False, timeout=60
+            message='submitting request', progress=False, timeout=60,
+            ignore_errors=False
         )
         if check is not False:
             try:
@@ -396,7 +397,7 @@ def query_sentinel_2_database(
                     progress=False, timeout=2, copernicus=copernicus,
                     access_token=access_token, proxy_host=proxy_host,
                     proxy_port=proxy_port, proxy_user=proxy_user,
-                    proxy_password=proxy_password
+                    proxy_password=proxy_password, ignore_errors=False
                 )
                 if check_2:
                     try:
@@ -553,19 +554,16 @@ def get_copernicus_token(
         'client_id': 'cdse-public', 'grant_type': 'password',
         'username': user, 'password': password,
     }
-    if proxy_host is None:
-        proxies = None
-    else:
-        proxies = {
-            'https': 'https://%s:%s@%s:%s' % (
-                proxy_user, proxy_password, proxy_host, proxy_port
-            )
-        }
-    response = requests.post(
-        authentication_uri, data=data, verify=True, allow_redirects=False,
-        proxies=proxies
-        )
-    response_text = json.loads(response.text)
+    opener, cookie_jar = download_tools.general_opener(
+        proxy_host=proxy_host, proxy_port=proxy_port,
+        proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
+    encoded_data = download_tools.url_encode_data(data).encode('utf-8')
+    request = download_tools.request_url(authentication_uri, data=encoded_data)
+    with opener.open(request) as response:
+        response = response.read().decode('utf-8')
+    response_text = json.loads(response)
     try:
         access_token = response_text['access_token']
         session_state = response_text['session_state']
@@ -579,27 +577,25 @@ def delete_copernicus_token(
         access_token, session_state, proxy_host=None,
         proxy_port=None, proxy_user=None, proxy_password=None
 ):
-    if proxy_host is None:
-        proxies = None
-    else:
-        proxies = {
-            'https': 'https://%s:%s@%s:%s' % (
-                proxy_user, proxy_password, proxy_host, proxy_port
-            )
-        }
-    session = requests.Session()
-    session.headers['Authorization'] = 'Bearer %s' % access_token
-    if proxies is not None:
-        session.proxies = proxies
+    opener, cookie_jar = download_tools.general_opener(
+        proxy_host=proxy_host, proxy_port=proxy_port,
+        proxy_user=proxy_user,
+        proxy_password=proxy_password
+    )
     session_url = (
             'https://identity.dataspace.copernicus.eu/auth/realms/CDSE'
             '/account/sessions/%s' % session_state
     )
-    session.headers['Authorization'] = 'Bearer %s' % access_token
-    session.headers['Content-Type'] = 'application/json'
-    session.headers['Accept'] = '*/*'
-    session.headers['Sec-Fetch-Mode'] = 'cors'
-    session.delete(session_url)
+    headers = {
+        'Authorization': 'Bearer %s' % access_token,
+        'Content-Type': 'application/json', 'Accept': '*/*',
+        'Sec-Fetch-Mode': 'cors',
+    }
+    request = download_tools.request_url(
+        session_url, headers=headers, method='DELETE'
+    )
+    with opener.open(request):
+        pass
     return True
 
 
@@ -610,7 +606,7 @@ def download(
         proxy_port=None, proxy_user=None, proxy_password=None,
         authentication_uri=None, nasa_user=None, nasa_password=None,
         copernicus_user=None, copernicus_password=None,
-        progress_message=True
+        progress_message=True, ignore_errors=False
 ) -> OutputManager:
     """Download products.
 
@@ -619,7 +615,7 @@ def download(
     https://storage.googleapis.com/gcp-public-data-sentinel-2 or
     https://catalogue.dataspace.copernicus.eu 
     if copernicus_user and copernicus_password are provided.
-    
+
     Downloads HLS images from:
     https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html.
 
@@ -629,7 +625,8 @@ def download(
         exporter: if True, export download urls.
         band_list: list of band numbers to be downloaded.
         virtual_download: if True create a virtual raster of the linked image.
-        extent_coordinate_list: list of coordinates for defining a subset region [left, top, right, bottom] .
+        extent_coordinate_list: list of coordinates for defining a subset 
+            region [left, top, right, bottom] .
         proxy_host: proxy host.
         proxy_port: proxy port.
         proxy_user: proxy user.
@@ -640,6 +637,8 @@ def download(
         copernicus_user: user for Copernicus authentication.
         copernicus_password: password for Copernicus authentication.
         progress_message: progress message.
+        ignore_errors: if True, ignore download errors and continue with the 
+            next product download.
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -711,7 +710,7 @@ def download(
                 proxy_host=proxy_host, proxy_port=proxy_port,
                 proxy_user=proxy_user, proxy_password=proxy_password,
                 access_token=access_token, copernicus=True, progress=False,
-                timeout=2
+                timeout=2, ignore_errors=ignore_errors
             )
             if exporter:
                 output_file_list.extend(
@@ -811,7 +810,8 @@ def download(
                 url_list=[metadata_url], output_path_list=[temp_file],
                 proxy_host=proxy_host,
                 proxy_port=proxy_port, proxy_user=proxy_user,
-                proxy_password=proxy_password, progress=False, timeout=1
+                proxy_password=proxy_password, progress=False, timeout=1,
+                ignore_errors=ignore_errors
             )
             if exporter:
                 output_file_list.extend(
@@ -828,7 +828,7 @@ def download(
                         proxy_host=proxy_host,
                         proxy_port=proxy_port, proxy_user=proxy_user,
                         proxy_password=proxy_password, progress=False,
-                        timeout=2
+                        timeout=2, ignore_errors=ignore_errors
                     )
                     if cloud_mask_gml:
                         cfg.multiprocess.multi_download_file(
@@ -837,7 +837,7 @@ def download(
                             proxy_host=proxy_host, proxy_port=proxy_port,
                             proxy_user=proxy_user,
                             proxy_password=proxy_password, progress=False,
-                            timeout=2
+                            timeout=2, ignore_errors=ignore_errors
                         )
             # download bands
             for band in band_list:
@@ -908,7 +908,8 @@ def download(
                             progress=progress_message,
                             message='downloading band %s' % str(band),
                             min_progress=min_progress,
-                            max_progress=max_progress, timeout=2
+                            max_progress=max_progress, timeout=2,
+                            ignore_errors=ignore_errors
                         )
                         if files_directories.is_file(output_file):
                             output_file_list.append(output_file)
@@ -939,7 +940,7 @@ def download(
                                             product_table[
                                                 'acquisition_date'
                                             ][i]
-                                            )
+                                        )
                                     )
                             except Exception as err:
                                 str(err)
@@ -960,6 +961,7 @@ def download(
                 proxy_password=proxy_password
             )
             if response:
+                stac_data = json.loads(stac_data)
                 product_name = product_table['product_id'][i]
                 image_name = product_table['image'][i]
                 acquisition_date = product_table['acquisition_date'][i]
@@ -1014,6 +1016,8 @@ def download(
                         proxy_user=proxy_user, proxy_password=proxy_password
                     )
                 if response_2:
+                    if sign_data is not None:
+                        sign_data = json.loads(sign_data)
                     # exclude MODIS metadata
                     if (product_table['product'][i] != cfg.modis_09q1_mpc
                             and product_table['product'][i]
@@ -1026,7 +1030,7 @@ def download(
                             proxy_host=proxy_host, proxy_port=proxy_port,
                             proxy_user=proxy_user,
                             proxy_password=proxy_password, progress=False,
-                            timeout=5
+                            timeout=5, ignore_errors=ignore_errors
                         )
                         if exporter:
                             output_file_list.extend([metadata_url])
@@ -1055,8 +1059,8 @@ def download(
                                     band = None
                             elif 'LE07' in image_name:
                                 band_names = {
-                                    '01': 'blue',  '02': 'green', '03': 'red',
-                                    '04': 'nir08',  '05': 'swir16',
+                                    '01': 'blue', '02': 'green', '03': 'red',
+                                    '04': 'nir08', '05': 'swir16',
                                     '06': 'lwir11', '07': 'swir22'
                                 }
                                 if band in band_names:
@@ -1065,8 +1069,8 @@ def download(
                                     band = None
                             else:
                                 band_names = {
-                                    '01': 'blue',  '02': 'green', '03': 'red',
-                                    '04': 'nir08',  '05': 'swir16',
+                                    '01': 'blue', '02': 'green', '03': 'red',
+                                    '04': 'nir08', '05': 'swir16',
                                     '06': 'lwir11', '07': 'swir22'
                                 }
                                 if band in band_names:
@@ -1135,6 +1139,7 @@ def download(
                                     proxy_password=proxy_password
                                 )
                                 if response_3:
+                                    band_data = json.loads(band_data)
                                     cfg.multiprocess.multi_download_file(
                                         url_list=[band_data['href']],
                                         output_path_list=[output_file],
@@ -1147,7 +1152,8 @@ def download(
                                         progress=progress_message,
                                         message='downloading band %s' % band,
                                         min_progress=min_progress,
-                                        max_progress=max_progress, timeout=2
+                                        max_progress=max_progress, timeout=2,
+                                        ignore_errors=ignore_errors
                                     )
                                 if files_directories.is_file(output_file):
                                     output_file_list.append(output_file)
@@ -1166,7 +1172,8 @@ def download(
                         min_progress += progress_step
                         max_progress += progress_step
             else:
-                return OutputManager(check=False)
+                if ignore_errors is not True:
+                    return OutputManager(check=False)
     if access_token is not None:
         delete_copernicus_token(
             access_token, session_state, proxy_host=proxy_host,
@@ -1190,6 +1197,7 @@ def download(
                 extra={'directory_paths': output_directory_list}
             )
         else:
+            cfg.logger.log.error('unable to download')
             return OutputManager(check=False)
 
 
@@ -1363,6 +1371,7 @@ def _download_virtual_image(url, output_path, extent_list=None):
         return False
 
 
+# noinspection PyUnresolvedReferences
 def query_nasa_cmr(
         product, date_from, date_to, max_cloud_cover=100, result_number=50,
         name_filter=None, coordinate_list=None, progress_message=True,
@@ -1626,6 +1635,7 @@ def query_landsat_mpc(
         proxy_password=proxy_password
     )
     if response:
+        stac_data = json.loads(stac_data)
         entries = stac_data['features']
         product_table_list = []
         e = 0
@@ -1755,6 +1765,7 @@ def query_modis_09q1_mpc(
         proxy_password=proxy_password
     )
     if response:
+        stac_data = json.loads(stac_data)
         entries = stac_data['features']
         product_table_list = []
         e = 0
@@ -1883,6 +1894,7 @@ def query_modis_11a2_mpc(
         proxy_password=proxy_password
     )
     if response:
+        stac_data = json.loads(stac_data)
         entries = stac_data['features']
         product_table_list = []
         e = 0
@@ -2009,6 +2021,7 @@ def query_cop_dem_glo_30_mpc(
         proxy_password=proxy_password
     )
     if response:
+        stac_data = json.loads(stac_data)
         entries = stac_data['features']
         product_table_list = []
         e = 0
@@ -2029,7 +2042,8 @@ def query_cop_dem_glo_30_mpc(
             ).strftime('%Y-%m-%d')
             cloud_cover_percentage = 0
             path = entry['assets']['data']['title'].split(
-                '_00_')[1].replace('_00', '')
+                '_00_'
+            )[1].replace('_00', '')
             row = entry['assets']['data']['title'].split('_00_')[0]
             bbox = entry['bbox']
             for f in image_find_list:
@@ -2138,6 +2152,7 @@ def query_aster_l1t_mpc(
         proxy_password=proxy_password
     )
     if response:
+        stac_data = json.loads(stac_data)
         entries = stac_data['features']
         product_table_list = []
         e = 0
@@ -2263,6 +2278,7 @@ def query_sentinel2_mpc(
         proxy_password=proxy_password
     )
     if response:
+        stac_data = json.loads(stac_data)
         entries = stac_data['features']
         product_table_list = []
         e = 0

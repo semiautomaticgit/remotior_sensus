@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2023 Luca Congedo.
+# Copyright (C) 2022-2024 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -52,6 +52,7 @@ from remotior_sensus.util import (
 
 def band_pca(
         input_bands: Union[list, int, BandSet],
+        normalize: Optional[bool] = False,
         output_path: Union[list, str] = None,
         overwrite: Optional[bool] = False,
         nodata_value: Optional[int] = None, extent_list: Optional[list] = None,
@@ -64,11 +65,13 @@ def band_pca(
 
     This tool allows for the calculation of Principal Components Analysis of
     raster bands obtaining the principal components.
-    A new raster file is created for each component. In addition, a table containing the Principal Components statistics is created.
+    A new raster file is created for each component. In addition, a table 
+    containing the Principal Components statistics is created.
 
     Args:
         input_bands: input of type BandSet or list of paths or
             integer number of BandSet.
+        normalize: if True, normalize input bands as .
         output_path: string of output path directory or list of paths.
         overwrite: if True, output overwrites existing files.
         nodata_value: value to be considered as nodata.
@@ -77,8 +80,9 @@ def band_pca(
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number.
         number_components: defines the maximum number of components calculated.
-        progress_message: if True then start progress message, if False does not start the progress message (useful if launched from other tools).
-
+        progress_message: if True then start progress message, if False does 
+            not start the progress message (useful if launched from other tools).
+            
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
             - paths = output list
@@ -96,12 +100,11 @@ def band_pca(
             >>> # start the process
             >>> pca = rs.band_pca(input_bands=catalog.get_bandset(1),output_path='directory_path')
     """  # noqa: E501
-    if progress_message:
-        cfg.logger.log.info('start')
-        cfg.progress.update(
-            process=__name__.split('.')[-1].replace('_', ' '),
-            message='starting', start=True
-        )
+    cfg.logger.log.info('start')
+    cfg.progress.update(
+        process=__name__.split('.')[-1].replace('_', ' '),
+        message='starting', start=progress_message
+    )
     # prepare process files
     prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
@@ -113,6 +116,8 @@ def band_pca(
     vrt_r = prepared['virtual_output']
     vrt_path = prepared['temporary_virtual_raster']
     n_processes = prepared['n_processes']
+    if nodata_value is None:
+        nodata_value = prepared['nodata_list']
     if number_components is None or number_components > len(input_raster_list):
         number_components = len(input_raster_list)
     # list of band order
@@ -124,11 +129,12 @@ def band_pca(
         available_ram=available_ram, keep_output_argument=True,
         progress_message='pixel count', min_progress=1, max_progress=20
     )
+    band_dict_orig = cfg.multiprocess.output.copy()
     cfg.multiprocess.get_dictionary_sum()
-
     if cfg.multiprocess.output is False:
         cfg.logger.log.error('unable to calculate')
         cfg.messages.error('unable to calculate')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     band_dict = cfg.multiprocess.output
     # calculate mean
@@ -136,16 +142,43 @@ def band_pca(
     try:
         for band_number in band_order:
             band_dict[
-                'mean_%s' % band_number] = \
-                band_dict['sum_%s' % band_number] / band_dict[
-                    'count_%s' % band_number]
+                'mean_%s' % band_number] = (
+                    band_dict['sum_%s' % band_number]
+                    / band_dict['count_%s' % band_number]
+            )
             max_pixel_count = max(
                 max_pixel_count, band_dict['count_%s' % band_number]
             )
+            if normalize is True:
+                """
+                combine variance of raster sections as
+                sum((count_i - 1) * var_i + count_i * (mean_i - mean_band)**2) / (count_band - 1)
+                """  # noqa: E501
+                # get dictionaries
+                for x in sorted(band_dict_orig):
+                    for ar in band_dict_orig[x]:
+                        if not 'variance_%s' % band_number in band_dict:
+                            band_dict['variance_%s' % band_number] = 0
+                        try:
+                            band_dict[
+                                'variance_%s' % band_number] = band_dict[
+                                'variance_%s' % band_number] + (
+                                    ((ar[1]['count_%s' % band_number] - 1)
+                                     * ar[1]['var_%s' % band_number])
+                                    + (ar[1]['count_%s' % band_number]
+                                       * (ar[1]['sum_%s' % band_number]
+                                       / ar[1]['count_%s' % band_number]
+                                       - band_dict['mean_%s' % band_number])**2
+                                       )
+                            ) / (band_dict['count_%s' % band_number] - 1)
+                        except Exception as err:
+                            str(err)
     except Exception as err:
         cfg.logger.log.error(str(err))
         cfg.messages.error(str(err))
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
+    band_dict['normalize'] = normalize
     # calculate covariance
     # dummy bands for memory calculation
     dummy_bands = 2
@@ -162,6 +195,7 @@ def band_pca(
     if cfg.multiprocess.output is False:
         cfg.logger.log.error('unable to calculate')
         cfg.messages.error('unable to calculate')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     cov_dict = cfg.multiprocess.output
     # calculate covariance matrix
@@ -238,6 +272,7 @@ def band_pca(
     except Exception as err:
         cfg.logger.log.error(str(err))
         cfg.messages.error(str(err))
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     # save principal component details to table
     tbl_out = shared_tools.join_path(
@@ -249,12 +284,14 @@ def band_pca(
     if len(output_raster_path_list) == 0:
         cfg.logger.log.error('unable to process files')
         cfg.messages.error('unable to process files')
+        cfg.progress.update(failed=True)
         return OutputManager(check=False)
     else:
         for i in output_raster_path_list:
             if not files_directories.is_file(i):
                 cfg.logger.log.error('unable to process file: %s' % str(i))
                 cfg.messages.error('unable to process file: %s' % str(i))
+                cfg.progress.update(failed=True)
                 return OutputManager(check=False)
     cfg.progress.update(end=True)
     cfg.logger.log.info('end; pca: %s' % str(output_raster_path_list))
