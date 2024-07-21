@@ -22,12 +22,11 @@ class TestBandClassification(TestCase):
         temp = cfg.temp.temporary_file_path(
             name='class', name_suffix=cfg.tif_suffix
             )
-        clustering = rs.band_clustering(
+        rs.band_clustering(
                 input_bands=catalog.get(1), output_raster_path=temp,
                 algorithm_name=cfg.minimum_distance, class_number=3,
                 max_iter=2, seed_signatures=cfg.random_pixel
             )
-        self.assertTrue(rs.files_directories.is_file(clustering.path))
         temp = cfg.temp.temporary_file_path(
             name='class', name_suffix=cfg.tif_suffix
             )

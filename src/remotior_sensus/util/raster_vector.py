@@ -1744,7 +1744,8 @@ def vector_to_raster(
         if available_ram is None:
             available_ram = cfg.available_ram
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(available_ram)
+                                                  * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
     except Exception as err:
         str(err)
@@ -1900,7 +1901,8 @@ def extract_vector_to_raster(
         if available_ram is None:
             available_ram = cfg.available_ram
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(available_ram)
+                                                  * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
     except Exception as err:
         str(err)
@@ -2065,7 +2067,8 @@ def get_pixel_value(
         if available_ram is None:
             available_ram = cfg.available_ram
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(available_ram)
+                                                  * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
     except Exception as err:
         str(err)
@@ -2659,11 +2662,11 @@ def gdal_warping(
         option_string = ' %s %s' % (additional_params, option_string)
     if available_ram is None:
         available_ram = cfg.available_ram
-    available_ram = str(int(available_ram) * 1000000)
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(available_ram)
+                                                  * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:
@@ -2690,10 +2693,13 @@ def jpg_gdal(
         stretch=True
 ):
     cfg.logger.log.debug('start')
+    if available_ram is None:
+        available_ram = cfg.available_ram
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(available_ram))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(available_ram)
+                                                  * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
     except Exception as err:

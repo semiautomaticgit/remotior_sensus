@@ -101,7 +101,7 @@ def function_initiator(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory)))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
         gdal.DontUseExceptions()
@@ -973,7 +973,7 @@ def gdal_translate(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
         gdal.DontUseExceptions()
@@ -1023,7 +1023,7 @@ def gdal_warp(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
         gdal.DontUseExceptions()
@@ -1079,7 +1079,7 @@ def raster_to_vector_process(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
         gdal.DontUseExceptions()
@@ -1202,7 +1202,7 @@ def raster_sieve_process(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
         gdal.DontUseExceptions()
@@ -1314,7 +1314,7 @@ def vector_to_raster(
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-        gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
         gdal.DontUseExceptions()

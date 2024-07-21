@@ -1429,6 +1429,7 @@ def get_band_arrays(
                 if 'numpy_functions' in d:
                     result_dict = {}
                     for f in d['numpy_functions']:
+                        # noinspection PyUnusedLocal
                         for A in array_list:
                             result_dict[f] = eval(d['numpy_functions'][f])
                     array_dict[s] = result_dict
@@ -1538,8 +1539,9 @@ def clip_raster(
         from osgeo import gdal, ogr, osr
         # GDAL config
         try:
+            memory = str(int(d['available_ram']) * 1000000)
             gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-            gdal.SetConfigOption('GDAL_CACHEMAX', str(d['available_ram']))
+            gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
             gdal.DontUseExceptions()
@@ -1640,8 +1642,9 @@ def edit_raster(
         from osgeo import gdal
         # GDAL config
         try:
+            memory = str(int(d['available_ram']) * 1000000)
             gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
-            gdal.SetConfigOption('GDAL_CACHEMAX', str(d['available_ram']))
+            gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
             gdal.DontUseExceptions()
