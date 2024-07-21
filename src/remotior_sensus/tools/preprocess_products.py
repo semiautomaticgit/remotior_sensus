@@ -500,7 +500,7 @@ def perform_preprocess(
     # HLS Landsat
     if len(landsat_hls_product) > 0:
         # raster is interpreted as variable in the calculation
-        string_0 = 'np.where(%s < 0, 0, %s)' % (
+        string_0 = 'where(%s < 0, 0, %s)' % (
                 cfg.array_function_placeholder, cfg.array_function_placeholder
             )
         expressions = [string_0] * len(landsat_hls_product)
@@ -522,7 +522,7 @@ def perform_preprocess(
     # HLS Sentinel-2
     if len(sentinel_hls_product) > 0:
         # raster is interpreted as variable in the calculation
-        string_0 = 'np.where(%s < 0, 0, %s)' % (
+        string_0 = 'where(%s < 0, 0, %s)' % (
                 cfg.array_function_placeholder, cfg.array_function_placeholder
             )
         expressions = [string_0] * len(sentinel_hls_product)

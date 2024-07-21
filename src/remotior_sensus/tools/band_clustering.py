@@ -254,6 +254,10 @@ def _k_means_iter(
             band_order = list(range(len(input_raster_list)))
             # add classification raster
             input_raster_list.append(output_path)
+            if _signature_catalog is None:
+                cfg.logger.log.error('unable to calculate')
+                cfg.messages.error('unable to calculate')
+                return None
             class_list = _signature_catalog.macroclasses.keys()
             # calculate new spectral signatures
             cfg.multiprocess.run(

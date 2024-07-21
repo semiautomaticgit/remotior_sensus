@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.4.1
+________
+
+* Fixed preprocessing calculation
+* Minor fixes
+
 v0.4.0
 ________
 

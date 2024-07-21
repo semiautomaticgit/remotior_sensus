@@ -565,9 +565,7 @@ class SpectralSignaturesCatalog(object):
                 if f_name == 'geometry.gpkg':
                     geometry_file = f
                 elif f_name == 'table':
-                    table = np.core.records.fromfile(
-                        f, dtype=cfg.spectral_dtype_list
-                    )
+                    table = np.rec.fromfile(f, dtype=cfg.spectral_dtype_list)
                     # remove file
                     files_directories.remove_file(f)
                 elif f_name == 'macroclasses.xml':
@@ -604,7 +602,7 @@ class SpectralSignaturesCatalog(object):
                     signature_id = generate_signature_id()
                     signature_ids[f_name] = signature_id
                     f_name = signature_id
-                    self.signatures[f_name] = np.core.records.fromfile(
+                    self.signatures[f_name] = np.rec.fromfile(
                         f, dtype=cfg.signature_dtype_list
                     )
                     # remove file
@@ -1044,9 +1042,7 @@ class SpectralSignaturesCatalog(object):
             if f_name == 'geometry.gpkg':
                 self.geometry_file = f
             elif f_name == 'table':
-                self.table = np.core.records.fromfile(
-                    f, dtype=cfg.spectral_dtype_list
-                )
+                self.table = np.rec.fromfile(f, dtype=cfg.spectral_dtype_list)
                 # remove file
                 files_directories.remove_file(f)
             elif f_name == 'macroclasses.xml':
@@ -1082,7 +1078,7 @@ class SpectralSignaturesCatalog(object):
                 # remove file
                 files_directories.remove_file(f)
             else:
-                self.signatures[f_name] = np.core.records.fromfile(
+                self.signatures[f_name] = np.rec.fromfile(
                     f, dtype=cfg.signature_dtype_list
                 )
                 # remove file
