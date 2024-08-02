@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.4.3
+________
+
+* First experimental implementation of Pytorch for band_calc
+* Minor fixes
+
 v0.4.2
 ________
 

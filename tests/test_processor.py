@@ -23,7 +23,8 @@ class TestProcessor(TestCase):
         cfg.logger.log.debug('>>> test reclassification')
         process_parameters = [
             1, cfg.temp, 500, cfg.gdal_path, multiprocessing.Manager().Queue(),
-            cfg.refresh_time, cfg.memory_unit_array_12, cfg.log_level
+            cfg.refresh_time, cfg.memory_unit_array_12, cfg.log_level,
+            None, None
         ]
         data_path = Path(__file__).parent / 'data'
         raster_path = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
@@ -70,7 +71,7 @@ class TestProcessor(TestCase):
             process_parameters, input_parameters, output_parameters,
             function, [function_argument], [function_variable],
             False, False, False,
-            False
+            False,
         )
         self.assertEqual(output_array_list[0][0][0, 0], output_nodata_value)
         self.assertTrue(rs.files_directories.is_file(out_files[0][0]))

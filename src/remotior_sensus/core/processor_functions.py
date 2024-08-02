@@ -83,6 +83,12 @@ def percentile_calc(array, percentile=90, axis=0):
     return result
 
 
+# function to calculate percentile with the closest observation for band_calc
+def percentile_calc_pytorch(array, percentile=90, dim=0):
+    result = torch.quantile(array, q=percentile/100, dim=dim)
+    return result
+
+
 # band calculation
 # noinspection PyShadowingBuiltins,PyUnusedLocal
 def band_calculation(*argv):
@@ -142,6 +148,92 @@ def band_calculation(*argv):
     return [[_o.data, _o.mask], None]
 
 
+# band calculation pytorch
+# noinspection PyShadowingBuiltins,PyUnusedLocal
+def band_calculation_pytorch(*argv):
+    # expose numpy functions
+    log = torch.log
+    log10 = torch.log10
+    sqrt = torch.sqrt
+    cos = torch.cos
+    arccos = torch.arccos
+    sin = torch.sin
+    arcsin = torch.arcsin
+    tan = torch.tan
+    arctan = torch.arctan
+    exp = torch.exp
+    min = torch.min
+    max = torch.max
+    sum = torch.sum
+    percentile = percentile_calc_pytorch
+    median = torch.median
+    mean = torch.mean
+    std = torch.std
+    where = torch.where
+    nan = float('nan')
+    # array variable name as defined in cfg.array_function_placeholder
+    output_no_data = argv[0][2]
+    _array = argv[1][0]
+    _array_mask = argv[1][1]
+    nodata_mask = argv[2]
+    function_argument = argv[7]
+    device = argv[14]
+    n_processes = argv[15]
+    if device == 'cpu':
+        torch.set_num_threads(n_processes)
+    _array_function_placeholder = torch.from_numpy(
+        _array.astype(np.float64)).to(device)
+    _array_mask = torch.from_numpy(_array_mask).to(device)
+    cfg.logger.log.debug('device: %s; function_argument: %s'
+                         % (str(device), str(function_argument)))
+    cfg.logger.log.debug('torch: %s; n_processes:%s'
+                         % (str(torch.get_num_threads()), str(n_processes)))
+    cfg.logger.log.debug(
+        '_array_function_placeholder.shape: %s; type: %s'
+        % (str(_array_function_placeholder.shape),
+           type(_array_function_placeholder))
+    )
+    nan_array = torch.full(_array_function_placeholder.shape, float('nan'),
+                           dtype=torch.float64).to(device)
+    _array_function_placeholder[_array_mask] = nan_array[_array_mask]
+    # perform operation
+    try:
+        function_argument.replace('axis=', 'dim=').replace('axis =', 'dim=')
+        _o = eval(function_argument)
+        if device == 'cuda':
+            _o = _o.cpu().numpy()
+            device_properties = torch.cuda.get_device_properties(device)
+            total_memory = device_properties.total_memory
+            memory_reserved = torch.cuda.memory_reserved(device)
+            available_ram = int((total_memory - memory_reserved)
+                                / (1024 ** 2))
+            cfg.logger.log.debug('available_ram: %s' % str(available_ram))
+        else:
+            _o = _o.numpy()
+        np.nan_to_num(_o, copy=False, nan=output_no_data)
+        del _array_function_placeholder
+        del _array_mask
+        del nan_array
+        torch.cuda.empty_cache()
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        return False
+    # if not array
+    if not isinstance(_o, np.ndarray):
+        cfg.logger.log.error('not array ' + str(type(_o)))
+        return False
+    # check nodata
+    cfg.logger.log.debug(
+        '_o.shape: %s; _o.n_bytes: %s; _o.dtype: %s'
+        % (str(_o.shape), str(_o.nbytes), str(_o.dtype))
+    )
+    if _o.dtype == bool:
+        _o = _o.astype(int)
+    # replace nodata
+    _o[::, ::][nodata_mask == 1] = output_no_data
+    return [[_o, None], None]
+
+
 # classification maximum likelihood
 def classification_maximum_likelihood(*argv):
     scale = argv[0][0]
@@ -198,10 +290,16 @@ def classification_maximum_likelihood(*argv):
             d = _array_function_placeholder - values
             distance_array = - log_det - (
                     np.dot(d, inverse_cov_matrix) * d).sum(axis=2)
-            if threshold:
+            if threshold is True:
                 class_threshold = signatures_table[
                     signatures_table.signature_id == s].min_dist_thr
                 p = class_threshold / 100
+                chi = statdistr.chi2.isf(p, cov_matrix.shape[0])
+                chi_threshold = -2 * chi - log_det
+                distance_array[::, ::][
+                    distance_array < chi_threshold] = cfg.nodata_val
+            elif threshold is not False and threshold is not None:
+                p = threshold / 100
                 chi = statdistr.chi2.isf(p, cov_matrix.shape[0])
                 chi_threshold = -2 * chi - log_det
                 distance_array[::, ::][
@@ -212,10 +310,17 @@ def classification_maximum_likelihood(*argv):
                     (_array_function_placeholder.shape[0],
                      _array_function_placeholder.shape[1])
                 ) * class_id
+                classification_array[::, ::][
+                    distance_array == cfg.nodata_val] = output_no_data
             else:
                 maximum_array = np.maximum(distance_array, previous_array)
+                maximum_array[::, ::][
+                    maximum_array == cfg.nodata_val] = previous_array[
+                    maximum_array == cfg.nodata_val]
                 classification_array[
                     maximum_array != previous_array] = class_id
+                classification_array[::, ::][
+                    maximum_array == cfg.nodata_val] = output_no_data
                 previous_array = maximum_array
             if len(output_signature_raster) > 0:
                 distance_array[::, ::][
@@ -308,11 +413,14 @@ def classification_minimum_distance(*argv):
         distance_array = np.sqrt(
             ((_array_function_placeholder - values) ** 2).sum(axis=2)
         )
-        if threshold:
+        if threshold is True:
             class_threshold = signatures_table[
                 signatures_table.signature_id == s].min_dist_thr
             distance_array[::, ::][
                 distance_array < class_threshold] = cfg.nodata_val_Int32
+        elif threshold is not False and threshold is not None:
+            distance_array[::, ::][
+                distance_array < threshold] = cfg.nodata_val_Int32
         if previous_array is None:
             previous_array = distance_array
             classification_array = np.ones(
@@ -323,6 +431,8 @@ def classification_minimum_distance(*argv):
             minimum_array = np.minimum(distance_array, previous_array)
             classification_array[minimum_array != previous_array] = class_id
             previous_array = minimum_array
+        classification_array[::, ::][
+            distance_array == cfg.nodata_val_Int32] = output_no_data
         if len(output_signature_raster) > 0:
             distance_array[::, ::][
                 distance_array == cfg.nodata_val_Int32] = output_no_data
@@ -409,11 +519,14 @@ def classification_spectral_angle_mapping(*argv):
                         values ** 2).sum()
             )
         ) * 180 / np.pi
-        if threshold:
+        if threshold is True:
             class_threshold = signatures_table[
                 signatures_table.signature_id == s].min_dist_thr
             distance_array[::, ::][
                 distance_array < class_threshold] = cfg.nodata_val_Int32
+        elif threshold is not False and threshold is not None:
+            distance_array[::, ::][
+                distance_array < threshold] = cfg.nodata_val_Int32
         if previous_array is None:
             previous_array = distance_array
             classification_array = np.ones(
@@ -424,6 +537,8 @@ def classification_spectral_angle_mapping(*argv):
             minimum_array = np.minimum(distance_array, previous_array)
             classification_array[minimum_array != previous_array] = class_id
             previous_array = minimum_array
+        classification_array[::, ::][
+            distance_array == cfg.nodata_val_Int32] = output_no_data
         if len(output_signature_raster) > 0:
             distance_array[::, ::][
                 distance_array == cfg.nodata_val_Int32] = output_no_data
@@ -1069,6 +1184,7 @@ def raster_erosion(*argv):
                 # fill with most frequent value
                 fill_value[sum_unique > max_sum_unique] = float(i)
                 # maximum of all value convolution
+                # noinspection PyUnresolvedReferences
                 max_sum_unique[sum_unique > max_sum_unique] = sum_unique[
                     sum_unique > max_sum_unique]
             # erode
@@ -1363,6 +1479,7 @@ def region_growing(*argv):
     for i in unique_difference_array:
         region_label, num_features = label(difference_array <= i)
         # value of ROI seed
+        # noinspection PyUnresolvedReferences
         region_seed_value = region_label[seed_y, seed_x]
         region_value_mask = (region_label == region_seed_value)
         if (region_seed_value != 0

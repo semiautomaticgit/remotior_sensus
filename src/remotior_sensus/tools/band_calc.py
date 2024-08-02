@@ -77,7 +77,7 @@ from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
-    band_calculation, percentile_calc
+    band_calculation, percentile_calc, band_calculation_pytorch
 )
 from remotior_sensus.util import (
     dates_times, files_directories, raster_vector, shared_tools
@@ -107,7 +107,7 @@ def band_calc(
         bandset_number: Optional[int] = None,
         input_bands: Optional[BandSet] = None,
         point_coordinates: Optional[list] = None,
-        progress_message: Optional[bool] = True
+        progress_message: Optional[bool] = True, device=None
 ) -> OutputManager:
     """Performs band calculation.
 
@@ -261,7 +261,7 @@ def band_calc(
                 nodata_mask=any_nodata_mask, min_progress=min_p + max_p * n,
                 max_progress=min_p + max_p * (n + 1),
                 progress_message='running calculation %s' % (n + 1),
-                bandset_catalog=bandset_catalog
+                bandset_catalog=bandset_catalog, device=device
             )
             output_list.append(output)
             previous_output_list.append([output, out_name])
@@ -281,7 +281,7 @@ def _run_expression(
         output_nodata=None, output_datatype=None, use_scale=None,
         use_offset=None, calc_datatype=None, nodata_mask=None,
         min_progress=None, max_progress=None, progress_message=None,
-        bandset_catalog=None, keep_output_array=None
+        bandset_catalog=None, keep_output_array=None, device=None
 ) -> tuple:
     """Run expression calculation.
 
@@ -390,19 +390,35 @@ def _run_expression(
     cfg.logger.log.debug('vrt_check: %s' % vrt_check)
     # dummy bands for memory calculation as twice the number of input raster
     dummy_bands = len(input_raster_list) + 1
-    # run calculation
-    cfg.multiprocess.run(
-        raster_path=vrt_check, function=band_calculation,
-        function_argument=expr_function, calculation_datatype=data_type,
-        use_value_as_nodata=use_value_as_nodata, n_processes=n_processes,
-        available_ram=available_ram, any_nodata_mask=nodata_mask,
-        output_raster_path=output, output_data_type=output_datatype,
-        output_nodata_value=output_nodata, compress=cfg.raster_compression,
-        scale=use_scale, offset=use_offset, dummy_bands=dummy_bands,
-        input_nodata_as_value=input_nodata_as_value, virtual_raster=virtual,
-        progress_message=progress_message, min_progress=min_progress,
-        max_progress=max_progress, keep_output_array=keep_output_array
-    )
+    if device == 'cuda' or device == 'cpu':
+        # run calculation
+        cfg.multiprocess.run(
+            raster_path=vrt_check, function=band_calculation_pytorch,
+            function_argument=expr_function, calculation_datatype=data_type,
+            use_value_as_nodata=use_value_as_nodata, n_processes=n_processes,
+            available_ram=available_ram, any_nodata_mask=nodata_mask,
+            output_raster_path=output, output_data_type=output_datatype,
+            output_nodata_value=output_nodata, compress=cfg.raster_compression,
+            scale=use_scale, offset=use_offset, dummy_bands=dummy_bands,
+            input_nodata_as_value=input_nodata_as_value, virtual_raster=virtual,
+            progress_message=progress_message, min_progress=min_progress,
+            max_progress=max_progress, keep_output_array=keep_output_array,
+            device=device
+        )
+    else:
+        # run calculation
+        cfg.multiprocess.run(
+            raster_path=vrt_check, function=band_calculation,
+            function_argument=expr_function, calculation_datatype=data_type,
+            use_value_as_nodata=use_value_as_nodata, n_processes=n_processes,
+            available_ram=available_ram, any_nodata_mask=nodata_mask,
+            output_raster_path=output, output_data_type=output_datatype,
+            output_nodata_value=output_nodata, compress=cfg.raster_compression,
+            scale=use_scale, offset=use_offset, dummy_bands=dummy_bands,
+            input_nodata_as_value=input_nodata_as_value, virtual_raster=virtual,
+            progress_message=progress_message, min_progress=min_progress,
+            max_progress=max_progress, keep_output_array=keep_output_array
+        )
     # add output to BandSet
     if bs_number is not None and bandset_catalog is not None:
         try:
@@ -1733,7 +1749,7 @@ def _calculate_bandset(
         calc_datatype: Optional[str] = None,
         any_nodata_mask: Optional[bool] = False,
         point_coordinates: Optional[list] = None,
-        progress_message: Optional[bool] = True
+        progress_message: Optional[bool] = True, device=None
 ) -> OutputManager:
     """Performs band calculation using BandSet as input.
 
@@ -1832,7 +1848,8 @@ def _calculate_bandset(
             nodata_mask=any_nodata_mask, min_progress=min_p + max_p * n,
             max_progress=min_p + max_p * (n + 1),
             keep_output_array=keep_output_array,
-            progress_message='running calculation %s' % (n + 1)
+            progress_message='running calculation %s' % (n + 1),
+            device=device
         )
         output_list.append(output)
         previous_output_list.append([output, out_name])

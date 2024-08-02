@@ -64,6 +64,7 @@ gdal_path = None
 band_name_suf = '#b'
 date_auto = 'auto'
 # memory units used in Multiprocess class for calculating block size
+memory_unit_array_24 = 0.000024
 memory_unit_array_12 = 0.000016
 memory_unit_array_8 = 0.000010
 memory_unit_array_4 = 0.000006

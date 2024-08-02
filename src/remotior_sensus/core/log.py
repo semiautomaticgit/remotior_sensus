@@ -138,3 +138,7 @@ class Log(object):
             self.stream = stream
             self.file_path = None
             self.level = level
+
+    def set_level(self, level):
+        for h in self.log.handlers:
+            h.setLevel(level)

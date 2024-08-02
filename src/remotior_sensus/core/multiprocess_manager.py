@@ -32,6 +32,10 @@ try:
     multiprocessing.set_start_method('spawn')
 except Exception as error:
     str(error)
+try:
+    import torch
+except Exception as error:
+    str(error)
 
 
 # class for multiprocess functions
@@ -71,6 +75,7 @@ class Multiprocess(object):
         try:
             self.pool.close()
             self.pool.terminate()
+            # could warn about leaked semaphore objects
             self.manager.shutdown()
         except Exception as err:
             str(err)
@@ -157,16 +162,34 @@ class Multiprocess(object):
             output_nodata_value = cfg.nodata_val
         if output_data_type is None:
             output_data_type = cfg.raster_data_type
+        # use cuda for calculation
+        cpu_processes = None
+        if device == 'cuda' and classification is False:
+            n_processes = 1
+            memory_unit = cfg.memory_unit_array_12
+            torch.cuda.empty_cache()
+            device_properties = torch.cuda.get_device_properties(device)
+            total_memory = device_properties.total_memory
+            memory_reserved = torch.cuda.memory_reserved(device)
+            available_ram = int((total_memory - memory_reserved)
+                                / (1024 ** 2))
+            cfg.logger.log.debug('available_ram: %s' % (available_ram))
+        elif device == 'cpu' and classification is False:
+            memory_unit = cfg.memory_unit_array_12
+            if n_processes is None:
+                cpu_processes = self.n_processes
+            else:
+                cpu_processes = n_processes
+            n_processes = 1
         if n_processes is None:
             n_processes = self.n_processes
-        elif n_processes > self.n_processes:
+        elif n_processes != self.n_processes:
             self.start(self.n_processes, self.multiprocess_module)
         if compress is None:
             compress = cfg.raster_compression
         if compress_format is None:
             compress_format = cfg.raster_compression_format
-        if device == 'cuda':
-            n_processes = 1
+
         if min_progress is None:
             min_progress = 0
         if max_progress is None:
@@ -223,7 +246,7 @@ class Multiprocess(object):
             process_parameters = [
                 p, cfg.temp, int(available_ram / n_processes),
                 cfg.gdal_path, p_mq, cfg.refresh_time, memory_unit,
-                cfg.log_level
+                cfg.log_level, device, cpu_processes
             ]
             # create nodata value list
             if type(use_value_as_nodata) is not list:
@@ -454,7 +477,8 @@ class Multiprocess(object):
                 use_value_as_nodata = [None] * len(raster_paths)
             process_parameters = [
                 p, cfg.temp, int(available_ram / n_processes),
-                cfg.gdal_path, p_mq, cfg.refresh_time, None, cfg.log_level
+                cfg.gdal_path, p_mq, cfg.refresh_time, None, cfg.log_level,
+                None, None
             ]
             input_parameters = [
                 raster_paths, calculation_datatype[ranges[p - 1]: ranges[p]],

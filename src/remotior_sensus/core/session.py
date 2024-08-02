@@ -415,7 +415,7 @@ class Session(object):
         if log_level:
             self.log_level = log_level
             self.configurations.log_level = log_level
-            self.configurations.logger.log.setLevel(log_level)
+            self.configurations.logger.set_level(log_level)
         elif log_time:
             # create logger
             self.configurations.logger = Log(

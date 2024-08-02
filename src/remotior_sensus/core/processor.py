@@ -45,6 +45,8 @@ def function_initiator(
     refresh_time = process_parameters[5]
     _memory_unit = process_parameters[6]
     log_level = process_parameters[7]
+    device = process_parameters[8]
+    n_processes = process_parameters[9]
     # get input raster parameters
     raster_list = input_parameters[0]
     calc_data_type = input_parameters[1]
@@ -387,7 +389,7 @@ def function_initiator(
                     else:
                         # apply multiplicative and additive factors to array
                         if multi_add_factors is not None:
-                            _a = array_multiplicative_additive_factors(
+                            array_multiplicative_additive_factors(
                                 _a, multi_add_factors[0][band_counter],
                                 multi_add_factors[1][band_counter]
                             )
@@ -438,7 +440,7 @@ def function_initiator(
                         else:
                             # apply multiplicative and additive factors
                             if multi_add_factors is not None:
-                                _a = array_multiplicative_additive_factors(
+                                array_multiplicative_additive_factors(
                                     _a, multi_add_factors[0][b],
                                     multi_add_factors[1][b]
                                 )
@@ -464,7 +466,7 @@ def function_initiator(
                     else:
                         # apply multiplicative and additive factors
                         if multi_add_factors is not None:
-                            _a = array_multiplicative_additive_factors(
+                            array_multiplicative_additive_factors(
                                 _a, multi_add_factors[0][0],
                                 multi_add_factors[1][0]
                             )
@@ -516,13 +518,14 @@ def function_initiator(
                 nodata_mask, sec.y_size, sec.x_min, sec.y_min, output_list,
                 function_arg, f_variable, out_band_number,
                 [x_min_piece, y_min_piece], output_signature_raster,
-                out_class, out_alg
+                out_class, out_alg, device, n_processes
             )
             # check function output list
             if isinstance(function_output, list):
                 output_argument = function_output[1]
                 if isinstance(function_output[0], list):
                     output_array = function_output[0][0]
+                    output_array = output_array.astype(calculation_datatype)
                     output_array_mask = function_output[0][1]
                 else:
                     output_array = function_output[0]
@@ -739,7 +742,9 @@ def get_raster_band_array(
     if value_as_nodata is not None:
         _a_mask[_a == np.asarray(value_as_nodata)] = True
     # rescale
-    _a = _a * scl_b + offs_b
+    #_a = _a * scl_b + offs_b
+    np.multiply(_a, scl_b, out=_a)
+    np.add(_a, offs_b, out=_a)
     return _a.astype(calculation_datatype), _a_mask, _a_data_type, ndv_band
 
 
@@ -1671,5 +1676,6 @@ class RasterSection(object):
 def array_multiplicative_additive_factors(
         array, multiplicative_factor, additive_factor
 ):
-    a = array * float(multiplicative_factor) + float(additive_factor)
-    return a
+    #a = array * float(multiplicative_factor) + float(additive_factor)
+    np.multiply(array, float(multiplicative_factor), out=array)
+    np.add(array, float(additive_factor), out=array)
