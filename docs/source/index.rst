@@ -58,6 +58,7 @@ _____________
    installation.rst
    quickstart.rst
    basic_tutorials.rst
+   tutorials.rst
    api_tools.rst
    api_core.rst
    api.rst

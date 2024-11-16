@@ -1398,6 +1398,43 @@ def cross_rasters(*argv):
         return [[o, None], stats]
 
 
+# calculate zonal rasters
+def zonal_rasters(*argv):
+    cfg.logger.log.debug('start')
+    _output_no_data = argv[0][2]
+    array_function_placeholder = argv[1][0]
+    function_argument = argv[7]
+    _function_variable = argv[8]
+    raster_array_band = array_function_placeholder[::, ::, 1]
+    try:
+        nodata_mask = argv[2]
+        b = raster_array_band[nodata_mask != 1]
+        classes = np.array(np.unique(b[~np.isnan(b)], return_counts=False))
+    except Exception as err:
+        str(err)
+        classes = np.array(
+            np.unique(
+                raster_array_band[~np.isnan(raster_array_band)],
+                return_counts=False
+            )
+        )
+    result_list = []
+    result_dict = {}
+    for c in classes:
+        result_list.append(c)
+        function_dict = {}
+        for f in function_argument:
+            _a = np.where(array_function_placeholder[::, ::, 1] == c,
+                          array_function_placeholder[::, ::, 0], np.nan)
+            result = eval(function_argument[f])
+            function_dict[f] = result
+            result_list.append(result)
+        result_dict[c] = function_dict
+    _a = None
+    cfg.logger.log.debug('end')
+    return [None, result_dict]
+
+
 # calculate spectral signature
 def spectral_signature(*argv):
     cfg.logger.log.debug('start')
@@ -1526,9 +1563,10 @@ def get_band_arrays(
                     if extract is False:
                         return [None, 'error extract', str(process)]
                     # get raster array and signature raster array
-                    r_arr_v_arr_list.append([extract[0], extract[1]])
-                    # get raster nodata array
-                    nd_bool_list.append(extract[2])
+                    if extract[0] is not None:
+                        r_arr_v_arr_list.append([extract[0], extract[1]])
+                        # get raster nodata array
+                        nd_bool_list.append(extract[2])
                 # create nodata array for all rasters
                 nd_array = None
                 for nd_bool in nd_bool_list:
@@ -1547,7 +1585,7 @@ def get_band_arrays(
                     result_dict = {}
                     for f in d['numpy_functions']:
                         # noinspection PyUnusedLocal
-                        for A in array_list:
+                        for _a in array_list:
                             result_dict[f] = eval(d['numpy_functions'][f])
                     array_dict[s] = result_dict
                 else:

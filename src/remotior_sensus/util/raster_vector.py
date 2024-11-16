@@ -41,7 +41,10 @@ try:
     from osgeo import gdal
     gdal.DontUseExceptions()
 except Exception as error:
-    cfg.logger.log.error(str(error))
+    try:
+        cfg.logger.log.error(str(error))
+    except Exception as error:
+        str(error)
 
 
 # get GDAL version
@@ -1175,7 +1178,7 @@ def create_virtual_raster(
                     DataType="%s" BlockXSize="%i" BlockYSize="%i" />
                     <SrcRect xOff="%i" yOff="%i" xSize="%i" ySize="%i" />
                     <DstRect xOff="%i" yOff="%i" xSize="%i" ySize="%i" />
-                    <NODATA>%i</NODATA>
+                    <NODATA>%s</NODATA>
                 </ComplexSource>
                     '''
                     source = xml % (
@@ -1199,7 +1202,16 @@ def create_virtual_raster(
                         )
                 if nodata_value is True:
                     if no_data is not None:
-                        band.SetNoDataValue(int(no_data))
+                        try:
+                            band.SetNoDataValue(int(nodata_value))
+                        except Exception as err:
+                            str(err)
+                            try:
+                                import math
+                                if math.isnan(nodata_value):
+                                    band.SetNoDataValue(int(nodata_value))
+                            except Exception as err:
+                                str(err)
                 elif not nodata_value:
                     try:
                         band.SetNoDataValue(int(no_data))
@@ -1210,6 +1222,12 @@ def create_virtual_raster(
                         band.SetNoDataValue(int(nodata_value))
                     except Exception as err:
                         str(err)
+                        try:
+                            import math
+                            if math.isnan(nodata_value):
+                                band.SetNoDataValue(int(nodata_value))
+                        except Exception as err:
+                            str(err)
                 if offs is not None:
                     band.SetOffset(offs)
                 if scl is not None:
@@ -1497,7 +1515,7 @@ def create_virtual_raster_2_mosaic(
                     DataType="%s" BlockXSize="%i" BlockYSize="%i" />
                     <SrcRect xOff="%i" yOff="%i" xSize="%i" ySize="%i" />
                     <DstRect xOff="%i" yOff="%i" xSize="%i" ySize="%i" />
-                    <NODATA>%i</NODATA>
+                    <NODATA>%s</NODATA>
                 </ComplexSource>
                 '''
                 source = xml % (relative_to_vrt, source_path, band_number,
@@ -1512,7 +1530,16 @@ def create_virtual_raster_2_mosaic(
                 % (str(dst_nodata),  str(src_nodata), str(no_data))
             )
             if dst_nodata is True:
-                band.SetNoDataValue(int(src_nodata))
+                try:
+                    band.SetNoDataValue(int(src_nodata))
+                except Exception as err:
+                    str(err)
+                    try:
+                        import math
+                        if math.isnan(src_nodata):
+                            band.SetNoDataValue(int(src_nodata))
+                    except Exception as err:
+                        str(err)
             elif dst_nodata is False:
                 pass
             else:
@@ -1520,7 +1547,24 @@ def create_virtual_raster_2_mosaic(
                     band.SetNoDataValue(int(dst_nodata))
                 except Exception as err:
                     str(err)
-                    band.SetNoDataValue(int(no_data))
+                    try:
+                        import math
+                        if math.isnan(dst_nodata):
+                            band.SetNoDataValue(int(dst_nodata))
+                    except Exception as err:
+                        str(err)
+                        try:
+                            band.SetNoDataValue(int(no_data))
+                        except Exception as err:
+                            str(err)
+                            try:
+                                import math
+                                if math.isnan(no_data):
+                                    band.SetNoDataValue(int(no_data))
+                                else:
+                                    cfg.logger.log.error(str(err))
+                            except Exception as err:
+                                cfg.logger.log.error(str(err))
             if offs is not None:
                 band.SetOffset(offs)
             if scl is not None:
@@ -2003,8 +2047,10 @@ def extract_vector_to_raster(
         v_max_y = v_min_y + abs(y_size)
     orig_x = gt[0] + x_size * int(round((v_min_x - gt[0]) / x_size))
     orig_y = gt[3] + y_size * int(round((v_max_y - gt[3]) / y_size))
-    grid_columns = abs(int(round((v_max_x - v_min_x) / x_size)))
-    grid_rows = abs(int(round((v_max_y - v_min_y) / y_size)))
+    # increase size by 1
+    # TODO check
+    grid_columns = abs(int(round((v_max_x - v_min_x) / x_size))) + 1
+    grid_rows = abs(int(round((v_max_y - v_min_y) / y_size))) + 1
     pixel_start_column = abs(int(round((gt[0] - orig_x) / x_size)))
     pixel_start_row = abs(int(round((orig_y - gt[3]) / y_size)))
     driver = gdal.GetDriverByName(output_format)
@@ -2052,6 +2098,8 @@ def extract_vector_to_raster(
     _grid = _r_d = None
     if cfg.logger is not None:
         cfg.logger.log.debug('extract vector')
+    if _a is None:
+        return None, None, None
     return _a.ravel(), _b.ravel(), _a.ravel() != nd
 
 

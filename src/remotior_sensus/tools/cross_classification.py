@@ -117,8 +117,7 @@ def cross_classification(
     )
     # check output path
     out_path, vrt_r = files_directories.raster_output_path(
-        output_path,
-        overwrite=overwrite
+        output_path, overwrite=overwrite
     )
     vector, raster, reference_crs = raster_vector.raster_or_vector_input(
         reference_path

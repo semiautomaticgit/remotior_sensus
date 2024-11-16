@@ -25,9 +25,10 @@ Typical usage example:
     >>> rs = remotior_sensus.Session()
     >>> # start the process
     >>> statistics = rs.raster_zonal_stats(
-    ... raster_path='input_path', vector_path='input_vector_path',
-    ... vector_field='field_name', stat_names=['Sum', 'Mean'],
-    ... output_path='output_path')
+    ... raster_path='input_path', reference_path='input_vector_path',
+    ... vector_field='field_name', output_path='output_path',
+    ... stat_names=['Sum', 'Mean'])
+      
 """  # noqa: E501
 
 import io
@@ -40,11 +41,13 @@ from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.util import (
     files_directories, raster_vector, shared_tools, read_write_files
 )
-from remotior_sensus.core.processor_functions import get_band_arrays
+from remotior_sensus.core.processor_functions import (
+    get_band_arrays, zonal_rasters
+)
 
 
 def raster_zonal_stats(
-        raster_path: str, vector_path: str,  vector_field: str,
+        raster_path: str, reference_path: str,  vector_field: str = None,
         output_path: str = None, stat_names: Union[list, str] = None,
         stat_percentile: Optional[Union[int, str, list]] = None,
         extent_list: Optional[list] = None,
@@ -72,7 +75,8 @@ def raster_zonal_stats(
 
     Args:
         raster_path: path of raster used as input.
-        vector_path: path of vector used as input.
+        reference_path: path of the vector or raster file used as reference 
+            input.
         vector_field: the name of the vector field used as reference value.
         stat_names: statistic name as in configurations.statistics_list.
         stat_percentile: integer value for percentile parameter.
@@ -81,7 +85,8 @@ def raster_zonal_stats(
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         progress_message: if True then start progress message, if False does 
-            not start the progress message (useful if launched from other tools).
+            not start the progress message (useful if launched from other 
+            tools).
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -91,10 +96,9 @@ def raster_zonal_stats(
     Examples:
         Perform the calculation
             >>> stats = raster_zonal_stats(
-            ... raster_path='input_path', vector_path='input_vector_path',
-            ... vector_field='field_name',
-            ... stat_names=['Percentile', 'Max', 'Min'],
-            ... stat_percentile=[1, 99], output_path='output_path'
+            ... raster_path='input_path', reference_path='input_vector_path',
+            ... vector_field='field_name',output_path='output_path',
+            ... stat_names=['Percentile', 'Max', 'Min'],stat_percentile=[1, 99]
             ... )
     """  # noqa: E501
     cfg.logger.log.info('start')
@@ -103,13 +107,35 @@ def raster_zonal_stats(
         start=progress_message
     )
     raster_path = files_directories.input_path(raster_path)
-    vector_path = files_directories.input_path(vector_path)
-    # prepare process files
-    prepared = shared_tools.prepare_process_files(
-        input_bands=[raster_path], output_path=output_path,
-        n_processes=n_processes, box_coordinate_list=extent_list
+    reference_path = files_directories.input_path(reference_path)
+    vector, raster, reference_crs = raster_vector.raster_or_vector_input(
+        reference_path
     )
-    reference_path = prepared['temporary_virtual_raster'][0]
+    if extent_list is not None:
+        if raster:
+            # prepare process files
+            prepared = shared_tools.prepare_process_files(
+                input_bands=[raster_path, reference_path],
+                overwrite=True, n_processes=n_processes,
+                box_coordinate_list=extent_list,
+                multiple_output=True, multiple_input=True,
+                multiple_resolution=False
+            )
+            input_raster_list = prepared['input_raster_list']
+            n_processes = prepared['n_processes']
+            raster_path, reference_path = input_raster_list
+        else:
+            # prepare process files
+            prepared = shared_tools.prepare_process_files(
+                input_bands=[raster_path],
+                overwrite=True, n_processes=n_processes,
+                box_coordinate_list=extent_list,
+                multiple_output=True, multiple_input=True,
+                multiple_resolution=False
+            )
+            input_raster_list = prepared['input_raster_list']
+            n_processes = prepared['n_processes']
+            raster_path = input_raster_list[0]
     if n_processes is None:
         n_processes = cfg.n_processes
     # get statistic names
@@ -129,7 +155,7 @@ def raster_zonal_stats(
             cfg.progress.update(failed=True)
             return OutputManager(check=False)
         cfg.logger.log.debug('stat_numpy: %s' % str(stat_numpy))
-        function_numpy = stat_numpy.replace('array', 'A')
+        function_numpy = stat_numpy.replace('array', '_a')
         if cfg.stat_percentile in stat_numpy:
             try:
                 if type(stat_percentile) is not list:
@@ -149,72 +175,107 @@ def raster_zonal_stats(
         else:
             numpy_functions[stat_n] = function_numpy
     # open input with GDAL
-    cfg.logger.log.debug('vector_path: %s' % vector_path)
-    vector_crs = raster_vector.get_crs(vector_path)
+    cfg.logger.log.debug('reference_path: %s' % reference_path)
+    raster_crs = raster_vector.get_crs(raster_path)
     reference_crs = raster_vector.get_crs(reference_path)
     output_text = output_table = None
     # check crs
-    same_crs = raster_vector.compare_crs(vector_crs, reference_crs)
+    same_crs = raster_vector.compare_crs(raster_crs, reference_crs)
     cfg.logger.log.debug('same_crs: %s' % str(same_crs))
-    if not same_crs:
-        input_vector = cfg.temp.temporary_file_path(
-            name_suffix=files_directories.file_extension(vector_path)
-        )
-        vector_path = raster_vector.reproject_vector(
-            vector_path, input_vector, input_epsg=vector_crs,
-            output_epsg=reference_crs
-        )
-    virtual_path_list = [reference_path]
-    # find unique values of vector_field
-    try:
-        unique_values = raster_vector.get_vector_values(
-            vector_path=vector_path, field_name=vector_field
-        )
-    except Exception as err:
-        cfg.logger.log.error(str(err))
-        return OutputManager(check=False)
-    if len(unique_values) > 0:
-        if n_processes > len(unique_values):
-            n_processes = len(unique_values)
-        unique_values_index_list = list(
-            range(
-                0, len(unique_values), round(len(unique_values) / n_processes)
-                )
-        )
-        unique_values_index_list.append(len(unique_values))
-        # build function argument list of dictionaries
-        argument_list = []
-        function_list = []
-        for val_ids_index in range(1, len(unique_values_index_list)):
-            # unique value id list
-            signature_id_list = unique_values[
-                                unique_values_index_list[val_ids_index - 1]:
-                                unique_values_index_list[val_ids_index]
-                                ]
-            argument_list.append(
-                {
-                    'signature_id_list': signature_id_list,
-                    'roi_path': vector_path,
-                    'field_name': vector_field,
-                    'numpy_functions': numpy_functions,
-                    'virtual_path_list': virtual_path_list,
-                    'available_ram': available_ram,
-                    # optional calc_data_type
-                    'calc_data_type': None
-                }
+    if raster:
+        if not same_crs:
+            t_pmd = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
+            raster_path = cfg.multiprocess.create_warped_vrt(
+                raster_path=raster_path, output_path=t_pmd,
+                output_wkt=str(reference_crs)
             )
-            function_list.append(get_band_arrays)
-        cfg.multiprocess.run_iterative_process(
-            function_list=function_list, argument_list=argument_list
+        # prepare process files
+        prepared = shared_tools.prepare_process_files(
+            input_bands=[raster_path, reference_path],
+            overwrite=True, n_processes=n_processes,
+            box_coordinate_list=extent_list,
+            multiple_output=True, multiple_resolution=False
         )
-        # array for each roi
-        cfg.multiprocess.multiprocess_roi_arrays()
+        vrt_r = prepared['virtual_output']
+        vrt_path = prepared['temporary_virtual_raster']
+        # combination calculation
+        cfg.multiprocess.run(
+            raster_path=vrt_path, function=zonal_rasters,
+            function_argument=numpy_functions,
+            any_nodata_mask=True, unique_section=True,
+            compress=cfg.raster_compression, n_processes=n_processes,
+            available_ram=available_ram, keep_output_argument=True,
+            progress_message='zonal raster',
+            min_progress=10, max_progress=90
+        )
         if cfg.multiprocess.output is False:
             return OutputManager(check=False)
-        array_dictionary = cfg.multiprocess.output
+        array_dictionary = cfg.multiprocess.output[0][0][1]
         output_text, output_table = _zonal_stats_table(
-            array_dictionary, vector_field, type(unique_values[0])
+            array_dictionary, 'DN', int
         )
+    else:
+        if not same_crs:
+            input_vector = cfg.temp.temporary_file_path(
+                name_suffix=files_directories.file_extension(reference_path)
+            )
+            reference_path = raster_vector.reproject_vector(
+                reference_path, input_vector, input_epsg=reference_crs,
+                output_epsg=reference_crs
+            )
+        virtual_path_list = [raster_path]
+        # find unique values of vector_field
+        try:
+            unique_values = raster_vector.get_vector_values(
+                vector_path=reference_path, field_name=vector_field
+            )
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+            return OutputManager(check=False)
+        if len(unique_values) > 0:
+            if n_processes > len(unique_values):
+                n_processes = len(unique_values)
+            unique_values_index_list = list(
+                range(
+                    0, len(unique_values), round(len(unique_values)
+                                                 / n_processes)
+                    )
+            )
+            unique_values_index_list.append(len(unique_values))
+            # build function argument list of dictionaries
+            argument_list = []
+            function_list = []
+            for val_ids_index in range(1, len(unique_values_index_list)):
+                # unique value id list
+                signature_id_list = unique_values[
+                                    unique_values_index_list[val_ids_index
+                                                             - 1]:
+                                    unique_values_index_list[val_ids_index]
+                                    ]
+                argument_list.append(
+                    {
+                        'signature_id_list': signature_id_list,
+                        'roi_path': reference_path,
+                        'field_name': vector_field,
+                        'numpy_functions': numpy_functions,
+                        'virtual_path_list': virtual_path_list,
+                        'available_ram': available_ram,
+                        # optional calc_data_type
+                        'calc_data_type': None
+                    }
+                )
+                function_list.append(get_band_arrays)
+            cfg.multiprocess.run_iterative_process(
+                function_list=function_list, argument_list=argument_list
+            )
+            # array for each roi
+            cfg.multiprocess.multiprocess_roi_arrays()
+            if cfg.multiprocess.output is False:
+                return OutputManager(check=False)
+            array_dictionary = cfg.multiprocess.output
+            output_text, output_table = _zonal_stats_table(
+                array_dictionary, vector_field, type(unique_values[0])
+            )
     # save output text to file
     tbl_out = shared_tools.join_path(
         files_directories.parent_directory(output_path), '{}{}'.format(

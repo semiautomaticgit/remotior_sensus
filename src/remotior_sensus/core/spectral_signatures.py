@@ -49,7 +49,10 @@ try:
     from osgeo import gdal
     gdal.DontUseExceptions()
 except Exception as error:
-    cfg.logger.log.error(str(error))
+    try:
+        cfg.logger.log.error(str(error))
+    except Exception as error:
+        str(error)
 
 
 class SpectralSignaturesCatalog(object):

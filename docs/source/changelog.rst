@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.4.4
+________
+
+* Changed raster_zonal_stats to accept raster input as reference_path
+* Fixed handling nan value as nodata
+
 v0.4.3
 ________
 

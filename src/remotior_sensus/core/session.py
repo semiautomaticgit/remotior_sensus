@@ -495,10 +495,16 @@ def _check_dependencies(configuration_module: configurations) -> bool:
             os.add_dll_directory(configuration_module.gdal_path)
         try:
             from osgeo import gdal
-            gdal.DontUseExceptions()
+            try:
+                gdal.DontUseExceptions()
+            except Exception as err:
+                str(err)
         except Exception as err:
-            configuration_module.logger.log.error(str(err))
-            configuration_module.messages.error('dependency error: gdal')
+            try:
+                configuration_module.logger.log.error(str(err))
+                configuration_module.messages.error('dependency error: gdal')
+            except Exception as err:
+                str(err)
             check = False
     except Exception as err:
         configuration_module.logger.log.error(str(err))

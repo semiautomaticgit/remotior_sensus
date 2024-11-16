@@ -17,7 +17,7 @@ class TestRasterZonalStats(TestCase):
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.csv_suffix)
         cfg.logger.log.debug('>>> test raster_zonal_stats')
         stats = rs.raster_zonal_stats(
-            raster_path=r, vector_path=v, vector_field='class',
+            raster_path=r, reference_path=v, vector_field='class',
             stat_names=['Sum', 'Mean'], output_path=temp,
         )
         self.assertTrue(rs.files_directories.is_file(stats.path))
@@ -25,12 +25,23 @@ class TestRasterZonalStats(TestCase):
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.csv_suffix)
         cfg.logger.log.debug('>>> test raster_zonal_stats percentile')
         stats2 = rs.raster_zonal_stats(
-            raster_path=r, vector_path=v, vector_field='class',
+            raster_path=r, reference_path=v, vector_field='class',
             stat_names=['Percentile', 'Max', 'Min'], stat_percentile=[1, 99],
             output_path=temp,
         )
         self.assertTrue(rs.files_directories.is_file(stats2.path))
         self.assertTrue(stats2.extra['table'] is not None)
+
+        cfg.logger.log.debug('>>> test raster_zonal_stats raster')
+        raster = rs.vector_to_raster(vector_path=v, align_raster=r,
+                                     vector_field='class')
+        temp_2 = cfg.temp.temporary_file_path(name_suffix=cfg.csv_suffix)
+        stats = rs.raster_zonal_stats(
+            raster_path=r, reference_path=raster.path,
+            stat_names=['Sum', 'Mean'], output_path=temp_2,
+        )
+        self.assertTrue(rs.files_directories.is_file(stats.path))
+        self.assertTrue(stats.extra['table'] is not None)
 
         # clear temporary directory
         rs.close()
