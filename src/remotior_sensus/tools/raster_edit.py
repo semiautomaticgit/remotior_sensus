@@ -182,6 +182,7 @@ def raster_edit(
 
 
 # check the expression
+# noinspection PyShadowingBuiltins
 def check_expression(expression, constant_value):
     # expose numpy functions
     log = np.log

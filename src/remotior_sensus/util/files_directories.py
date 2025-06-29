@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -326,6 +326,7 @@ def unzip_file(in_path, out_dir_path):
                 output_file = open('%s/%s' % (out_dir_path, name_f), 'wb')
                 file_list.append('%s/%s' % (out_dir_path, name_f))
                 with file, output_file:
+                    # noinspection PyTypeChecker
                     shutil.copyfileobj(file, output_file)
     except Exception as err:
         cfg.logger.log.error(str(err))

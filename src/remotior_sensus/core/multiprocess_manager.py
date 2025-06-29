@@ -96,7 +96,8 @@ class Multiprocess(object):
             signature_raster=False, virtual_raster=False,
             multi_add_factors=None, separate_bands=False,
             progress_message=None, device=None, multiple_block=None,
-            specific_output=None, min_progress=None, max_progress=None
+            specific_output=None, skip_output=False,
+            min_progress=None, max_progress=None
     ):
         """
         :param device: processing device 'cpu' or 'cuda' if available.
@@ -133,6 +134,7 @@ class Multiprocess(object):
         :param n_processes: number of parallel processes.
         :param function: function name
         :param specific_output: dictionary of values for specific output raster
+        :param skip_output: if True, skip output process
         :param classification: if True, settings are defined for a classification output
         :param use_value_as_nodata: integer value as nodata in calculation
         :param separate_bands: if True, calculate a section for each raster range
@@ -173,7 +175,7 @@ class Multiprocess(object):
             memory_reserved = torch.cuda.memory_reserved(device)
             available_ram = int((total_memory - memory_reserved)
                                 / (1024 ** 2))
-            cfg.logger.log.debug('available_ram: %s' % (available_ram))
+            cfg.logger.log.debug('available_ram: %s' % str(available_ram))
         elif device == 'cpu' and classification is False:
             memory_unit = cfg.memory_unit_array_12
             if n_processes is None:
@@ -256,7 +258,7 @@ class Multiprocess(object):
                                 use_value_as_nodata, None,
                                 input_nodata_as_value, multi_add_factors,
                                 dummy_bands, specific_output,
-                                same_geotransformation]
+                                same_geotransformation, skip_output]
             output_parameters = [[output_raster_path], [output_data_type],
                                  compress, compress_format, any_nodata_mask,
                                  [output_nodata_value], [output_band_number],
@@ -309,6 +311,9 @@ class Multiprocess(object):
             if classification:
                 process_result[r[1]] = res[0]
                 process_output_files[r[1]] = res[1]
+            elif skip_output:
+                process_result[r[1]] = res[0]
+                process_output_files[r[1]] = None
             else:
                 process_result[r[1]] = res[0]
                 process_output_files[r[1]] = res[1]
@@ -341,7 +346,8 @@ class Multiprocess(object):
                 output_data_type=output_data_type, compress=compress,
                 compress_format=compress_format, delete_array=delete_array,
                 n_processes=n_processes, available_ram=available_ram,
-                min_progress=max_progress, max_progress=max_progress_write
+                min_progress=max_progress, max_progress=max_progress_write,
+                skip_output=skip_output
             )
         cfg.progress.update(percentage=False)
         cfg.logger.log.debug('end')
@@ -356,7 +362,7 @@ class Multiprocess(object):
             output_nodata_value=None, compress=None, compress_format='LZW',
             n_processes: int = None, available_ram: int = None,
             output_band_number_list=None, boundary_size=None,
-            dummy_bands=0,
+            dummy_bands=0, skip_output=False,
             keep_output_array=False, keep_output_argument=False,
             scale=None, offset=None, input_nodata_as_value=None,
             multi_add_factors=None, progress_message=None, min_progress=None,
@@ -394,6 +400,7 @@ class Multiprocess(object):
         :param raster_path_list: input path
         :param use_value_as_nodata: list of integer values as nodata in
             calculation
+        :param skip_output: if True, skip output process
         :param progress_message: progress message
         :param min_progress: minimum progress value
         :param max_progress: maximum progress value
@@ -485,7 +492,7 @@ class Multiprocess(object):
                 boundary_size, None, scl, offs,
                 use_value_as_nodata[ranges[p - 1]: ranges[p]], None,
                 input_nodata_as_value, multi_add_factors, dummy_bands, None,
-                None
+                None, skip_output
             ]
             output_parameters = [
                 output_list, output_data_type[ranges[p - 1]: ranges[p]],
@@ -566,7 +573,8 @@ class Multiprocess(object):
             scale=None, offset=None, virtual_raster=None,
             output_nodata_value=None, output_data_type=None, compress=False,
             compress_format='LZW', delete_array=None, n_processes=1,
-            available_ram: int = None, min_progress=None, max_progress=None
+            available_ram: int = None, min_progress=None, max_progress=None,
+            skip_output=False
     ):
         cfg.logger.log.debug('start')
         multiprocess_dictionary = {}
@@ -583,7 +591,8 @@ class Multiprocess(object):
                 # first iteration
                 multiprocess_dictionary[p] = process_result[p]
         # output files
-        if output_raster_path is not None and output_raster_path is not False:
+        if (output_raster_path is not None and output_raster_path is not False
+                and skip_output is False):
             try:
                 len(process_output_files[p]) * len(process_output_files)
             except Exception as err:
@@ -851,14 +860,14 @@ class Multiprocess(object):
                         try:
                             multiprocess_dictionary[
                                 'signature_rasters'].append(
-                                    '%s/%s%s'
-                                    % (dir_path, sig_name, cfg.vrt_suffix)
+                                '%s/%s%s'
+                                % (dir_path, sig_name, cfg.vrt_suffix)
                             )
                         except Exception as err:
                             str(err)
                             multiprocess_dictionary['signature_rasters'] = [
-                                    '%s/%s%s'
-                                    % (dir_path, sig_name, cfg.vrt_suffix)
+                                '%s/%s%s'
+                                % (dir_path, sig_name, cfg.vrt_suffix)
                             ]
             # copy raster output
             else:
@@ -1122,7 +1131,8 @@ class Multiprocess(object):
             self, raster_path, output_path, output_wkt=None,
             align_raster_path=None, same_extent=False,
             n_processes: int = None, src_nodata=None, dst_nodata=None,
-            extra_params=None
+            resample_method=None,
+            extra_params=None, min_progress=None, max_progress=None
     ):
         cfg.logger.log.debug('start')
         # calculate minimal extent
@@ -1209,7 +1219,9 @@ class Multiprocess(object):
             input_raster=raster_path, output=output_path, output_format='VRT',
             s_srs=None, t_srs=output_wkt, additional_params=extra_params,
             n_processes=n_processes, src_nodata=src_nodata,
-            dst_nodata=dst_nodata
+            resample_method=resample_method,
+            dst_nodata=dst_nodata, min_progress=min_progress,
+            max_progress=max_progress
         )
         # workaround to gdalwarp issue ignoring scale and offset
         try:
@@ -2168,7 +2180,7 @@ class Multiprocess(object):
     # run iterative process
     def run_iterative_process(
             self, function_list, argument_list, min_progress=None,
-            max_progress=None, n_processes=None
+            max_progress=None, n_processes=None, message='processing'
     ):
         cfg.logger.log.debug('start')
         self.output = False
@@ -2238,7 +2250,7 @@ class Multiprocess(object):
                     length = int(p_m_qp[1])
                     progress = int(100 * count_progress / length)
                     cfg.progress.update(
-                        message='processing', step=progress, steps=100,
+                        message=message, step=progress, steps=100,
                         minimum=min_progress,
                         maximum=max_progress, percentage=progress
                     )
@@ -2269,15 +2281,18 @@ class Multiprocess(object):
     # copy raster with GDAL
     def gdal_copy_raster(
             self, input_raster, output, output_format='GTiff', compress=None,
-            compress_format='DEFLATE',
-            additional_params='', n_processes=1, available_ram: int = None,
-            min_progress=None, max_progress=None
+            compress_format='DEFLATE', additional_params='', n_processes=None,
+            available_ram: int = None, min_progress=None, max_progress=None
     ):
         cfg.logger.log.debug('start')
         # progress queue
         p_mq = self.manager.Queue()
         out_dir = files_directories.parent_directory(output)
         files_directories.create_directory(out_dir)
+        if n_processes is None:
+            n_processes = cfg.n_processes - 1
+        if n_processes == 0:
+            n_processes = 1
         op = ' -co BIGTIFF=YES -co NUM_THREADS=%s' % str(n_processes)
         if compress is None:
             compress = cfg.raster_compression
@@ -2340,6 +2355,71 @@ class Multiprocess(object):
                 return False
         cfg.logger.log.debug('end; output: %s' % str(output))
         return output
+
+    # vector translate with GDAL
+    def gdal_vector_translate(
+            self, input_file, output_file, attribute_field, output_drive=None,
+            explode_collections=None,
+            available_ram: int = None, min_progress=None, max_progress=None
+    ):
+        cfg.logger.log.debug('start')
+        # progress queue
+        p_mq = self.manager.Queue()
+        out_dir = files_directories.parent_directory(output_file)
+        files_directories.create_directory(out_dir)
+        p = 0
+        if available_ram is None:
+            available_ram = cfg.available_ram
+        available_ram = str(int(available_ram) * 1000000)
+        process_parameters = [p, cfg.temp, available_ram, cfg.gdal_path,
+                              p_mq, cfg.log_level]
+        cfg.logger.log.debug(str(process_parameters))
+        results = []
+        c = self.pool.apply_async(
+            processor.gdal_vector_translate, args=(
+                input_file, output_file, attribute_field, output_drive,
+                process_parameters, explode_collections
+            )
+        )
+        results.append([c, p])
+        while True:
+            if cfg.action is True:
+                p_r = []
+                for r in results:
+                    p_r.append(r[0].ready())
+                if all(p_r):
+                    break
+                time.sleep(cfg.refresh_time)
+                # progress message
+                try:
+                    p_m_qp = p_mq.get(False)
+                    progress = round(p_m_qp)
+                    cfg.progress.update(
+                        message='processing vector', step=progress, steps=100,
+                        minimum=min_progress, maximum=max_progress,
+                        percentage=progress
+                    )
+                except Exception as err:
+                    str(err)
+                    cfg.progress.update(ping=True)
+            else:
+                cfg.logger.log.info('cancel')
+                gc.collect()
+                self.stop()
+                self.start(self.n_processes, self.multiprocess_module)
+                return
+        for r in results:
+            res = r[0].get()
+            # log
+            cfg.logger.log.debug(res[3])
+            # error
+            if res[2] is not False:
+                cfg.logger.log.error(
+                    'Error proc %s-%s' % (str(p), str(res[1]))
+                )
+                return False
+        cfg.logger.log.debug('end; output: %s' % str(output_file))
+        return output_file
 
     # download file
     def multi_download_file(

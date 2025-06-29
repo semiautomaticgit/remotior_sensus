@@ -224,6 +224,7 @@ class Classifier(object):
             cfg.spectral_signatures_framework: spectral_signatures_catalog
         }
 
+    # noinspection PyTypeChecker
     def save_model(self, output_path: str) -> OutputManager:
         """Saves classifier model.
 
@@ -1516,9 +1517,10 @@ def _get_x_y_arrays_from_rois(
         for signature_ids_index in range(1, len(signature_ids_index_list)):
             # signature ids
             signature_id_list = signature_ids[
-                signature_ids_index_list[signature_ids_index - 1]:
-                signature_ids_index_list[signature_ids_index]
-            ]
+                                signature_ids_index_list[signature_ids_index
+                                                         - 1]:
+                                signature_ids_index_list[signature_ids_index]
+                                ]
             argument_list.append(
                 {
                     'signature_id_list': signature_id_list,

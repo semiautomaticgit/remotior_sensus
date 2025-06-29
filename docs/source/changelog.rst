@@ -1,6 +1,16 @@
 Changelog
 ===============
 
+v0.5.0
+________
+
+* New tool "Raster label" for calculating the area of contiguous
+  patches in a raster. The output is a raster where each pixel value represents
+  the pixel count of the patch thereof.
+* Performance improvement for the tool "Vector to raster" with the method
+  area_based.
+* Minor fixes
+
 v0.4.4
 ________
 

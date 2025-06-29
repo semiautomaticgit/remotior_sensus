@@ -116,7 +116,7 @@ def preprocess(
         dos1_correction=dos1_correction, output_prefix=output_prefix,
         n_processes=n_processes, available_ram=available_ram,
         progress_message=progress_message, bandset_catalog=bandset_catalog
-        )
+    )
     return output
 
 
@@ -173,11 +173,9 @@ def perform_preprocess(
     landsat_product = product_table[product_table.product == cfg.landsat]
     # HLS
     sentinel_hls_product = product_table[
-        product_table.product == cfg.sentinel2_hls
-    ]
+        product_table.product == cfg.sentinel2_hls]
     landsat_hls_product = product_table[
-        product_table.product == cfg.landsat_hls
-    ]
+        product_table.product == cfg.landsat_hls]
     # Sentinel-2
     if len(sentinel_product) > 0:
         if dos1_correction:
@@ -501,8 +499,8 @@ def perform_preprocess(
     if len(landsat_hls_product) > 0:
         # raster is interpreted as variable in the calculation
         string_0 = 'where(%s < 0, 0, %s)' % (
-                cfg.array_function_placeholder, cfg.array_function_placeholder
-            )
+            cfg.array_function_placeholder, cfg.array_function_placeholder
+        )
         expressions = [string_0] * len(landsat_hls_product)
         input_list.extend(landsat_hls_product.product_path.tolist())
         # output raster list
@@ -523,8 +521,8 @@ def perform_preprocess(
     if len(sentinel_hls_product) > 0:
         # raster is interpreted as variable in the calculation
         string_0 = 'where(%s < 0, 0, %s)' % (
-                cfg.array_function_placeholder, cfg.array_function_placeholder
-            )
+            cfg.array_function_placeholder, cfg.array_function_placeholder
+        )
         expressions = [string_0] * len(sentinel_hls_product)
         input_list.extend(sentinel_hls_product.product_path.tolist())
         # output raster list

@@ -39,6 +39,7 @@ except Exception as error:
     cfg.logger.log.error(str(error))
 try:
     from osgeo import gdal
+
     gdal.DontUseExceptions()
 except Exception as error:
     try:
@@ -398,6 +399,78 @@ def create_raster_from_reference(
     return output_raster_list
 
 
+# create raster from a grid
+def create_raster_from_grid(
+        output_raster, projection, x_size, y_size,
+        orig_x, orig_y, grid_columns, grid_rows,
+        nodata_value=None, output_format='GTiff',
+        gdal_format='Float32', compress=False, compress_format='DEFLATE21',
+        constant_value=None, scale=None, offset=None
+):
+    if gdal_format == 'Float64':
+        gdal_format = gdal.GDT_Float64
+    elif gdal_format == 'Float32':
+        gdal_format = gdal.GDT_Float32
+    elif gdal_format == 'Int32':
+        gdal_format = gdal.GDT_Int32
+    elif gdal_format == 'UInt32':
+        gdal_format = gdal.GDT_UInt32
+    elif gdal_format == 'Int16':
+        gdal_format = gdal.GDT_Int16
+    elif gdal_format == 'UInt16':
+        gdal_format = gdal.GDT_UInt16
+    elif gdal_format == 'Byte':
+        gdal_format = gdal.GDT_Byte
+    driver = gdal.GetDriverByName(output_format)
+    # create raster _grid
+    if not compress:
+        _grid = driver.Create(
+            output_raster, grid_columns, grid_rows, 1, gdal_format,
+            options=['BIGTIFF=YES']
+        )
+    elif compress_format == 'DEFLATE21':
+        _grid = driver.Create(
+            output_raster, grid_columns, grid_rows, 1, gdal_format,
+            options=['COMPRESS=DEFLATE', 'PREDICTOR=2',
+                     'ZLEVEL=1', 'BIGTIFF=YES']
+        )
+    else:
+        _grid = driver.Create(
+            output_raster, grid_columns, grid_rows, 1, gdal_format,
+            options=['COMPRESS=%s' % compress_format, 'BIGTIFF=YES']
+        )
+    try:
+        _grid.GetRasterBand(1)
+    except Exception as err:
+        if cfg.logger is not None:
+            cfg.logger.log.error(err)
+        return False
+    # set raster projection from reference
+    _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
+    _grid.SetProjection(projection)
+    if nodata_value is not None:
+        _band = _grid.GetRasterBand(1)
+        _band.SetNoDataValue(nodata_value)
+        _band.Fill(nodata_value)
+        _band = None
+    if constant_value is not None:
+        _band = _grid.GetRasterBand(1)
+        _band.Fill(constant_value)
+        _band = None
+    if scale is not None:
+        _band = _band = _grid.GetRasterBand(1)
+        _band.SetScale(scale)
+        _band = None
+    if offset is not None:
+        _band = _band = _grid.GetRasterBand(1)
+        _band.SetOffset(offset)
+        _band = None
+    _grid = None
+    if cfg.logger is not None:
+        cfg.logger.log.debug('output_raster: %s' % str(output_raster))
+    return output_raster
+
+
 # read a block of band as array
 def read_array_block(
         gdal_band, pixel_start_column, pixel_start_row, block_columns,
@@ -736,31 +809,31 @@ def create_virtual_raster(
         if band_number_list is None:
             band_number_list = bandset.get_raster_band_list()
         else:
-            input_raster_list = [input_raster_list[i-1]
+            input_raster_list = [input_raster_list[i - 1]
                                  for i in band_number_list]
-            lefts = [lefts[i-1] for i in band_number_list]
-            tops = [tops[i-1] for i in band_number_list]
-            rights = [rights[i-1] for i in band_number_list]
-            bottoms = [bottoms[i-1] for i in band_number_list]
-            wavelengths = [wavelengths[i-1] for i in band_number_list]
-            wavelength_units = [wavelength_units[i-1]
+            lefts = [lefts[i - 1] for i in band_number_list]
+            tops = [tops[i - 1] for i in band_number_list]
+            rights = [rights[i - 1] for i in band_number_list]
+            bottoms = [bottoms[i - 1] for i in band_number_list]
+            wavelengths = [wavelengths[i - 1] for i in band_number_list]
+            wavelength_units = [wavelength_units[i - 1]
                                 for i in band_number_list]
-            p_x_sizes = [p_x_sizes[i-1] for i in band_number_list]
-            p_y_sizes = [p_y_sizes[i-1] for i in band_number_list]
-            x_counts = [x_counts[i-1] for i in band_number_list]
-            y_counts = [y_counts[i-1] for i in band_number_list]
-            data_types = [data_types[i-1] for i in band_number_list]
-            nodata_values = [nodata_values[i-1] for i in band_number_list]
-            x_block_sizes = [x_block_sizes[i-1] for i in band_number_list]
-            y_block_sizes = [y_block_sizes[i-1] for i in band_number_list]
-            scales = [scales[i-1] for i in band_number_list]
-            offsets = [offsets[i-1] for i in band_number_list]
-            multiplicative_factors = [multiplicative_factors[i-1]
+            p_x_sizes = [p_x_sizes[i - 1] for i in band_number_list]
+            p_y_sizes = [p_y_sizes[i - 1] for i in band_number_list]
+            x_counts = [x_counts[i - 1] for i in band_number_list]
+            y_counts = [y_counts[i - 1] for i in band_number_list]
+            data_types = [data_types[i - 1] for i in band_number_list]
+            nodata_values = [nodata_values[i - 1] for i in band_number_list]
+            x_block_sizes = [x_block_sizes[i - 1] for i in band_number_list]
+            y_block_sizes = [y_block_sizes[i - 1] for i in band_number_list]
+            scales = [scales[i - 1] for i in band_number_list]
+            offsets = [offsets[i - 1] for i in band_number_list]
+            multiplicative_factors = [multiplicative_factors[i - 1]
                                       for i in band_number_list]
-            additive_factors = [additive_factors[i-1]
+            additive_factors = [additive_factors[i - 1]
                                 for i in band_number_list]
             raster_band_number_list = bandset.get_raster_band_list()
-            new_band_number_list = [raster_band_number_list[i-1]
+            new_band_number_list = [raster_band_number_list[i - 1]
                                     for i in band_number_list]
             band_number_list = new_band_number_list
     cfg.logger.log.debug(
@@ -1197,7 +1270,7 @@ def create_virtual_raster(
                                 str(wavelengths[raster]).ljust(6),
                                 str(wavelength_units[raster]).replace(
                                     ' (1 E-6m)', ''
-                                    )
+                                )
                             )
                         )
                 if nodata_value is True:
@@ -1243,7 +1316,8 @@ def create_virtual_raster_2_mosaic(
         input_raster_list, output, band_number_list=None, src_nodata=None,
         dst_nodata=False, relative_to_vrt=0, data_type=None,
         box_coordinate_list=None, override_box_coordinate_list=False,
-        pixel_size=None, grid_reference=None, scale_offset_list=None
+        pixel_size=None, grid_reference=None, scale_offset_list=None,
+        resampling=None
 ):
     cfg.logger.log.debug('start')
     lefts = []
@@ -1308,15 +1382,26 @@ def create_virtual_raster_2_mosaic(
     pixel_x_size, pixel_y_size = None, None
     if box_coordinate_list is None:
         if pixel_size is None:
-            # minimum x and y pixel size
-            pixel_x_size = min(p_x_sizes)
-            pixel_y_size = min(p_y_sizes)
-            input_reference = input_raster_list[p_x_sizes.index(pixel_x_size)]
-            # raster extent and pixel size
-            (gt, p, unit, xy_count, nd, number_of_bands, block_size,
-             scale_offset, dt) = raster_info(input_reference)
-            r_left = gt[0]
-            r_top = gt[3]
+            if grid_reference is not None:
+                # raster extent and pixel size
+                (gt, p, unit, xy_count, nd, number_of_bands, block_size,
+                 scale_offset, dt) = raster_info(grid_reference)
+                r_left = gt[0]
+                r_top = gt[3]
+                pixel_x_size = gt[1]
+                pixel_y_size = abs(gt[5])
+            else:
+                # minimum x and y pixel size
+                pixel_x_size = min(p_x_sizes)
+                pixel_y_size = min(p_y_sizes)
+                input_reference = input_raster_list[
+                    p_x_sizes.index(pixel_x_size)
+                ]
+                # raster extent and pixel size
+                (gt, p, unit, xy_count, nd, number_of_bands, block_size,
+                 scale_offset, dt) = raster_info(input_reference)
+                r_left = gt[0]
+                r_top = gt[3]
             # find raster box
             diff_left = round((i_left - r_left) / pixel_x_size) * pixel_x_size
             i_left = r_left + diff_left
@@ -1331,10 +1416,35 @@ def create_virtual_raster_2_mosaic(
             ) * pixel_y_size
             i_bottom = i_top + diff_bottom
         else:
-            pixel_x_size, pixel_y_size = pixel_size
-            if pixel_x_size is None:
-                pixel_x_size = min(p_x_sizes)
-                pixel_y_size = min(p_y_sizes)
+            if grid_reference is not None:
+                # raster extent and pixel size
+                (gt, p, unit, xy_count, nd, number_of_bands, block_size,
+                 scale_offset, dt) = raster_info(grid_reference)
+                r_left = gt[0]
+                r_top = gt[3]
+                pixel_x_size, pixel_y_size = pixel_size
+                if pixel_x_size is None:
+                    pixel_x_size = gt[1]
+                    pixel_y_size = abs(gt[5])
+                # find raster box
+                diff_left = round(
+                    (i_left - r_left) / pixel_x_size) * pixel_x_size
+                i_left = r_left + diff_left
+                diff_top = round((i_top - r_top) / pixel_y_size) * pixel_y_size
+                i_top = r_top + diff_top
+                diff_right = round(
+                    (i_right - i_left) / pixel_x_size
+                ) * pixel_x_size
+                i_right = i_left + diff_right
+                diff_bottom = round(
+                    (i_bottom - i_top) / pixel_y_size
+                ) * pixel_y_size
+                i_bottom = i_top + diff_bottom
+            else:
+                pixel_x_size, pixel_y_size = pixel_size
+                if pixel_x_size is None:
+                    pixel_x_size = min(p_x_sizes)
+                    pixel_y_size = min(p_y_sizes)
     # box coordinates to be adapted
     else:
         # override coordinates with absolute coordinates
@@ -1487,10 +1597,13 @@ def create_virtual_raster_2_mosaic(
                 )
             else:
                 source_path = input_raster_list[b].replace('//', '/')
+            # resampling can be nearest or mode
+            if resampling is None:
+                resampling = 'nearest'
             # set metadata xml
             if src_nodata is None:
                 xml = '''
-                <ComplexSource>
+                <ComplexSource resampling="%s">
                     <SourceFilename relative_to_vrt="%i">%s</SourceFilename>
                     <SourceBand>%i</SourceBand>
                     <SourceProperties RasterXSize="%i" RasterYSize="%i" 
@@ -1499,7 +1612,8 @@ def create_virtual_raster_2_mosaic(
                     <DstRect xOff="%i" yOff="%i" xSize="%i" ySize="%i" />
                 </ComplexSource>
                 '''
-                source = xml % (relative_to_vrt, source_path, band_number,
+                source = xml % (resampling, relative_to_vrt, source_path,
+                                band_number,
                                 i_r_x, i_r_y, data_type_s, x_block, y_block,
                                 s_off_x, s_off_y, s_r_x, s_r_y,
                                 d_off_x, d_off_y, d_r_x, d_r_y)
@@ -1508,7 +1622,7 @@ def create_virtual_raster_2_mosaic(
                 )
             else:
                 xml = '''
-                <ComplexSource>
+                <ComplexSource resampling="%s">
                     <SourceFilename relative_to_vrt="%i">%s</SourceFilename>
                     <SourceBand>%i</SourceBand>
                     <SourceProperties RasterXSize="%i" RasterYSize="%i" 
@@ -1518,7 +1632,8 @@ def create_virtual_raster_2_mosaic(
                     <NODATA>%s</NODATA>
                 </ComplexSource>
                 '''
-                source = xml % (relative_to_vrt, source_path, band_number,
+                source = xml % (resampling, relative_to_vrt, source_path,
+                                band_number,
                                 i_r_x, i_r_y, data_type_s, x_block, y_block,
                                 s_off_x, s_off_y, s_r_x, s_r_y,
                                 d_off_x, d_off_y, d_r_x, d_r_y, src_nodata)
@@ -1527,7 +1642,7 @@ def create_virtual_raster_2_mosaic(
                 )
             cfg.logger.log.debug(
                 'dst_nodata: %s; src_nodata: %s; no_data: %s'
-                % (str(dst_nodata),  str(src_nodata), str(no_data))
+                % (str(dst_nodata), str(src_nodata), str(no_data))
             )
             if dst_nodata is True:
                 try:
@@ -2419,6 +2534,118 @@ def merge_dissolve_layer(
     return target_layer
 
 
+# split layer geometries to vectors
+# noinspection PyArgumentList
+def split_layer_geometries_old(
+        input_layer, min_progress=0, max_progress=100
+):
+    cfg.logger.log.debug('start')
+    # open virtual layer
+    input_source = ogr.Open(input_layer)
+    i_layer = input_source.GetLayer()
+    i_layer_definition = i_layer.GetLayerDefn()
+    i_layer_sr = i_layer.GetSpatialRef()
+    feature_count = i_layer.GetFeatureCount()
+    # copy not dissolved features
+    i_feature = i_layer.GetNextFeature()
+    c = 0
+    min_p = min_progress
+    max_p = int((max_progress - min_progress) / feature_count)
+    new_layers = []
+    while i_feature:
+        if cfg.action is True:
+            c += 1
+            cfg.progress.update(
+                step=c, steps=feature_count, minimum=min_p + max_p * c,
+                maximum=max_progress, percentage=int(c / feature_count * 100)
+            )
+            i_d = ogr.GetDriverByName('GPKG')
+            temp = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
+            output_source = i_d.CreateDataSource(temp)
+            geometry = i_feature.GetGeometryRef()
+            output_name = files_directories.file_name(temp)
+            o_layer = output_source.CreateLayer(
+                str(output_name), i_layer_sr, ogr.wkbMultiPolygon
+            )
+            field_count = i_layer_definition.GetFieldCount()
+            for f_c in range(field_count):
+                field_def = i_layer_definition.GetFieldDefn(f_c)
+                o_layer.CreateField(field_def)
+            o_layer_definition = o_layer.GetLayerDefn()
+            # field_value count
+            o_field_count = o_layer_definition.GetFieldCount()
+            o_feature = ogr.Feature(o_layer_definition)
+            o_feature.SetGeometry(geometry)
+            for i in range(o_field_count):
+                field_name = o_layer_definition.GetFieldDefn(i).GetNameRef()
+                field_value = i_feature.GetField(i)
+                o_feature.SetField(field_name, field_value)
+            o_layer.CreateFeature(o_feature)
+            o_feature.Destroy()
+            output_source.Destroy()
+            new_layers.append(temp)
+            i_feature = i_layer.GetNextFeature()
+    cfg.logger.log.debug('end')
+    return new_layers
+
+
+# split layer geometries to vectors
+# noinspection PyArgumentList
+def split_layer_geometries(
+        input_layer, min_progress=0, max_progress=100
+):
+    cfg.logger.log.debug('start')
+    # open virtual layer
+    input_source = ogr.Open(input_layer)
+    i_layer = input_source.GetLayer()
+    i_layer_definition = i_layer.GetLayerDefn()
+    i_layer_sr = i_layer.GetSpatialRef()
+    feature_count = i_layer.GetFeatureCount()
+    # copy not dissolved features
+    i_feature = i_layer.GetNextFeature()
+    c = 0
+    min_p = min_progress
+    max_p = int((max_progress - min_progress) / feature_count)
+    new_layers = []
+    while i_feature:
+        if cfg.action is True:
+            c += 1
+            cfg.progress.update(
+                step=c, steps=feature_count, minimum=min_p + max_p * c,
+                maximum=max_progress, percentage=int(c / feature_count * 100)
+            )
+            mem_drv = ogr.GetDriverByName('Memory')
+            mem_ds = mem_drv.CreateDataSource('in_memory')
+            mem_layer = mem_ds.CreateLayer('temp', i_layer_sr,
+                                           geom_type=ogr.wkbMultiPolygon)
+            geometry = i_feature.GetGeometryRef()
+            field_count = i_layer_definition.GetFieldCount()
+            for f_c in range(field_count):
+                field_def = i_layer_definition.GetFieldDefn(f_c)
+                mem_layer.CreateField(field_def)
+            o_layer_definition = mem_layer.GetLayerDefn()
+            # field_value count
+            o_field_count = o_layer_definition.GetFieldCount()
+            o_feature = ogr.Feature(o_layer_definition)
+            o_feature.SetGeometry(geometry)
+            for i in range(o_field_count):
+                field_name = o_layer_definition.GetFieldDefn(i).GetNameRef()
+                field_value = i_feature.GetField(i)
+                o_feature.SetField(field_name, field_value)
+            mem_layer.CreateFeature(o_feature)
+            temp = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
+            output_name = files_directories.file_name(temp)
+            gdal.VectorTranslate(
+                temp, mem_ds, format='GPKG', layerName=output_name
+            )
+            o_feature.Destroy()
+            mem_ds.Destroy()
+            new_layers.append(temp)
+            i_feature = i_layer.GetNextFeature()
+    cfg.logger.log.debug('end')
+    return new_layers
+
+
 # merge geometries by list of IDs and save them in a new vector
 def merge_polygons(
         input_layer, value_list, target_layer
@@ -2472,6 +2699,39 @@ def merge_polygons(
     _output_source = None
     cfg.logger.log.debug('end; target_layer: %s' % target_layer)
     return target_layer
+
+
+# dissolve vector polygons
+def dissolve_polygons(
+        input_file, output_file, attribute_field, output_drive=None
+):
+    cfg.logger.log.debug('start')
+    # open layer
+    _input_source = ogr.Open(input_file)
+    _i_layer = _input_source.GetLayer()
+    i_layer_name = _i_layer.GetName()
+    if files_directories.file_extension(
+            input_file, lower=True) == cfg.shp_suffix:
+        geometry = 'geometry'
+    else:
+        geometry = 'geom'
+    # get unique values
+    sql = 'SELECT ST_Union(%s), %s FROM %s  GROUP BY %s' % (
+        geometry, attribute_field, i_layer_name, attribute_field)
+    # create output vector
+    if output_drive is None:
+        if files_directories.file_extension(
+                output_file, lower=True) == cfg.shp_suffix:
+            output_drive = 'ESRI Shapefile'
+        else:
+            output_drive = 'GPKG'
+    options = gdal.VectorTranslateOptions(
+        format=output_drive, SQLDialect='SQLITE', SQLStatement=sql,
+        explodeCollections=True
+    )
+    gdal.VectorTranslate(output_file, input_file, options=options)
+    cfg.logger.log.debug('end; output_file: %s' % output_file)
+    return output_file
 
 
 # save selected geometries by list of IDs and save them in a new vector
@@ -2865,7 +3125,7 @@ def get_colored_raster(path, value_color_dictionary):
     _r_d = None
     array_3_bands = np.zeros(
         (data.shape[0], data.shape[1], 3), dtype=np.uint8
-        )
+    )
     for value, color in value_color_dictionary.items():
         mask = data == value
         array_3_bands[mask] = color

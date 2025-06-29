@@ -57,8 +57,8 @@ from remotior_sensus.tools import (
     band_stack, band_mask, raster_split, band_clustering,
     band_spectral_distance,
     cross_classification, download_products, mosaic, preprocess_products,
-    raster_edit, raster_reclassification, raster_report, raster_to_vector,
-    raster_zonal_stats, vector_to_raster
+    raster_edit, raster_label, raster_reclassification, raster_report,
+    raster_to_vector, raster_zonal_stats, vector_to_raster
 )
 from remotior_sensus.util import (
     dates_times, system_tools, files_directories, download_tools, shared_tools
@@ -105,6 +105,7 @@ class Session(object):
         mosaic: tool :func:`~remotior_sensus.tools.mosaic`
         preprocess_products: tool :func:`~remotior_sensus.tools.preprocess_products`
         raster_edit: tool :func:`~remotior_sensus.tools.raster_edit`
+        raster_label: tool :func:`~remotior_sensus.tools.raster_label`
         raster_reclassification: tool :func:`~remotior_sensus.tools.preprocess_products`
         raster_report: tool :func:`~remotior_sensus.tools.raster_report`
         raster_split: tool :func:`~remotior_sensus.tools.raster_split`
@@ -298,6 +299,7 @@ class Session(object):
             self.download_products = download_products
             self.preprocess_products = preprocess_products
             self.raster_edit = raster_edit.raster_edit
+            self.raster_label = raster_label.raster_label
             self.raster_reclassification = (
                 raster_reclassification.raster_reclassification
             )
@@ -445,6 +447,7 @@ class Session(object):
         )
 
     """Jupyter functions"""
+
     def _jupyter_interface(self):
         return JupyterInterface(self)
 

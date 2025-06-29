@@ -10,7 +10,7 @@ class TestBandCalc(TestCase):
     def test_band_calc(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         cfg.logger.log.debug('>>> test band calc')
         catalog = rs.bandset_catalog()
@@ -21,7 +21,7 @@ class TestBandCalc(TestCase):
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=1,
             root_directory=str(data_path)
-            )
+        )
         raster_list = [
             str(data_path / 'S2_2020-01-02' / 'S2_B02.tif'),
             str(data_path / 'S2_2020-01-02' / 'S2_B03.tif')
@@ -310,11 +310,11 @@ class TestBandCalc(TestCase):
         (blue_band, green_band, red_band, nir_band, swir_1_band,
          swir_2_band) = catalog.get_bandset(1).spectral_range_bands(
             output_as_number=False
-            )
+        )
         band_number = catalog.get_bandset_bands_by_attribute(
             1, 'wavelength', attribute_value=red_band.wavelength,
             output_number=True
-            )
+        )
         self.assertEqual(
             out_exp[0][0],
             'max(' + cfg.variable_band_quotes + cfg.variable_bandset_name + '1'

@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -248,6 +248,8 @@ def prepare_process_files(
             )
         except Exception as err:
             cfg.logger.log.error(str(err))
+            if not overwrite and 'existing path' in str(err):
+                raise Exception(str(err))
     # create virtual raster of input
     if temporary_virtual_raster or box_coordinate_list is not None:
         # if rasters with same dimension don't create virtual raster but list
@@ -357,6 +359,7 @@ def expand_list(input_list):
 
 # join path
 def join_path(*argv):
+    # noinspection PyArgumentList
     joined_path = path.join(*argv)
     return joined_path
 

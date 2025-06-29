@@ -139,7 +139,7 @@ def band_clustering(
     if nodata_value is None:
         nodata_value = prepared['nodata_list']
     # set algorithm
-    if (algorithm_name == cfg.spectral_angle_mapping 
+    if (algorithm_name == cfg.spectral_angle_mapping
             or algorithm_name == cfg.spectral_angle_mapping_a):
         algorithm = cfg.spectral_angle_mapping_a
     else:

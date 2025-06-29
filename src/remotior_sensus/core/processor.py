@@ -78,6 +78,11 @@ def function_initiator(
     dummy_bands = input_parameters[10]
     specific_output = input_parameters[11]
     same_geotransformation = input_parameters[12]
+    try:
+        skip_output = input_parameters[13]
+    except Exception as err:
+        str(err)
+        skip_output = None
     if specific_output is not None:
         specific_output_piece = specific_output['pieces'][int(process_id)]
     else:
@@ -518,7 +523,7 @@ def function_initiator(
                 nodata_mask, sec.y_size, sec.x_min, sec.y_min, output_list,
                 function_arg, f_variable, out_band_number,
                 [x_min_piece, y_min_piece], output_signature_raster,
-                out_class, out_alg, device, n_processes
+                out_class, out_alg, device, n_processes, sec
             )
             # check function output list
             if isinstance(function_output, list):
@@ -605,6 +610,9 @@ def function_initiator(
                     except Exception as err:
                         proc_error = 'error output'
                         cfg.logger.log.error(str(err))
+                elif skip_output is True:
+                    cfg.logger.log.debug('skip_output')
+                    output_array_list.append(function_output[1])
                 else:
                     try:
                         # replace nodata
@@ -679,7 +687,7 @@ def function_initiator(
 
 def get_raster_band_array(
         gdal, band, calculation_datatype, _a, _a_mask, sec,
-        input_nodata_as_value,  value_as_nodata
+        input_nodata_as_value, value_as_nodata
 ):
     nd_val = None
     data_types = {
@@ -997,6 +1005,83 @@ def gdal_translate(
             gdal.ParseCommandLine(option_string), callback=progress_gdal
         )
         gdal.Translate(output, input_file, options=to)
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+    cfg.logger.log.debug('end; output: %s' % output)
+    logger = cfg.logger.stream.getvalue()
+    return False, output, False, logger
+
+
+# gdal vector translate processor
+def gdal_vector_translate(
+        input_file=None, output=None, attribute_field=None, output_drive=None,
+        process_parameters=None, explode_collections=None
+):
+    process_id = process_parameters[0]
+    cfg.temp = process_parameters[1]
+    memory = process_parameters[2]
+    gdal_path = process_parameters[3]
+    progress_queue = process_parameters[4]
+    log_level = process_parameters[5]
+    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
+    cfg.logger.log.debug('start')
+    if gdal_path is not None:
+        for d in gdal_path.split(';'):
+            try:
+                os.add_dll_directory(d)
+                cfg.gdal_path = d
+            except Exception as err:
+                str(err)
+    from osgeo import gdal, ogr
+    # GDAL config
+    try:
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.DontUseExceptions()
+    except Exception as err:
+        str(err)
+    try:
+        if int(process_id) == 0:
+            progress_gdal = (lambda percentage, m, c: progress_queue.put(
+                100 if int(percentage * 100) > 100 else int(percentage * 100),
+                False
+            ))
+        else:
+            progress_gdal = None
+        # open layer
+        _input_source = ogr.Open(input_file)
+        _i_layer = _input_source.GetLayer()
+        i_layer_name = _i_layer.GetName()
+        # create output vector
+        if output_drive is None:
+            if files_directories.file_extension(
+                    output, lower=True) == cfg.shp_suffix:
+                output_drive = 'ESRI Shapefile'
+            else:
+                output_drive = 'GPKG'
+        geometry = 'geometry'
+        # get unique values
+        sql = 'SELECT ST_Union(%s), %s FROM %s  GROUP BY %s' % (
+            geometry, attribute_field, i_layer_name, attribute_field)
+        to = gdal.VectorTranslateOptions(
+            format=output_drive, SQLDialect='SQLITE', SQLStatement=sql,
+            explodeCollections=explode_collections, callback=progress_gdal
+        )
+        try:
+            gdal.VectorTranslate(output, input_file, options=to)
+        except Exception as err:
+            str(err)
+            geometry = 'geom'
+            # get unique values
+            sql = 'SELECT ST_Union(%s), %s FROM %s  GROUP BY %s' % (
+                geometry, attribute_field, i_layer_name, attribute_field)
+            to = gdal.VectorTranslateOptions(
+                format=output_drive, SQLDialect='SQLITE', SQLStatement=sql,
+                explodeCollections=explode_collections, callback=progress_gdal
+            )
+            gdal.VectorTranslate(output, input_file, options=to)
     except Exception as err:
         cfg.logger.log.error(str(err))
     cfg.logger.log.debug('end; output: %s' % output)

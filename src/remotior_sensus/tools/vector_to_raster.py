@@ -30,15 +30,20 @@ Typical usage example:
 """  # noqa: E501
 
 from typing import Union, Optional
-
 import numpy
-
 from remotior_sensus.core import configurations as cfg
 from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
-from remotior_sensus.core.processor_functions import raster_resample
+from remotior_sensus.core.processor_functions import (
+    vector_to_raster_iter, create_warped_vrt_iter
+)
 from remotior_sensus.util import files_directories, shared_tools, raster_vector
+
+try:
+    from osgeo import ogr
+except Exception as error:
+    cfg.logger.log.error(str(error))
 
 
 def vector_to_raster(
@@ -48,7 +53,7 @@ def vector_to_raster(
         pixel_size: Optional[int] = None,
         output_path: Optional[str] = None,
         method: Optional[str] = None,
-        area_precision: Optional[int] = 20, resample='mode',
+        area_precision: Optional[int] = 20, resampling='mode',
         nodata_value: Optional[int] = None,
         minimum_extent: Optional[bool] = True,
         extent_list: Optional[list] = None, output_format='GTiff',
@@ -76,10 +81,12 @@ def vector_to_raster(
         output_format: output format, default GTiff
         method: method of conversion, default pixel_center, other methods are 
             all_touched for burning all pixels touched or area_based for 
-            burning values based on area proportion.
+            burning values based on area proportion inside the pixel (warning: 
+            using area_based method, a pixel covered by multiple polygons 
+            each covering less than 50% of the area may be incorrectly assigned).
         area_precision: for area_based method, the higher the value, the more 
             is the precision in area proportion calculation.
-        resample: type for resample when method is area_based.
+        resampling: type for resampling when method is area_based.
         compress: if True, compress the output raster.
         compress_format: compress format.
         nodata_value: value to be considered as nodata.
@@ -119,15 +126,22 @@ def vector_to_raster(
     temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
     if n_processes is None:
         n_processes = cfg.n_processes
+    if available_ram is None:
+        available_ram = cfg.available_ram
     # perform conversion
     if compress is None:
         compress = cfg.raster_compression
     if compress_format is None:
         compress_format = 'DEFLATE21'
+    (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
+     scale_offset, data_type) = raster_vector.raster_info(align_raster)
+    # find bounding box
+    left = gt[0]
+    top = gt[3]
+    right = gt[0] + gt[1] * xy_count[0]
+    bottom = gt[3] + gt[5] * xy_count[1]
     if pixel_size is None:
-        (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
-         scale_offset, data_type) = raster_vector.raster_info(align_raster)
-        x_y_size = (round(gt[1], 3), round(gt[1], 3))
+        x_y_size = (round(gt[1], 3), round(abs(gt[5]), 3))
     else:
         x_y_size = [pixel_size, pixel_size]
     t_pixel_size = x_y_size
@@ -156,17 +170,22 @@ def vector_to_raster(
         # greatest common divisor
         try:
             area_precision = numpy.gcd(
-                ratio[1], x_y_size[0]) * 10**(len(str(area_precision)) - 1)
+                ratio[1], x_y_size[0]) * 10 ** (len(str(area_precision)) - 1)
         except Exception as err:
             str(err)
             area_precision = numpy.gcd(
-                ratio[1], int(x_y_size[0] * 100)) * 10**(
-                    len(str(area_precision)) - 1)
+                ratio[1], int(x_y_size[0] * 100)
+            ) * 10 ** (len(str(area_precision)) - 1)
         temp_px_size = x_y_size[0] / area_precision
         t_pixel_size = [temp_px_size, temp_px_size]
     else:
         all_touched = None
         max_progress = 100
+    if output_path is None:
+        output_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    output_path = files_directories.output_path(output_path, cfg.tif_suffix)
+    files_directories.create_parent_directory(output_path)
+    cfg.logger.log.debug('t_pixel_size: %s' % str(t_pixel_size))
     cfg.progress.update(message='processing', step=1)
     # open input with GDAL
     cfg.logger.log.debug('vector_path: %s' % vector_path)
@@ -183,76 +202,149 @@ def vector_to_raster(
             vector_path, input_vector, input_epsg=vector_crs,
             output_epsg=reference_crs
         )
-    cfg.logger.log.debug('t_pixel_size: %s' % str(t_pixel_size))
-    # perform conversion
-    cfg.multiprocess.multiprocess_vector_to_raster(
-        vector_path=vector_path, field_name=vector_field,
-        output_path=temp_path, reference_raster_path=reference_path,
-        output_format=output_format, nodata_value=nodata_value_set,
-        background_value=nodata_value_set, burn_values=constant,
-        compress=compress, compress_format=compress_format,
-        x_y_size=t_pixel_size, all_touched=all_touched,
-        available_ram=available_ram, minimum_extent=minimum_extent,
-        min_progress=min_progress, max_progress=max_progress
-    )
-    cfg.logger.log.debug('temp_path: %s' % temp_path)
-    if output_path is None:
-        output_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
-    output_path = files_directories.output_path(output_path, cfg.tif_suffix)
-    files_directories.create_parent_directory(output_path)
-    # resample raster
-    if method is not None and method.lower() == 'area_based_experimental':
-        min_progress = 51
-        max_progress = 100
-        (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
-         scale_offset, data_type) = raster_vector.raster_info(temp_path)
-        left = gt[0]
-        top = gt[3]
-        t_x_size = gt[1]
-        t_y_size = abs(gt[5])
-        cfg.logger.log.debug('t_x_size, t_y_size: %s, %s'
-                             % (t_x_size, t_y_size))
-        value_list = [t_x_size, t_y_size]
-        # calculate output size
-        specific_output = {}
-        resize_factor = t_y_size / x_y_size[0]
-        cfg.logger.log.debug('resize_factor: %s' % resize_factor)
-        specific_output['geo_transform'] = (left, x_y_size[0], 0, top, 0,
-                                            -x_y_size[1])
-        specific_output['resize_factor'] = resize_factor
-        cfg.multiprocess.run(
-            raster_path=temp_path, function=raster_resample,
-            function_argument=x_y_size, n_processes=n_processes,
-            available_ram=available_ram, calculation_datatype=numpy.int32,
-            function_variable=value_list, output_raster_path=output_path,
-            use_value_as_nodata=nodata_value_set,
-            specific_output=specific_output,
-            output_data_type='Int32', output_nodata_value=cfg.nodata_val_Int32,
-            compress=cfg.raster_compression,
-            progress_message='resampling', multiple_block=1/resize_factor,
+    if method is not None and method.lower() == 'area_based':
+        temp_vector = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
+        # dissolve vector
+        cfg.multiprocess.gdal_vector_translate(
+            input_file=vector_path, output_file=temp_vector,
+            explode_collections=True,
+            attribute_field=vector_field, min_progress=1, max_progress=10
+        )
+        vector_path = temp_vector
+        vector_source = ogr.Open(vector_path)
+        vector_layer = vector_source.GetLayer()
+        layer_defn = vector_layer.GetLayerDefn()
+        field_definitions = [
+            {'name': layer_defn.GetFieldDefn(i).GetName(),
+             'type': layer_defn.GetFieldDefn(i).GetType(),
+             'width': layer_defn.GetFieldDefn(i).GetWidth(),
+             'precision': layer_defn.GetFieldDefn(i).GetPrecision()
+             } for i in range(layer_defn.GetFieldCount())
+        ]
+        # check projection
+        proj = vector_layer.GetSpatialRef()
+        crs = proj.ExportToWkt()
+        crs = crs.replace(' ', '')
+        if len(crs) == 0:
+            crs = None
+        vector_crs = crs
+        feature_list = []
+        for idx, feature in enumerate(vector_layer):
+            feature_geom = feature.GetGeometryRef()
+            if feature_geom is not None:
+                geom = feature_geom.ExportToWkt()
+                attrs = [feature.GetField(i) for i in
+                         range(layer_defn.GetFieldCount())]
+                feature_list.append([field_definitions, geom, attrs])
+        function_list = []
+        argument_list = []
+        ram = int(available_ram / n_processes)
+        for i, feature in enumerate(feature_list):
+            temporary_raster = cfg.temp.temporary_raster_path(
+                extension=cfg.tif_suffix)
+            argument_list.append(
+                {
+                    'feature': feature,
+                    'vector_crs': vector_crs,
+                    'field_name': vector_field,
+                    'reference_raster_path': reference_path,
+                    'background_value': nodata_value_set,
+                    'x_y_size': t_pixel_size,
+                    'buffer_size': x_y_size[0],
+                    'available_ram': ram,
+                    'output': temporary_raster,
+                    'gdal_path': cfg.gdal_path,
+                    'compress': True,
+                    'compress_format': 'LZW'
+                }
+            )
+            function_list.append(vector_to_raster_iter)
+        cfg.multiprocess.run_iterative_process(
+            function_list=function_list, argument_list=argument_list,
+            min_progress=10, max_progress=45, message='converting to raster'
+        )
+        results = cfg.multiprocess.output
+        output_raster_list = []
+        for result in results:
+            for r in result:
+                output_raster_list.append(r[0])
+        output_data_type = 'Int32'
+        # create virtual raster
+        virtual_raster_list = []
+        argument_list = []
+        function_list = []
+        for r in output_raster_list:
+            v_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
+            argument_list.append(
+                {
+                    'raster_path': r,
+                    'output_path': v_path,
+                    'align_raster_path': reference_path,
+                    'src_nodata': None,
+                    'dst_nodata': nodata_value_set,
+                    'same_extent': False,
+                    'resample_method': resampling,
+                    'available_ram': ram,
+                    'gdal_path': cfg.gdal_path
+                }
+            )
+            function_list.append(create_warped_vrt_iter)
+            virtual_raster_list.append(v_path)
+        """
+        # alternative using virtual raster but less accurate in single pixels
+        for r in output_raster_list:
+            v_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
+            argument_list.append(
+                {
+                    'input_raster_list': [r],
+                    'output': v_path,
+                    'band_number_list': None,
+                    'src_nodata': None,
+                    'dst_nodata': nodata_value_set,
+                    'relative_to_vrt': None,
+                    'data_type': output_data_type,
+                    'box_coordinate_list': None,
+                    'override_box_coordinate_list': None,
+                    'pixel_size': None,
+                    'grid_reference': reference_path,
+                    'scale_offset_list': None,
+                    'resampling': resampling,
+                    'available_ram': ram,
+                    'gdal_path': cfg.gdal_path
+                }
+            )
+            function_list.append(create_vrt_iter)
+            virtual_raster_list.append(v_path)
+        """
+        cfg.multiprocess.run_iterative_process(
+            function_list=function_list, argument_list=argument_list,
+            min_progress=46, max_progress=70, message='warping raster files'
+        )
+        virtual_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
+        raster_vector.create_virtual_raster_2_mosaic(
+            input_raster_list=virtual_raster_list, output=virtual_path,
+            src_nodata=nodata_value_set, dst_nodata=nodata_value_set,
+            data_type=output_data_type,
+            box_coordinate_list=[left, top, right, bottom],
+            pixel_size=x_y_size, grid_reference=reference_path
+        )
+        # copy raster
+        cfg.multiprocess.gdal_copy_raster(
+            virtual_path, output_path, min_progress=70, max_progress=100
+        )
+    else:
+        # perform conversion
+        cfg.multiprocess.multiprocess_vector_to_raster(
+            vector_path=vector_path, field_name=vector_field,
+            output_path=temp_path, reference_raster_path=reference_path,
+            output_format=output_format, nodata_value=nodata_value_set,
+            background_value=nodata_value_set, burn_values=constant,
+            compress=compress, compress_format=compress_format,
+            x_y_size=t_pixel_size, all_touched=all_touched,
+            available_ram=available_ram, minimum_extent=minimum_extent,
             min_progress=min_progress, max_progress=max_progress
         )
-    elif method is not None and method.lower() == 'area_based':
-        (gt, crs, crs_unit, xy_count, nd, number_of_bands, block_size,
-         scale_offset, data_type) = raster_vector.raster_info(temp_path)
-        # copy raster
-        left = gt[0]
-        top = gt[3]
-        right = gt[0] + gt[1] * xy_count[0]
-        bottom = gt[3] + gt[5] * xy_count[1]
-        if compress_format == 'DEFLATE21':
-            compress_format = 'DEFLATE -co PREDICTOR=2 -co ZLEVEL=1'
-        extra_params = ' -te %s %s %s %s -tr %s %s' % (
-            left, bottom, right, top, x_y_size[0], x_y_size[1])
-        min_progress = 51
-        max_progress = 100
-        raster_vector.gdal_warping(
-            input_raster=temp_path, output=output_path, output_format='GTiff',
-            resample_method=resample, compression=True,
-            compress_format=compress_format, additional_params=extra_params,
-            n_processes=n_processes, dst_nodata=nodata_value,
-            min_progress=min_progress, max_progress=max_progress)
-    else:
+        cfg.logger.log.debug('temp_path: %s' % temp_path)
         if files_directories.is_file(temp_path):
             files_directories.move_file(
                 in_path=temp_path, out_path=output_path

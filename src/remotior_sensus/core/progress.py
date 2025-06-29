@@ -177,10 +177,9 @@ class Progress(object):
         colon = [' ', ':']
         if start:
             print('\r', '{} [{}%]{}{}:{} {}'.format(
-                    process, str(step).rjust(3, ' '), '', '',
-                    message, progress_symbols[-1]
-                ), end='\x1b[K'
-            )
+                process, str(step).rjust(3, ' '), '', '',
+                message, progress_symbols[-1]), end='\x1b[K'
+                  )
         elif end or failed:
             if elapsed_time is not None:
                 e_time = (' [elapsed {}min{}sec]'.format(
@@ -325,7 +324,7 @@ def beeps(frequency: int, duration: float):
         os.system(
             'play --no-show-progress --null --channels 1 synth %s sine %s'
             % (str(duration), str(frequency))
-            )
+        )
 
 
 # finish sound

@@ -15,7 +15,7 @@ class TestDownloadProducts(TestCase):
         rs.download_products.product_names()
         coordinate_list = [8, 43, 10, 41]
         output_manager = rs.download_products.query_sentinel_2_database(
-            date_from='2020-01-01', date_to='2020-01-30', max_cloud_cover=80,
+            date_from='2024-01-01', date_to='2024-01-30', max_cloud_cover=80,
             result_number=5, coordinate_list=coordinate_list, name_filter='L2A'
         )
         product_table = output_manager.extra['product_table']
@@ -30,14 +30,14 @@ class TestDownloadProducts(TestCase):
         self.assertEqual(product_table['product'][0], cfg.sentinel2)
         cfg.logger.log.debug('>>> test search')
         output_manager = rs.download_products.search(
-            product=cfg.sentinel2, date_from='2020-01-01',
-            date_to='2020-01-30', max_cloud_cover=80,
+            product=cfg.sentinel2, date_from='2024-01-01',
+            date_to='2024-01-30', max_cloud_cover=80,
             result_number=5, coordinate_list=coordinate_list, name_filter='L2A'
         )
         product_table = output_manager.extra['product_table']
         self.assertEqual(product_table['product'][0], cfg.sentinel2)
         output_manager = rs.download_products.query_sentinel_2_database(
-            date_from='2021-01-01', date_to='2021-01-10', max_cloud_cover=80,
+            date_from='2024-01-01', date_to='2024-01-10', max_cloud_cover=80,
             result_number=5, name_filter='33SVB'
         )
         product_table = output_manager.extra['product_table']

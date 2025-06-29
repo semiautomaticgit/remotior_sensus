@@ -26,6 +26,7 @@ Submodules
    remotior_sensus.tools.mosaic
    remotior_sensus.tools.preprocess_products
    remotior_sensus.tools.raster_edit
+   remotior_sensus.tools.raster_label
    remotior_sensus.tools.raster_reclassification
    remotior_sensus.tools.raster_report
    remotior_sensus.tools.raster_split

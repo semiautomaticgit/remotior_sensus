@@ -85,7 +85,7 @@ def percentile_calc(array, percentile=90, axis=0):
 
 # function to calculate percentile with the closest observation for band_calc
 def percentile_calc_pytorch(array, percentile=90, dim=0):
-    result = torch.quantile(array, q=percentile/100, dim=dim)
+    result = torch.quantile(array, q=percentile / 100, dim=dim)
     return result
 
 
@@ -409,7 +409,7 @@ def classification_minimum_distance(*argv):
             cfg.logger.log.error(
                 'signature values shape; trying to continue anyway'
             )
-        # euclidean distance
+        # Euclidean distance
         distance_array = np.sqrt(
             ((_array_function_placeholder - values) ** 2).sum(axis=2)
         )
@@ -591,7 +591,7 @@ def spectral_distance(*argv):
     a = _array_function_placeholder[::, ::, :function_argument]
     b = _array_function_placeholder[::, ::, function_argument:]
     if function_variable.lower() == cfg.minimum_distance_a:
-        # euclidean distance
+        # Euclidean distance
         _o = np.sqrt(((a - b) ** 2).sum(axis=2))
     else:
         # spectral angle
@@ -980,7 +980,7 @@ def bands_covariance(*argv):
     if band_dict['normalize'] is True:
         for _x in band_number:
             raster_array_band[::, ::, _x] = ((raster_array_band[::, ::, _x]
-                                             - band_dict['mean_%s' % _x])
+                                              - band_dict['mean_%s' % _x])
                                              / np.sqrt(
                         band_dict['variance_%s' % _x])
                                              )
@@ -1012,7 +1012,7 @@ def raster_pixel_count(*argv):
     band = raster_array_band[nodata_mask != 1].ravel()
     count = band.shape[0]
     band_sum = np.nansum(band)
-    variance = np.square(band - band_sum/count) / count
+    variance = np.square(band - band_sum / count) / count
     raster_dictionary = {
         'count_%s' % str(band_number): count,
         'sum_%s' % str(band_number): band_sum,
@@ -1496,7 +1496,7 @@ def region_growing(*argv):
     seed_array = np.zeros(array_roi.shape)
     seed_value = float(array_roi[seed_y, seed_x])
     cfg.logger.log.debug('array_roi.shape: %s; seed_value: %s'
-                         % (str(array_roi.shape),  str(seed_value)))
+                         % (str(array_roi.shape), str(seed_value)))
     # if nodata
     if np.sum(np.isnan(seed_value)) > 0:
         return seed_array
@@ -1505,8 +1505,7 @@ def region_growing(*argv):
     # calculate minimum difference
     unique_difference_array = np.unique(difference_array)
     unique_difference_distance = unique_difference_array[
-        unique_difference_array > float(max_spectral_distance)
-    ]
+        unique_difference_array > float(max_spectral_distance)]
     unique_difference_array = np.insert(
         unique_difference_distance, 0, float(max_spectral_distance)
     )
@@ -1591,7 +1590,7 @@ def get_band_arrays(
                 else:
                     array_dict[s] = array_list
             results.append(array_dict)
-            if progress_queue is not None:
+            if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
             errors = str(err)
@@ -1664,7 +1663,7 @@ def score_classifier_stratified(
             )
             score = np.array(scores)
             results.append([d['classifier'], score.mean(), score.std()])
-            if progress_queue is not None:
+            if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
             errors = str(err)
@@ -1727,7 +1726,7 @@ def clip_raster(
                     # create temp vector
                     cutline = cfg.temp.temporary_file_path(
                         name_suffix=cfg.gpkg_suffix
-                        )
+                    )
                     _data_source = driver.CreateDataSource(cutline)
                     spatial_reference = osr.SpatialReference()
                     spatial_reference.ImportFromWkt(_r_d.GetProjectionRef())
@@ -1749,7 +1748,7 @@ def clip_raster(
                             _out_feature.SetField(
                                 temp_layer_def.GetFieldDefn(i).GetNameRef(),
                                 input_feature.GetField(i)
-                                )
+                            )
                         temp_layer.CreateFeature(_out_feature)
                         _out_feature = None
                         input_feature = _v_layer.GetNextFeature()
@@ -1763,11 +1762,452 @@ def clip_raster(
                     dstSRS=sr.ExportToWkt(), cutlineDSName=cutline,
                     cropToCutline=crop, cutlineWhere=d['where'],
                     srcNodata=no_data, dstNodata=no_data
-                    )
+                )
             gdal.Warp(d['output'], d['input_raster'], options=to)
             _r_d = None
             results.append([d['output']])
-            if progress_queue is not None:
+            if progress_queue is not None and progress_queue.empty():
+                progress_queue.put([n, len(argument_list)], False)
+        except Exception as err:
+            errors = str(err)
+    return [results, errors, str(process)]
+
+
+# vector to raster
+def vector_to_raster_iter(
+        process, progress_queue, argument_list, logger, temp
+):
+    cfg.logger = logger
+    cfg.temp = temp
+    results = []
+    n = 0
+    errors = False
+    for d in argument_list:
+        n += 1
+        gdal_path = d['gdal_path']
+        cfg.logger.log.debug('start')
+        if gdal_path is not None:
+            for path in gdal_path.split(';'):
+                try:
+                    os.add_dll_directory(path)
+                    cfg.gdal_path = path
+                except Exception as err:
+                    str(err)
+        from osgeo import gdal, ogr, osr
+        # GDAL config
+        try:
+            memory = str(int(d['available_ram']) * 1000000)
+            gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+            gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+            gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+            gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.DontUseExceptions()
+        except Exception as err:
+            str(err)
+        try:
+            feature = d['feature']
+            vector_crs = d['vector_crs']
+            i_layer_sr = osr.SpatialReference()
+            i_layer_sr.ImportFromWkt(vector_crs)
+            field_name = d['field_name']
+            reference_raster_path = d['reference_raster_path']
+            background_value = d['background_value']
+            x_y_size = d['x_y_size']
+            # buffer to increase the grid size to match reference grid size
+            buffer_size = d['buffer_size']
+            output_path = d['output']
+            compress = d['compress']
+            compress_format = d['compress_format']
+            if background_value is None:
+                background_value = 0
+            output_format = 'GTiff'
+            (
+                gt, reference_crs, unit, xy_count, nd, number_of_bands,
+                block_size, scale_offset, data_type
+            ) = raster_vector.raster_info(reference_raster_path)
+            orig_x = gt[0]
+            orig_y = gt[3]
+            cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
+            if x_y_size is not None:
+                x_size = x_y_size[0]
+                y_size = x_y_size[1]
+            else:
+                x_size = gt[1]
+                y_size = abs(gt[5])
+            cfg.logger.log.debug('x_size, y_size: %s,%s' % (x_size, y_size))
+            # number of x pixels
+            grid_columns = int(round(xy_count[0] * gt[1] / x_size))
+            # number of y pixels
+            grid_rows = int(round(xy_count[1] * abs(gt[5]) / y_size))
+            cfg.logger.log.debug(
+                'grid_columns, grid_rows: %s,%s'
+                % (grid_columns, grid_rows)
+            )
+            # check crs
+            same_crs = raster_vector.compare_crs(reference_crs, vector_crs)
+            cfg.logger.log.debug('same_crs: %s' % str(same_crs))
+            if not same_crs:
+                cfg.logger.log.error('different crs')
+                logger = cfg.logger.stream.getvalue()
+                return None, 'different crs', logger
+            # create memory layer
+            memory_driver = ogr.GetDriverByName('Memory')
+            memory_source = memory_driver.CreateDataSource('in_memory')
+            memory_layer = memory_source.CreateLayer(
+                'temp', i_layer_sr, geom_type=ogr.wkbMultiPolygon
+            )
+            field_definitions = feature[0]
+            geometry = ogr.CreateGeometryFromWkt(feature[1])
+            attributes = feature[2]
+            for f_d in field_definitions:
+                field_defn = ogr.FieldDefn(f_d['name'], f_d['type'])
+                # noinspection PyArgumentList
+                field_defn.SetWidth(f_d['width'])
+                # noinspection PyArgumentList
+                field_defn.SetPrecision(f_d['precision'])
+                memory_layer.CreateField(field_defn)
+
+            o_layer_definition = memory_layer.GetLayerDefn()
+            # field_value count
+            o_field_count = o_layer_definition.GetFieldCount()
+            o_feature = ogr.Feature(o_layer_definition)
+            o_feature.SetGeometry(geometry)
+            for i in range(o_field_count):
+                field_n = o_layer_definition.GetFieldDefn(i).GetNameRef()
+                field_value = attributes[i]
+                o_feature.SetField(field_n, field_value)
+            memory_layer.CreateFeature(o_feature)
+            # calculate minimum extent
+            min_x, max_x, min_y, max_y = memory_layer.GetExtent()
+            if buffer_size is not None:
+                min_x -= buffer_size
+                max_x += buffer_size
+                min_y -= buffer_size
+                max_y += buffer_size
+            orig_x = orig_x + gt[1] * int((min_x - orig_x) / gt[1])
+            orig_y = orig_y + abs(gt[5]) * int(
+                round((max_y - orig_y) / abs(gt[5])))
+            cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
+            grid_columns = abs(int(round((max_x - min_x) / x_size)))
+            grid_rows = abs(int(round((max_y - min_y) / y_size)))
+            cfg.logger.log.debug(
+                'grid_columns, grid_rows: %s,%s' % (grid_columns, grid_rows)
+            )
+            if grid_columns > 0 and grid_rows > 0:
+                driver = gdal.GetDriverByName(output_format)
+                temporary_grid = cfg.temp.temporary_raster_path(
+                    extension=cfg.tif_suffix)
+                # create raster _grid
+                _grid = driver.Create(
+                    temporary_grid, grid_columns, grid_rows, 1,
+                    gdal.GDT_Float32, options=['COMPRESS=LZW', 'BIGTIFF=YES']
+                )
+                if _grid is None:
+                    _grid = driver.Create(
+                        temporary_grid, grid_columns, grid_rows, 1,
+                        gdal.GDT_Int16, options=['COMPRESS=LZW', 'BIGTIFF=YES']
+                    )
+                if _grid is None:
+                    cfg.logger.log.error('error output raster')
+                    logger = cfg.logger.stream.getvalue()
+                    return None, 'error grid', logger
+                try:
+                    _grid.GetRasterBand(1)
+                except Exception as err:
+                    cfg.logger.log.error(err)
+                    logger = cfg.logger.stream.getvalue()
+                    return None, str(err), logger
+                # set raster projection from reference
+                _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
+                _grid.SetProjection(reference_crs)
+                _grid = None
+                # create output raster
+                raster_vector.create_raster_from_reference(
+                    path=temporary_grid, band_number=1,
+                    output_raster_list=[output_path],
+                    driver='GTiff', gdal_format='Int32', compress=compress,
+                    compress_format=compress_format,
+                    constant_value=background_value
+                )
+                # convert reference layer to raster
+                _output_raster = gdal.Open(output_path, gdal.GA_Update)
+                _o_c = gdal.RasterizeLayer(
+                    _output_raster, [1], memory_layer, options=[
+                        'ATTRIBUTE=%s' % str(field_name),
+                        'COMPRESS=DEFLATE', 'PREDICTOR=2', 'ZLEVEL=1']
+                )
+                _output_raster = None
+                results.append([d['output']])
+            if progress_queue is not None and progress_queue.empty():
+                progress_queue.put([n, len(argument_list)], False)
+        except Exception as err:
+            errors = str(err)
+    return [results, errors, str(process)]
+
+
+# warped to virtual raster
+def create_warped_vrt_iter(
+        process, progress_queue, argument_list, logger, temp
+):
+    cfg.logger = logger
+    cfg.temp = temp
+    results = []
+    n = 0
+    errors = False
+    for d in argument_list:
+        n += 1
+        gdal_path = d['gdal_path']
+        cfg.logger.log.debug('start')
+        if gdal_path is not None:
+            for path in gdal_path.split(';'):
+                try:
+                    os.add_dll_directory(path)
+                    cfg.gdal_path = path
+                except Exception as err:
+                    str(err)
+        from osgeo import gdal
+        # GDAL config
+        try:
+            memory = str(int(d['available_ram']) * 1000000)
+            gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+            gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+            gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+            gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.DontUseExceptions()
+        except Exception as err:
+            str(err)
+        try:
+            raster_path = d['raster_path']
+            output_path = d['output_path']
+            align_raster_path = d['align_raster_path']
+            src_nodata = d['src_nodata']
+            dst_nodata = d['dst_nodata']
+            same_extent = d['same_extent']
+            resample_method = d['resample_method']
+            # align raster extent and pixel size
+            try:
+                info = raster_vector.image_geotransformation(
+                    align_raster_path)
+                left_align = info['left']
+                top_align = info['top']
+                right_align = info['right']
+                bottom_align = info['bottom']
+                p_x_align = info['pixel_size_x']
+                p_y_align = info['pixel_size_y']
+                output_wkt = info['projection']
+                # check projections
+                align_sys_ref = raster_vector.get_spatial_reference(
+                    output_wkt)
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+                return False
+            # input_path raster extent and pixel size
+            try:
+                info = raster_vector.image_geotransformation(raster_path)
+                left_input = info['left']
+                top_input = info['top']
+                right_input = info['right']
+                bottom_input = info['bottom']
+                proj_input = info['projection']
+                input_sys_ref = raster_vector.get_spatial_reference(
+                    proj_input)
+                left_projected, top_projected = \
+                    raster_vector.project_point_coordinates(
+                        left_input, top_input, input_sys_ref, align_sys_ref
+                    )
+                right_projected, bottom_projected = \
+                    raster_vector.project_point_coordinates(
+                        right_input, bottom_input, input_sys_ref,
+                        align_sys_ref
+                    )
+            # Error latitude or longitude exceeded limits
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+                return False
+            if not same_extent:
+                # minimum extent
+                if left_projected < left_align:
+                    left_r = left_align - int(
+                        2 + (left_align - left_projected) / p_x_align
+                    ) * p_x_align
+                else:
+                    left_r = left_align + int(
+                        (left_projected - left_align) / p_x_align - 2
+                    ) * p_x_align
+                if right_projected > right_align:
+                    right_r = right_align + int(
+                        2 + (right_projected - right_align) / p_x_align
+                    ) * p_x_align
+                else:
+                    right_r = right_align - int(
+                        (right_align - right_projected) / p_x_align - 2
+                    ) * p_x_align
+                if top_projected > top_align:
+                    top_r = top_align + int(
+                        2 + (top_projected - top_align) / p_y_align
+                    ) * p_y_align
+                else:
+                    top_r = top_align - int(
+                        (top_align - top_projected) / p_y_align - 2
+                    ) * p_y_align
+                if bottom_projected > bottom_align:
+                    bottom_r = bottom_align + int(
+                        (bottom_projected - bottom_align) / p_y_align - 2
+                    ) * p_y_align
+                else:
+                    bottom_r = bottom_align - int(
+                        2 + (bottom_align - bottom_projected) / p_y_align
+                    ) * p_y_align
+            else:
+                left_r = left_align
+                right_r = right_align
+                top_r = top_align
+                bottom_r = bottom_align
+            additional_params = '-tr %s %s -te %s %s %s %s' % (
+                str(p_x_align), str(p_y_align), str(left_r), str(bottom_r),
+                str(right_r), str(top_r))
+            op = ' -r %s' % resample_method
+            if src_nodata is not None:
+                op += ' -srcnodata %s' % str(src_nodata)
+            if dst_nodata is not None:
+                op += ' -dstnodata %s' % str(dst_nodata)
+            op += ' -of VRT'
+            op = ' %s %s' % (additional_params, op)
+            to = gdal.WarpOptions(gdal.ParseCommandLine(op))
+            gdal.Warp(output_path, raster_path, options=to)
+            if progress_queue is not None and progress_queue.empty():
+                progress_queue.put([n, len(argument_list)], False)
+            results.append([d['output_path']])
+        except Exception as err:
+            errors = str(err)
+    return [results, errors, str(process)]
+
+
+# virtual raster
+def create_vrt_iter(
+        process, progress_queue, argument_list, logger, temp
+):
+    cfg.logger = logger
+    cfg.temp = temp
+    results = []
+    n = 0
+    errors = False
+    for d in argument_list:
+        n += 1
+        gdal_path = d['gdal_path']
+        cfg.logger.log.debug('start')
+        if gdal_path is not None:
+            for path in gdal_path.split(';'):
+                try:
+                    os.add_dll_directory(path)
+                    cfg.gdal_path = path
+                except Exception as err:
+                    str(err)
+        from osgeo import gdal
+        # GDAL config
+        try:
+            memory = str(int(d['available_ram']) * 1000000)
+            gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+            gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+            gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+            gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.DontUseExceptions()
+        except Exception as err:
+            str(err)
+        try:
+            input_raster_list = d['input_raster_list']
+            output = d['output']
+            band_number_list = d['band_number_list']
+            src_nodata = d['src_nodata']
+            dst_nodata = d['dst_nodata']
+            if dst_nodata is None:
+                dst_nodata = False
+            relative_to_vrt = d['relative_to_vrt']
+            if relative_to_vrt is None:
+                relative_to_vrt = 0
+            data_type = d['data_type']
+            box_coordinate_list = d['box_coordinate_list']
+            override_box_coordinate_list = d['override_box_coordinate_list']
+            if override_box_coordinate_list is None:
+                override_box_coordinate_list = False
+            pixel_size = d['pixel_size']
+            grid_reference = d['grid_reference']
+            scale_offset_list = d['scale_offset_list']
+            resampling = d['resampling']
+            virtual_out = raster_vector.create_virtual_raster_2_mosaic(
+                input_raster_list=input_raster_list, output=output,
+                band_number_list=band_number_list, src_nodata=src_nodata,
+                dst_nodata=dst_nodata, relative_to_vrt=relative_to_vrt,
+                data_type=data_type, box_coordinate_list=box_coordinate_list,
+                override_box_coordinate_list=override_box_coordinate_list,
+                pixel_size=pixel_size, grid_reference=grid_reference,
+                scale_offset_list=scale_offset_list, resampling=resampling
+            )
+            if progress_queue is not None and progress_queue.empty():
+                progress_queue.put([n, len(argument_list)], False)
+            results.append([virtual_out])
+        except Exception as err:
+            errors = str(err)
+    return [results, errors, str(process)]
+
+
+# reclassify raster
+def raster_reclass(
+        process, progress_queue, argument_list, logger, temp
+):
+    cfg.logger = logger
+    cfg.temp = temp
+    results = []
+    n = 0
+    errors = False
+    for d in argument_list:
+        n += 1
+        gdal_path = d['gdal_path']
+        cfg.logger.log.debug('start')
+        if gdal_path is not None:
+            for path in gdal_path.split(';'):
+                try:
+                    os.add_dll_directory(path)
+                    cfg.gdal_path = path
+                except Exception as err:
+                    str(err)
+        from osgeo import gdal
+        # GDAL config
+        try:
+            memory = str(int(d['available_ram']) * 1000000)
+            gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+            gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
+            gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+            gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.DontUseExceptions()
+        except Exception as err:
+            str(err)
+        try:
+            _o = raster_vector.read_raster(d['input_raster'])
+            if d['reclass_table'] is not None:
+                old = d['reclass_table'][:, 0]
+                new = d['reclass_table'][:, 1]
+                # create empty reclass array of length equal to maximum value
+                reclass = np.zeros(
+                    max(
+                        old.astype(int).max(), _o.astype(int).max()
+                    ) + 1
+                ) * np.nan
+                # fill array with new value at index corresponding to old value
+                reclass[old.astype(int)] = new
+                # perform reclassification
+                _o = reclass[_o.astype(int)]
+            # write raster
+            raster_vector.create_raster_from_reference(
+                d['input_raster'], 1, [d['output']],
+                nodata_value=0, driver='GTiff', gdal_format='UInt32',
+                compress=True, compress_format='LZW'
+            )
+            section_raster = raster_vector.write_raster(d['output'], 0, 0, _o)
+            _o = None
+            cfg.logger.log.debug('section_raster: %s' % str(section_raster))
+            results.append([d['output']])
+            if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
             errors = str(err)
@@ -1775,6 +2215,7 @@ def clip_raster(
 
 
 # edit raster
+# noinspection PyShadowingBuiltins
 def edit_raster(
         process, progress_queue, argument_list, logger, temp
 ):
@@ -1957,7 +2398,7 @@ def edit_raster(
                 results.append(o_raster)
                 results.append(_r_column_start)
                 results.append(_r_row_start)
-            if progress_queue is not None:
+            if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
             errors = str(err)
@@ -1984,8 +2425,69 @@ def raster_point_values(
             if pixel_value == d['output_no_data']:
                 pixel_value = None
             results.append(pixel_value)
-            if progress_queue is not None:
+            if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
             errors = str(err)
     return [results, errors, str(process)]
+
+
+# raster label
+def raster_label_part(*argv):
+    _array_function_placeholder = argv[1][0]
+    nodata_mask = argv[2]
+    function_argument = argv[7]
+    gt = function_argument[0]
+    orig_x = gt[0]
+    x_size = gt[1]
+    y_size = abs(gt[5])
+    projection = function_argument[1]
+    section = argv[16]
+    # replace nodata with 0
+    _array_function_placeholder[::, ::, 0][nodata_mask == 1] = 0
+    # get array without boundary
+    top = section.y_size_boundary_top
+    cfg.logger.log.debug('section top: %s' % str(top))
+    bottom = section.y_size_boundary_bottom
+    if bottom > 0:
+        bottom = -bottom
+    else:
+        bottom = _array_function_placeholder.shape[0]
+    arr = _array_function_placeholder[::, ::, 0]
+    cfg.logger.log.debug('arr.shape: %s' % str(arr.shape))
+    region_label, num_features = label(arr)
+    # get overlapping regions on boundary
+    if section.y_size_boundary_top > 0:
+        # get first two rows (first one belongs to the previous part)
+        check_top = region_label[0, ::]
+    else:
+        check_top = None
+    if section.y_size_boundary_bottom > 0:
+        # get last two rows (last one belongs to the following part)
+        check_bottom = region_label[-1, ::]
+    else:
+        check_bottom = None
+    # create raster
+    out_specific = cfg.temp.temporary_raster_path(
+        name_suffix=str(section.y_min_no_boundary), name_prefix='lb_'
+    )
+    orig_y = gt[3] - section.y_min_no_boundary * y_size
+    # remove boundary and count unique values
+    region_label = region_label[top:bottom, ::]
+    unique, counts = np.unique(region_label, return_counts=True)
+    unique_counts = np.array(list(zip(unique[unique != 0],
+                                      counts[unique != 0])))
+    file_output = raster_vector.create_raster_from_grid(
+        output_raster=out_specific, projection=projection,
+        x_size=x_size, y_size=y_size, orig_x=orig_x, orig_y=orig_y,
+        grid_columns=region_label.shape[1], grid_rows=region_label.shape[0],
+        nodata_value=0, output_format='GTiff',
+        gdal_format=cfg.uint32_dt, compress=True, compress_format='LZW'
+    )
+    section_raster = raster_vector.write_raster(file_output, 0, 0,
+                                                region_label)
+    cfg.logger.log.debug('section_raster: %s' % str(section_raster))
+    label_dict = {'orig_y': orig_y, 'unique_counts': unique_counts,
+                  'check_top': check_top, 'check_bottom': check_bottom,
+                  'section_raster': section_raster}
+    return [True, label_dict]
