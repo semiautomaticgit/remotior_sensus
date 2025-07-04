@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2024 Luca Congedo.
+# Copyright (C) 2022-2025 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -973,6 +973,7 @@ def gdal_translate(
     gdal_path = process_parameters[3]
     progress_queue = process_parameters[4]
     log_level = process_parameters[5]
+    disable_warnings = process_parameters[6]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
     cfg.logger.log.debug('start')
     if gdal_path is not None:
@@ -994,6 +995,8 @@ def gdal_translate(
         str(err)
     try:
         cfg.logger.log.debug('option_string: %s' % option_string)
+        if disable_warnings is True:
+            gdal.PushErrorHandler('CPLQuietErrorHandler')
         if int(process_id) == 0:
             progress_gdal = (lambda percentage, m, c: progress_queue.put(
                 100 if int(percentage * 100) > 100 else int(percentage * 100),
@@ -1005,6 +1008,8 @@ def gdal_translate(
             gdal.ParseCommandLine(option_string), callback=progress_gdal
         )
         gdal.Translate(output, input_file, options=to)
+        if disable_warnings is True:
+            gdal.PopErrorHandler()
     except Exception as err:
         cfg.logger.log.error(str(err))
     cfg.logger.log.debug('end; output: %s' % output)

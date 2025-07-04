@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2024 Luca Congedo.
+# Copyright (C) 2022-2025 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -2282,7 +2282,8 @@ class Multiprocess(object):
     def gdal_copy_raster(
             self, input_raster, output, output_format='GTiff', compress=None,
             compress_format='DEFLATE', additional_params='', n_processes=None,
-            available_ram: int = None, min_progress=None, max_progress=None
+            available_ram: int = None, min_progress=None, max_progress=None,
+            disable_warnings=True
     ):
         cfg.logger.log.debug('start')
         # progress queue
@@ -2309,7 +2310,7 @@ class Multiprocess(object):
             available_ram = cfg.available_ram
         available_ram = str(int(available_ram) * 1000000)
         process_parameters = [p, cfg.temp, available_ram, cfg.gdal_path,
-                              p_mq, cfg.log_level]
+                              p_mq, cfg.log_level, disable_warnings]
         cfg.logger.log.debug(str(process_parameters))
         results = []
         c = self.pool.apply_async(

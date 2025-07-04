@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2024 Luca Congedo.
+# Copyright (C) 2022-2025 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -1851,7 +1851,7 @@ def vector_to_raster_iter(
                 logger = cfg.logger.stream.getvalue()
                 return None, 'different crs', logger
             # create memory layer
-            memory_driver = ogr.GetDriverByName('Memory')
+            memory_driver = ogr.GetDriverByName('MEM')
             memory_source = memory_driver.CreateDataSource('in_memory')
             memory_layer = memory_source.CreateLayer(
                 'temp', i_layer_sr, geom_type=ogr.wkbMultiPolygon

@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2024 Luca Congedo.
+# Copyright (C) 2022-2025 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -26,7 +26,7 @@ Typical usage example:
     >>> rs = remotior_sensus.Session()
     >>> # start the process
     >>> vector = rs.vector_to_raster(vector_path='file.gpkg',
-    ...     output_path='vector.tif')
+    ...     align_raster='reference.tif', output_path='raster.tif')
 """  # noqa: E501
 
 from typing import Union, Optional
@@ -53,7 +53,7 @@ def vector_to_raster(
         pixel_size: Optional[int] = None,
         output_path: Optional[str] = None,
         method: Optional[str] = None,
-        area_precision: Optional[int] = 20, resampling='mode',
+        area_precision: Optional[int] = 3, resampling='mode',
         nodata_value: Optional[int] = None,
         minimum_extent: Optional[bool] = True,
         extent_list: Optional[list] = None, output_format='GTiff',
@@ -101,8 +101,8 @@ def vector_to_raster(
             - path = output path
 
     Examples:
-        Perform the conversion to raster of a vector
-            >>> vector_to_raster(vector_path='file.gpkg',output_path='vector.tif')
+        Perform the conversion to raster of a vector using area_based method
+            >>> vector_to_raster(vector_path='file.gpkg', align_raster='reference.tif', method='area_based', output_path='raster.tif')
     """  # noqa: E501
     cfg.logger.log.info('start')
     cfg.progress.update(
@@ -202,7 +202,18 @@ def vector_to_raster(
             vector_path, input_vector, input_epsg=vector_crs,
             output_epsg=reference_crs
         )
+    min_x, max_x, min_y, max_y = raster_vector.get_layer_extent(vector_path)
+    if min_x < left:
+        left = min_x
+    if max_x > right:
+        right = max_x
+    if min_y < bottom:
+        bottom = min_y
+    if max_y > top:
+        top = max_y
     if method is not None and method.lower() == 'area_based':
+        # force nodata value (workaround for later gdal copy issue)
+        nodata_value_set = cfg.nodata_val_Int32
         temp_vector = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
         # dissolve vector
         cfg.multiprocess.gdal_vector_translate(
@@ -210,10 +221,9 @@ def vector_to_raster(
             explode_collections=True,
             attribute_field=vector_field, min_progress=1, max_progress=10
         )
-        vector_path = temp_vector
-        vector_source = ogr.Open(vector_path)
-        vector_layer = vector_source.GetLayer()
-        layer_defn = vector_layer.GetLayerDefn()
+        _vector_source = ogr.Open(temp_vector)
+        _vector_layer = _vector_source.GetLayer()
+        layer_defn = _vector_layer.GetLayerDefn()
         field_definitions = [
             {'name': layer_defn.GetFieldDefn(i).GetName(),
              'type': layer_defn.GetFieldDefn(i).GetType(),
@@ -222,26 +232,30 @@ def vector_to_raster(
              } for i in range(layer_defn.GetFieldCount())
         ]
         # check projection
-        proj = vector_layer.GetSpatialRef()
+        proj = _vector_layer.GetSpatialRef()
         crs = proj.ExportToWkt()
         crs = crs.replace(' ', '')
         if len(crs) == 0:
             crs = None
         vector_crs = crs
         feature_list = []
-        for idx, feature in enumerate(vector_layer):
+        for idx, feature in enumerate(_vector_layer):
             feature_geom = feature.GetGeometryRef()
             if feature_geom is not None:
                 geom = feature_geom.ExportToWkt()
                 attrs = [feature.GetField(i) for i in
                          range(layer_defn.GetFieldCount())]
                 feature_list.append([field_definitions, geom, attrs])
+        _vector_source.Destroy()
+        _vector_layer = None
+        _vector_source = None
         function_list = []
         argument_list = []
         ram = int(available_ram / n_processes)
         for i, feature in enumerate(feature_list):
             temporary_raster = cfg.temp.temporary_raster_path(
-                extension=cfg.tif_suffix)
+                name_prefix=str(feature[2][0]), extension=cfg.tif_suffix
+            )
             argument_list.append(
                 {
                     'feature': feature,
@@ -274,7 +288,10 @@ def vector_to_raster(
         argument_list = []
         function_list = []
         for r in output_raster_list:
-            v_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
+            k = files_directories.get_base_name(r)
+            v_path = cfg.temp.temporary_raster_path(
+                name_prefix=k[0:10],
+                extension=cfg.vrt_suffix)
             argument_list.append(
                 {
                     'raster_path': r,
@@ -290,32 +307,6 @@ def vector_to_raster(
             )
             function_list.append(create_warped_vrt_iter)
             virtual_raster_list.append(v_path)
-        """
-        # alternative using virtual raster but less accurate in single pixels
-        for r in output_raster_list:
-            v_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
-            argument_list.append(
-                {
-                    'input_raster_list': [r],
-                    'output': v_path,
-                    'band_number_list': None,
-                    'src_nodata': None,
-                    'dst_nodata': nodata_value_set,
-                    'relative_to_vrt': None,
-                    'data_type': output_data_type,
-                    'box_coordinate_list': None,
-                    'override_box_coordinate_list': None,
-                    'pixel_size': None,
-                    'grid_reference': reference_path,
-                    'scale_offset_list': None,
-                    'resampling': resampling,
-                    'available_ram': ram,
-                    'gdal_path': cfg.gdal_path
-                }
-            )
-            function_list.append(create_vrt_iter)
-            virtual_raster_list.append(v_path)
-        """
         cfg.multiprocess.run_iterative_process(
             function_list=function_list, argument_list=argument_list,
             min_progress=46, max_progress=70, message='warping raster files'
@@ -329,8 +320,15 @@ def vector_to_raster(
             pixel_size=x_y_size, grid_reference=reference_path
         )
         # copy raster
+        # (GDAL warns that the Value 2.14748e+09 in the source dataset will
+        # be changed to 2.14748e+09 in the destination dataset to avoid being
+        # treated as NoData, therefore no value is changed because it considers
+        # the float value of 2147483647, while with lower integers it actually
+        # changes the value; but the mode resampling doesn't work as expected
+        # if input has nodata values, therefore the source nodata value must
+        # be the same as destination nodata value)
         cfg.multiprocess.gdal_copy_raster(
-            virtual_path, output_path, min_progress=70, max_progress=100
+            virtual_path, output_path, min_progress=75, max_progress=100
         )
     else:
         # perform conversion

@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2024 Luca Congedo.
+# Copyright (C) 2022-2025 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -1967,7 +1967,7 @@ def vector_to_raster(
     # attribute filter
     if attribute_filter is not None:
         v_layer.SetAttributeFilter(attribute_filter)
-        d = ogr.GetDriverByName('MEMORY')
+        d = ogr.GetDriverByName('MEM')
         d_s = d.CreateDataSource('memData')
         layer_copy = d_s.CopyLayer(v_layer, d_s.GetName(), ['OVERWRITE=YES'])
         min_x, max_x, min_y, max_y = layer_copy.GetExtent()
@@ -2147,7 +2147,7 @@ def extract_vector_to_raster(
         return False
     # attribute filter
     v_layer.SetAttributeFilter(attribute_filter)
-    d = ogr.GetDriverByName('MEMORY')
+    d = ogr.GetDriverByName('MEM')
     d_s = d.CreateDataSource('memData')
     layer_copy = d_s.CopyLayer(v_layer, d_s.GetName(), ['OVERWRITE=YES'])
     v_min_x, v_max_x, v_min_y, v_max_y = layer_copy.GetExtent()
@@ -2614,7 +2614,7 @@ def split_layer_geometries(
                 step=c, steps=feature_count, minimum=min_p + max_p * c,
                 maximum=max_progress, percentage=int(c / feature_count * 100)
             )
-            mem_drv = ogr.GetDriverByName('Memory')
+            mem_drv = ogr.GetDriverByName('MEM')
             mem_ds = mem_drv.CreateDataSource('in_memory')
             mem_layer = mem_ds.CreateLayer('temp', i_layer_sr,
                                            geom_type=ogr.wkbMultiPolygon)

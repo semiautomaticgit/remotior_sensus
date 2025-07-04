@@ -1,6 +1,13 @@
 Changelog
 ===============
 
+v0.5.1
+________
+
+* Fixed issue with the tool "Vector to raster" where a few polygons were
+  randomly skipped using the method area_based.
+* Minor fixes
+
 v0.5.0
 ________
 
