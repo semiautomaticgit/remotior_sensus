@@ -423,9 +423,9 @@ def _cross_table(
                 # total class area column
                 if column in class_pixels['new_val']:
                     err_matrix_unbiased[c - 1, -2] = (
-                        class_pixels['sum'][
-                            class_pixels['new_val'] == column].item()
-                        * pixel_size_x * pixel_size_y
+                            class_pixels['sum'][
+                                class_pixels['new_val'] == column].item()
+                            * pixel_size_x * pixel_size_y
                     )
             c += 1
         err_matrix[:len(columns), 0] = np.array(columns)
@@ -450,7 +450,7 @@ def _cross_table(
                 / np.expand_dims(err_matrix[::, -1], axis=-1)
         )
         # add row of total columns
-        err_matrix_unbiased[-1, 1:-1] = err_matrix_unbiased[:-1,].sum(
+        err_matrix_unbiased[-1, 1:-1] = err_matrix_unbiased[:-1, ].sum(
             axis=0)[1:-1]
         # replace first columns
         err_matrix_unbiased[:-1, 0] = err_matrix[:-1, 0]
@@ -510,9 +510,9 @@ def _cross_table(
             # create W_i and N_i -1 matrices for calculation
             w_i = np.expand_dims(err_matrix_unbiased[:-1, -1], axis=-1)
             n_i = np.expand_dims(err_matrix[:-1, -1], axis=-1) - 1
-            std_err_matrix = np.subtract(err_matrix_unbiased[
-                              :-1, 1:-2] * w_i, err_matrix_unbiased[
-                                                 :-1, 1:-2] ** 2) / n_i
+            std_err_matrix = np.subtract(
+                err_matrix_unbiased[:-1, 1:-2] * w_i,
+                err_matrix_unbiased[:-1, 1:-2] ** 2) / n_i
             std_err = np.sqrt(np.nansum(std_err_matrix, axis=0))
             std_err = std_err.reshape(1, std_err.shape[0])
             # export matrix creating stream handler

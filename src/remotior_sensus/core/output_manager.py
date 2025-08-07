@@ -96,7 +96,7 @@ class OutputManager(object):
             band_number=None, raster_band=None, band_name=None, date=None,
             unit=None, root_directory=None, multiplicative_factor=None,
             additive_factor=None, wavelength=None
-            ):
+    ):
         """Adds output to BandSet.
 
         Adds the OutputManager.path as a band to a BandSet in a BandSetCatalog.

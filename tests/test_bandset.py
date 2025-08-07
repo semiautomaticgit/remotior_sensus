@@ -10,7 +10,7 @@ class TestBandSet(TestCase):
     def test_create(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         # create BandSet Catalog
         catalog = rs.bandset_catalog()
@@ -26,8 +26,8 @@ class TestBandSet(TestCase):
         wavelengths = []
         multiplicative_factors = []
         additive_factors = []
-        for f in range(len(file_list)):
-            raster_name = rs.files_directories.file_name(file_list[f], False)
+        for f, file_f in enumerate(file_list):
+            raster_name = rs.files_directories.file_name(file_f, False)
             band_names.append(raster_name)
             wavelengths.append(f + 1)
             multiplicative_factors.append(f + 1)

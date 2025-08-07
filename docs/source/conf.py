@@ -4,6 +4,7 @@
 
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../../src/'))
 
 # -- Project information -----------------------------------------------------
@@ -11,9 +12,8 @@ sys.path.insert(0, os.path.abspath('../../src/'))
 project = 'Remotior Sensus'
 copyright = '2022-2025, Luca Congedo'
 author = 'Luca Congedo'
-release = '0.5.1'
-version = '0.5.1.1'
-
+release = '0.5.2'
+version = '0.5.2.1'
 
 # -- General configuration ---------------------------------------------------
 
@@ -40,8 +40,8 @@ html_css_files = ['html_css.css']
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_documents = [
-  ('index', 'Remotior_Sensus.tex', 'Remotior Sensus Documentation',
-   'Luca Congedo', 'manual'),
+    ('index', 'Remotior_Sensus.tex', 'Remotior Sensus Documentation',
+     'Luca Congedo', 'manual'),
 ]
 latex_logo = '_static/logo.png'
 latex_use_parts = True
@@ -64,10 +64,10 @@ man_pages = [
 # -- Options for Texinfo output -------------------------------------------
 
 texinfo_documents = [
-  ('index', 'Remotior_Sensus', 'Remotior Sensus Documentation',
-   'Luca Congedo', 'Remotior_Sensus', 
-   'Software to process remote sensing and GIS data.',
-   'GIS and Remote Sensing'),
+    ('index', 'Remotior_Sensus', 'Remotior Sensus Documentation',
+     'Luca Congedo', 'Remotior_Sensus',
+     'Software to process remote sensing and GIS data.',
+     'GIS and Remote Sensing'),
 ]
 
 # Napoleon settings

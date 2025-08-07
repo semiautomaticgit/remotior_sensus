@@ -206,9 +206,9 @@ def band_resample(
     min_progress = 1
     one_progress = int((99 - 1) / len(input_raster_list))
     max_progress = one_progress
-    for band in range(0, len(input_raster_list)):
+    for band, input_raster_r in enumerate(input_raster_list):
         # raster extent and pixel size
-        info = raster_vector.image_geotransformation(input_raster_list[band])
+        info = raster_vector.image_geotransformation(input_raster_r)
         left_input = info['left']
         top_input = info['top']
         right_input = info['right']

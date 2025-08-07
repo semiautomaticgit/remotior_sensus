@@ -43,6 +43,7 @@ def function_initiator(
     gdal_path = process_parameters[3]
     progress_queue = process_parameters[4]
     refresh_time = process_parameters[5]
+    prev_refresh_time = refresh_time
     _memory_unit = process_parameters[6]
     log_level = process_parameters[7]
     device = process_parameters[8]
@@ -149,6 +150,7 @@ def function_initiator(
     for raster in raster_list:
         # reset section counter
         count_section_progress = 1
+        prev_count_section_progress = 0
         calculation_datatype = calc_data_type[raster_count]
         cfg.logger.log.debug(
             'process raster: %s; calculation_datatype: %s'
@@ -166,10 +168,7 @@ def function_initiator(
          r_scale_offset, r_data_type) = raster_vector.raster_info(info_raster)
         cfg.logger.log.debug('r_gt: {}'.format(str(r_gt)))
         # pixel size and origin from reference
-        t_lx = r_gt[0]
-        t_ly = r_gt[3]
-        p_sx = r_gt[1]
-        p_sy = r_gt[5]
+        t_lx, t_ly, p_sx, p_sy = r_gt[0], r_gt[3], r_gt[1], r_gt[5]
         # scale and offset
         if scale:
             if scale[raster_count] is not None:
@@ -190,27 +189,20 @@ def function_initiator(
             # raster size
             r_x, r_y = r_xy_count
             # raster blocks
-            memory_unit = cfg.memory_unit_array_12
             (block_size_x, block_size_y,
              list_range_x, list_range_y, tot_blocks) = _calculate_block_size(
                 x_block=r_x, y_block=r_y, available_ram=memory,
-                memory_unit=memory_unit, dummy_bands=dummy_bands
+                memory_unit=cfg.memory_unit_array_12, dummy_bands=dummy_bands
             )
             cfg.logger.log.debug('list_range_y: %s' % str(list_range_y))
-            sections = []
-            for y_min in range(len(list_range_y)):
-                # section y_min size
-                s_y_size = block_size_y
-                # adapt to raster y_min size
-                if list_range_y[y_min] + s_y_size > r_y:
-                    s_y_size = r_y - list_range_y[y_min]
-                sections.append(
-                    RasterSection(
-                        x_min=0, y_min=list_range_y[y_min], x_max=block_size_x,
-                        y_max=list_range_y[y_min] + s_y_size,
-                        x_size=block_size_x, y_size=s_y_size
-                    )
-                )
+            sections = [
+                RasterSection(
+                    x_min=0, y_min=range_y, x_max=block_size_x,
+                    y_max=min(range_y + block_size_y, r_y),
+                    x_size=block_size_x,
+                    y_size=min(block_size_y, r_y - range_y)
+                ) for range_y in list_range_y
+            ]
         cfg.logger.log.debug('sections: %s' % str(sections))
         # classification rasters
         classification_rasters = []
@@ -374,8 +366,7 @@ def function_initiator(
                 else:
                     _input_array[:] = 0
                     _input_array_mask = _input_array > 0
-                band_counter = 0
-                for single_raster in raster:
+                for band_counter, single_raster in enumerate(raster):
                     # open input_raster with GDAL
                     _r_d = gdal.Open(single_raster, gdal.GA_ReadOnly)
                     cfg.logger.log.debug('single_raster: %s' % single_raster)
@@ -406,7 +397,6 @@ def function_initiator(
                     # close GDAL rasters
                     _r_b.FlushCache()
                     _r_b = _r_d = None
-                    band_counter += 1
             # rasters with different dimensions or virtual raster
             else:
                 if (
@@ -579,21 +569,25 @@ def function_initiator(
                         # output minimum y (section of piece)
                         out_y_min = (
                                 specific_output_piece.sections[
-                                    count_section_progress
-                                    - 1].y_min_no_boundary - y_min_piece_s)
+                                    count_section_progress - 1
+                                    ].y_min_no_boundary - y_min_piece_s
+                        )
                         # reduce array size without boundary
-                        output_array = output_array[
-                                       specific_output_piece.sections[
-                                           count_section_progress
-                                           - 1].y_size_boundary_top:(
-                                               specific_output_piece.sections[
-                                                   count_section_progress
-                                                   - 1].y_size_boundary_top +
-                                               specific_output_piece.sections[
-                                                   count_section_progress
-                                                   - 1].y_size_no_boundary),
-                                       0:specific_output_piece.sections[
-                                           count_section_progress - 1].x_max]
+                        output_array = (
+                            output_array[
+                            specific_output_piece.sections[
+                                count_section_progress - 1
+                                ].y_size_boundary_top:(
+                                    specific_output_piece.sections[
+                                        count_section_progress - 1
+                                        ].y_size_boundary_top
+                                    + specific_output_piece.sections[
+                                        count_section_progress - 1
+                                        ].y_size_no_boundary
+                            ), 0:specific_output_piece.sections[
+                                count_section_progress - 1].x_max
+                            ]
+                        )
                     try:
                         write_out = raster_vector.write_raster(
                             out_specific, 0, out_y_min, output_array,
@@ -604,8 +598,7 @@ def function_initiator(
                                 pass
                             else:
                                 out_files.append(
-                                    [out_specific,
-                                     output_argument]
+                                    [out_specific, output_argument]
                                 )
                     except Exception as err:
                         proc_error = 'error output'
@@ -629,7 +622,8 @@ def function_initiator(
                                            sec.y_size_boundary_top:(
                                                    sec.y_size_boundary_top
                                                    + sec.y_size_no_boundary),
-                                           0:sec.x_max]
+                                           0:sec.x_max
+                                           ]
                         cfg.logger.log.debug('out_generic: %s' % out_generic)
                         write_out = raster_vector.write_raster(
                             out_generic, 0, out_y_min, output_array,
@@ -640,8 +634,7 @@ def function_initiator(
                                 pass
                             else:
                                 out_files.append(
-                                    [out_generic,
-                                     output_argument]
+                                    [out_generic, output_argument]
                                 )
                     except Exception as err:
                         proc_error = 'error output'
@@ -655,6 +648,12 @@ def function_initiator(
                 progress_queue.put(
                     [count_section_progress, len(sections)], False
                 )
+                if count_section_progress > prev_count_section_progress:
+                    refresh_time *= 0.5
+                    if refresh_time < 0.01:
+                        refresh_time = 0.01
+                else:
+                    refresh_time = prev_refresh_time
             elif (process_id == '1' and elapsed_time > refresh_time
                   and run_separate_process):
                 start_time = now_time
@@ -663,7 +662,12 @@ def function_initiator(
                      + len(sections) * raster_count,
                      len(sections) * len(raster_list)], False
                 )
-
+                if count_section_progress > prev_count_section_progress:
+                    refresh_time *= 0.5
+                    if refresh_time < 0.01:
+                        refresh_time = 0.01
+                else:
+                    refresh_time = prev_refresh_time
             gc.collect()
             count_section_progress += 1
         if classification is not True and (
@@ -676,8 +680,7 @@ def function_initiator(
                     out_generic, output_raster_list[raster_count]
                 )
                 out_files.append(
-                    [output_raster_list[raster_count],
-                     output_argument]
+                    [output_raster_list[raster_count], output_argument]
                 )
         raster_count += 1
     cfg.logger.log.debug('end')
@@ -734,10 +737,7 @@ def get_raster_band_array(
     if (_a is None
             or _a.shape != (sec.y_size, sec.x_size)
             or _a.dtype != _a_data_type):
-        _a = np.zeros(
-            (sec.y_size, sec.x_size),
-            dtype=_a_data_type
-        )
+        _a = np.zeros((sec.y_size, sec.x_size), dtype=_a_data_type)
         _a_mask = _a > 0
     # band array
     raster_vector.band_read_array_block(
@@ -765,6 +765,7 @@ def _calculate_block_size(
     if ram_blocks == 0:
         ram_blocks = 1
     cfg.logger.log.debug('ram_blocks: %s' % str(ram_blocks))
+    # for reference block_size_x is fixed
     block_size_x = x_block
     list_range_x = list(range(0, x_block, block_size_x))
     block_size_y = int(y_block / ram_blocks)
@@ -813,7 +814,7 @@ def table_join(
             else:
                 row_table_2 = None
             # add table 2 fields and features
-            for column_2 in range(len(table2_output_names)):
+            for column_2, table2_output_name in enumerate(table2_output_names):
                 if row_table_2 is None:
                     new_field = np.array(
                         [nodata_value] * output_part.shape[0],
@@ -826,7 +827,7 @@ def table_join(
                         dtype=table2_dtypes[column_2]
                     )
                 output_part = tm.append_field(
-                    output_part, table2_output_names[column_2],
+                    output_part, table2_output_name,
                     new_field, table2_dtypes[column_2]
                 )
         elif join_type == 'right':
@@ -845,7 +846,7 @@ def table_join(
             else:
                 row_table_1 = None
             # add table 1 fields and features
-            for column_1 in range(len(table1_names)):
+            for column_1, table1_name in enumerate(table1_names):
                 # get field1 name
                 if table1_names[column_1] == field1_name:
                     new_field = np.array(
@@ -859,8 +860,7 @@ def table_join(
                     )
                 else:
                     new_field = np.array(
-                        list(row_table_1[table1_names[column_1]])
-                        * output_part.shape[0],
+                        list(row_table_1[table1_name]) * output_part.shape[0],
                         dtype=table1_dtypes[column_1]
                     )
                 output_part = tm.append_field(
@@ -874,13 +874,13 @@ def table_join(
             row_table_2 = table2[table2_features_index[
                 np.where(table2_features == feature)]]
             # add table 2 fields and features
-            for column_2 in range(len(table2_output_names)):
+            for column_2, table2_output_name in enumerate(table2_output_names):
                 new_field = np.array(
                     list(row_table_2[table2_names[column_2]])
                     * output_part.shape[0], dtype=table2_dtypes[column_2]
                 )
                 output_part = tm.append_field(
-                    output_part, table2_output_names[column_2],
+                    output_part, table2_output_name,
                     new_field, table2_dtypes[column_2]
                 )
         # full outer join
@@ -894,7 +894,7 @@ def table_join(
             else:
                 row_table_2 = None
             # add table 2 fields and features
-            for column_2 in range(len(table2_output_names)):
+            for column_2, table2_output_name in enumerate(table2_output_names):
                 if row_table_2 is None:
                     new_field = np.array(
                         [nodata_value] * output_part.shape[0],
@@ -907,7 +907,7 @@ def table_join(
                         dtype=table2_dtypes[column_2]
                     )
                 output_part = tm.append_field(
-                    output_part, table2_output_names[column_2],
+                    output_part, table2_output_name,
                     new_field, table2_dtypes[column_2]
                 )
         if output is None:
@@ -930,9 +930,9 @@ def table_join(
                 progress_message=False
             )
             # add table 1 fields and features
-            for column_1 in range(len(table1_names)):
+            for column_1, table1_name in enumerate(table1_names):
                 # get field1 name
-                if table1_names[column_1] == field1_name:
+                if table1_name == field1_name:
                     new_field = np.array(
                         [feature] * outer_part.shape[0],
                         dtype=table1_dtypes[column_1]
@@ -943,8 +943,7 @@ def table_join(
                         dtype=table1_dtypes[column_1]
                     )
                 outer_part = tm.append_field(
-                    outer_part, table1_names[column_1], new_field,
-                    table1_dtypes[column_1]
+                    outer_part, table1_name, new_field, table1_dtypes[column_1]
                 )
         if output is None:
             output = outer_part
@@ -967,13 +966,8 @@ def gdal_translate(
         input_file=None, output=None, option_string=None,
         process_parameters=None
 ):
-    process_id = process_parameters[0]
-    cfg.temp = process_parameters[1]
-    memory = process_parameters[2]
-    gdal_path = process_parameters[3]
-    progress_queue = process_parameters[4]
-    log_level = process_parameters[5]
-    disable_warnings = process_parameters[6]
+    (process_id, cfg.temp, memory, gdal_path, progress_queue, log_level,
+     disable_warnings) = process_parameters[:7]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
     cfg.logger.log.debug('start')
     if gdal_path is not None:
@@ -1022,12 +1016,8 @@ def gdal_vector_translate(
         input_file=None, output=None, attribute_field=None, output_drive=None,
         process_parameters=None, explode_collections=None
 ):
-    process_id = process_parameters[0]
-    cfg.temp = process_parameters[1]
-    memory = process_parameters[2]
-    gdal_path = process_parameters[3]
-    progress_queue = process_parameters[4]
-    log_level = process_parameters[5]
+    (process_id, cfg.temp, memory, gdal_path, progress_queue,
+     log_level) = process_parameters[:6]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
     cfg.logger.log.debug('start')
     if gdal_path is not None:
@@ -1099,12 +1089,8 @@ def gdal_warp(
         input_file=None, output=None, option_string=None,
         process_parameters=None
 ):
-    process_id = process_parameters[0]
-    cfg.temp = process_parameters[1]
-    gdal_path = process_parameters[2]
-    progress_queue = process_parameters[3]
-    memory = process_parameters[4]
-    log_level = process_parameters[5]
+    (process_id, cfg.temp, gdal_path, progress_queue, memory,
+     log_level) = process_parameters[:6]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
     cfg.logger.log.debug('start')
     if gdal_path is not None:
@@ -1150,12 +1136,8 @@ def raster_to_vector_process(
         process_parameters=None, connected=4
 ):
     # process parameters
-    process_id = str(process_parameters[0])
-    cfg.temp = process_parameters[1]
-    gdal_path = process_parameters[2]
-    progress_queue = process_parameters[3]
-    memory = process_parameters[4]
-    log_level = process_parameters[5]
+    (process_id, cfg.temp, gdal_path, progress_queue, memory,
+     log_level) = process_parameters[:6]
     if gdal_path is not None:
         for d in gdal_path.split(';'):
             try:
@@ -1266,22 +1248,13 @@ def raster_sieve_process(
         process_parameters=None, input_parameters=None, output_parameters=None
 ):
     # process parameters
-    process_id = str(process_parameters[0])
-    cfg.temp = process_parameters[1]
-    gdal_path = process_parameters[2]
-    progress_queue = process_parameters[3]
-    memory = process_parameters[4]
-    log_level = process_parameters[5]
+    (process_id, cfg.temp, gdal_path, progress_queue, memory,
+     log_level) = process_parameters[:6]
     # input_raster parameters
-    raster = input_parameters[0]
-    sieve_size = input_parameters[1]
-    connected = input_parameters[2]
+    raster, sieve_size, connected = input_parameters[:3]
     # output parameters
-    output = output_parameters[0]
-    data_type = output_parameters[1]
-    compress = output_parameters[2]
-    compress_format = output_parameters[3]
-    output_no_data = output_parameters[4]
+    (output, data_type, compress, compress_format,
+     output_no_data) = output_parameters[:5]
     if gdal_path is not None:
         for d in gdal_path.split(';'):
             try:
@@ -1367,27 +1340,15 @@ def vector_to_raster(
         process_parameters=None, input_parameters=None, output_parameters=None
 ):
     # process parameters
-    process_id = str(process_parameters[0])
-    cfg.temp = process_parameters[1]
-    gdal_path = process_parameters[2]
-    progress_queue = process_parameters[3]
-    memory = process_parameters[4]
-    log_level = process_parameters[5]
+    (process_id, cfg.temp, gdal_path, progress_queue, memory,
+     log_level) = process_parameters[:6]
     # input_raster parameters
-    vector_path = input_parameters[0]
-    field_name = input_parameters[1]
-    reference_raster_path = input_parameters[2]
-    nodata_value = input_parameters[3]
-    background_value = input_parameters[4]
-    burn_values = input_parameters[5]
-    x_y_size = input_parameters[6]
-    all_touched = input_parameters[7]
-    minimum_extent = input_parameters[8]
+    (vector_path, field_name, reference_raster_path, nodata_value,
+     background_value, burn_values, x_y_size, all_touched,
+     minimum_extent) = input_parameters[:9]
     # output parameters
-    output_path = output_parameters[0]
-    output_format = output_parameters[1]
-    compress = output_parameters[2]
-    compress_format = output_parameters[3]
+    (output_path, output_format, compress,
+     compress_format) = output_parameters[:4]
     if background_value is None:
         background_value = 0
     if nodata_value is None:
@@ -1567,37 +1528,25 @@ def vector_to_raster(
 
 # download file processor
 def download_file_processor(input_parameters, process_parameters=None):
-    process_id = process_parameters[0]
-    cfg.temp = process_parameters[1]
-    progress_queue = process_parameters[2]
-    refresh_time = process_parameters[3]
-    log_level = process_parameters[4]
+    (process_id, cfg.temp, progress_queue, refresh_time,
+     log_level) = process_parameters[:5]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
     cfg.logger.log.debug('start')
-    url_list = input_parameters[0]
-    output_path_list = input_parameters[1]
-    authentication_uri = input_parameters[2]
-    user = input_parameters[3]
-    password = input_parameters[4]
-    proxy_host = input_parameters[5]
-    proxy_port = input_parameters[6]
-    proxy_user = input_parameters[7]
-    proxy_password = input_parameters[8]
-    retried = input_parameters[9]
-    timeout = input_parameters[10]
-    copernicus = input_parameters[11]
-    access_token = input_parameters[12]
+    (url_list, output_path_list, authentication_uri, user, password,
+     proxy_host, proxy_port, proxy_user, proxy_password, retried, timeout,
+     copernicus, access_token) = input_parameters[:13]
     start_time = datetime.datetime.now()
     cfg.logger.log.debug('url_list: %s' % str(url_list))
-    for url in range(len(url_list)):
+    len_url_list = len(url_list)
+    for a, url_x in enumerate(url_list):
         now_time = datetime.datetime.now()
         elapsed_time = (now_time - start_time).total_seconds()
         if process_id == 0 and elapsed_time > refresh_time:
             start_time = now_time
-            progress_queue.put([url, len(url_list)], False)
+            progress_queue.put([a, len_url_list], False)
         if copernicus is True:
             downloaded = download_tools.download_copernicus_file(
-                url=url_list[url], output_path=output_path_list[url],
+                url=url_x, output_path=output_path_list[a],
                 authentication_uri=authentication_uri,
                 proxy_host=proxy_host, proxy_port=proxy_port,
                 proxy_user=proxy_user, proxy_password=proxy_password,
@@ -1607,7 +1556,7 @@ def download_file_processor(input_parameters, process_parameters=None):
             )
         else:
             downloaded = download_tools.download_file(
-                url=url_list[url], output_path=output_path_list[url],
+                url=url_x, output_path=output_path_list[a],
                 authentication_uri=authentication_uri, user=user,
                 password=password, proxy_host=proxy_host,
                 proxy_port=proxy_port,
@@ -1619,7 +1568,7 @@ def download_file_processor(input_parameters, process_parameters=None):
             # second try
             if copernicus is True:
                 downloaded = download_tools.download_copernicus_file(
-                    url=url_list[url], output_path=output_path_list[url],
+                    url=url_x, output_path=output_path_list[a],
                     authentication_uri=authentication_uri,
                     proxy_host=proxy_host, proxy_port=proxy_port,
                     proxy_user=proxy_user, proxy_password=proxy_password,
@@ -1629,7 +1578,7 @@ def download_file_processor(input_parameters, process_parameters=None):
                 )
             else:
                 downloaded = download_tools.download_file(
-                    url=url_list[url], output_path=output_path_list[url],
+                    url=url_x, output_path=output_path_list[a],
                     authentication_uri=authentication_uri, user=user,
                     password=password, proxy_host=proxy_host,
                     proxy_port=proxy_port,
@@ -1638,11 +1587,11 @@ def download_file_processor(input_parameters, process_parameters=None):
                     callback=progress_queue.put, log=cfg.logger.log
                 )
             if downloaded is None:
-                cfg.logger.log.debug('error downloading: %s' % url_list[url])
+                cfg.logger.log.debug('error downloading: %s' % url_x)
                 logger = cfg.logger.stream.getvalue()
                 return (
                     False, output_path_list,
-                    'error downloading: %s' % url_list[url], logger
+                    'error downloading: %s' % url_x, logger
                 )
             else:
                 check, output_path = downloaded
@@ -1702,14 +1651,15 @@ class RasterPiece(object):
 
     # return piece y details as string
     def y_details(self):
-        return ('y_min: %s; y_max: %s; y_size: %s; y_min_no_boundary: %s; '
-                'y_max_no_boundary: %s; y_size_no_boundary: '
-                '%s; y_size_boundary_top: %s; y_size_boundary_bottom: %s'
-                % (str(self.y_min), str(self.y_max), str(self.y_size),
-                   str(self.y_min_no_boundary),
-                   str(self.y_max_no_boundary), str(self.y_size_no_boundary),
-                   str(self.y_size_boundary_top),
-                   str(self.y_size_boundary_bottom)))
+        return (
+            f'y_min: {self.y_min}; y_max: {self.y_max}; '
+            f'y_size: {self.y_size}; '
+            f'y_min_no_boundary: {self.y_min_no_boundary}; '
+            f'y_max_no_boundary: {self.y_max_no_boundary}; '
+            f'y_size_no_boundary: {self.y_size_no_boundary}; '
+            f'y_size_boundary_top: {self.y_size_boundary_top}; '
+            f'y_size_boundary_bottom: {self.y_size_boundary_bottom}'
+        )
 
 
 # class to create raster sections
@@ -1752,14 +1702,16 @@ class RasterSection(object):
 
     # return section y details as string
     def y_details(self):
-        return ('y_min: %s; y_max: %s; y_size: %s; y_min_no_boundary: %s; '
-                'y_max_no_boundary: %s; y_size_no_boundary: '
-                '%s; y_size_boundary_top: %s; y_size_boundary_bottom: %s'
-                % (str(self.y_min), str(self.y_max), str(self.y_size),
-                   str(self.y_min_no_boundary),
-                   str(self.y_max_no_boundary), str(self.y_size_no_boundary),
-                   str(self.y_size_boundary_top),
-                   str(self.y_size_boundary_bottom)))
+        return (
+            f'y_min: {self.y_min}; '
+            f'y_max: {self.y_max}; '
+            f'y_size: {self.y_size}; '
+            f'y_min_no_boundary: {self.y_min_no_boundary}; '
+            f'y_max_no_boundary: {self.y_max_no_boundary}; '
+            f'y_size_no_boundary: {self.y_size_no_boundary}; '
+            f'y_size_boundary_top: {self.y_size_boundary_top}; '
+            f'y_size_boundary_bottom: {self.y_size_boundary_bottom}'
+        )
 
 
 # apply multiplicative and additive factors to array

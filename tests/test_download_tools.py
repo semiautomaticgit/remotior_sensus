@@ -9,7 +9,7 @@ class TestDownloadTools(TestCase):
     def test_download_tools(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         cfg.logger.log.debug('>>> test download')
         url = 'https://www.python.org'

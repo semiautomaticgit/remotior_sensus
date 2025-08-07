@@ -39,7 +39,7 @@ def date_string_from_directory_name(directory_name):
                 d_p_part = d_p.lower().split('t')[0]
                 try:
                     date_string = datetime.strptime(d_p_part,
-                                                             '%Y%m%d')
+                                                    '%Y%m%d')
                     d_p_part_string = date_string.strftime('%Y-%m-%d')
                     date = d_p_part_string
                     break

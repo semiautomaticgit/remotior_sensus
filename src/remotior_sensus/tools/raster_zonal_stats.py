@@ -47,7 +47,7 @@ from remotior_sensus.core.processor_functions import (
 
 
 def raster_zonal_stats(
-        raster_path: str, reference_path: str,  vector_field: str = None,
+        raster_path: str, reference_path: str, vector_field: str = None,
         output_path: str = None, stat_names: Union[list, str] = None,
         stat_percentile: Optional[Union[int, str, list]] = None,
         extent_list: Optional[list] = None,
@@ -196,7 +196,6 @@ def raster_zonal_stats(
             box_coordinate_list=extent_list,
             multiple_output=True, multiple_resolution=False
         )
-        vrt_r = prepared['virtual_output']
         vrt_path = prepared['temporary_virtual_raster']
         # combination calculation
         cfg.multiprocess.run(
@@ -239,7 +238,7 @@ def raster_zonal_stats(
                 range(
                     0, len(unique_values), round(len(unique_values)
                                                  / n_processes)
-                    )
+                )
             )
             unique_values_index_list.append(len(unique_values))
             # build function argument list of dictionaries
@@ -328,6 +327,7 @@ def _zonal_stats_table(stats_dict, field_name, field_type):
     matrix_value = stream1.getvalue()
     for c in output_field_names:
         text.append(c)
+        # noinspection PyUnresolvedReferences
         text.append(cv)
     text.pop(-1)
     text.append(nl)

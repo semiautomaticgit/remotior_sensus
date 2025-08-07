@@ -9,7 +9,7 @@ class TestBandPCA(TestCase):
     def test_band_pca(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         cfg.logger.log.debug('>>> test band pca')
         catalog = rs.bandset_catalog()
@@ -19,7 +19,7 @@ class TestBandPCA(TestCase):
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], bandset_number=1,
             root_directory=str(data_path)
-            )
+        )
         cfg.logger.log.debug('>>> test band PCA input BandSet')
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
         output = rs.band_pca(input_bands=catalog.get_bandset(1),

@@ -243,47 +243,62 @@ class Multiprocess(object):
         )
         # progress queue
         p_mq = self.manager.Queue()
+        # create nodata value list
+        if type(use_value_as_nodata) is not list:
+            use_value_as_nodata = [use_value_as_nodata]
         results = []
-        for p in range(len(pieces)):
-            process_parameters = [
-                p, cfg.temp, int(available_ram / n_processes),
-                cfg.gdal_path, p_mq, cfg.refresh_time, memory_unit,
-                cfg.log_level, device, cpu_processes
-            ]
-            # create nodata value list
-            if type(use_value_as_nodata) is not list:
-                use_value_as_nodata = [use_value_as_nodata]
-            input_parameters = [[raster_path], calc_datatype, boundary_size,
-                                pieces[p], [scale], [offset],
-                                use_value_as_nodata, None,
-                                input_nodata_as_value, multi_add_factors,
-                                dummy_bands, specific_output,
-                                same_geotransformation, skip_output]
-            output_parameters = [[output_raster_path], [output_data_type],
-                                 compress, compress_format, any_nodata_mask,
-                                 [output_nodata_value], [output_band_number],
-                                 keep_output_array, keep_output_argument]
-            c = self.pool.apply_async(
-                processor.function_initiator,
-                args=(process_parameters, input_parameters, output_parameters,
-                      function, [function_argument], [function_variable],
-                      False, classification, classification_confidence,
-                      signature_raster)
-            )
-            results.append([c, p])
+        for p, piece_p in enumerate(pieces):
+            if cfg.action:
+                process_parameters = [
+                    p, cfg.temp, int(available_ram / n_processes),
+                    cfg.gdal_path, p_mq, cfg.refresh_time, memory_unit,
+                    cfg.log_level, device, cpu_processes
+                ]
+                input_parameters = [
+                    [raster_path], calc_datatype, boundary_size, piece_p,
+                    [scale], [offset], use_value_as_nodata, None,
+                    input_nodata_as_value, multi_add_factors,
+                    dummy_bands, specific_output, same_geotransformation,
+                    skip_output
+                ]
+                output_parameters = [
+                    [output_raster_path], [output_data_type], compress,
+                    compress_format, any_nodata_mask, [output_nodata_value],
+                    [output_band_number], keep_output_array,
+                    keep_output_argument
+                ]
+                c = self.pool.apply_async(
+                    processor.function_initiator, args=(
+                        process_parameters, input_parameters,
+                        output_parameters, function, [function_argument],
+                        [function_variable], False, classification,
+                        classification_confidence, signature_raster
+                    )
+                )
+                results.append([c, p])
+            else:
+                cfg.logger.log.info('cancel')
+                return
+        refresh_time = cfg.refresh_time
+        prev_count_progress = 0
         while True:
-            if cfg.action is True:
+            if cfg.action:
                 # update progress
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     p_m_qp = p_mq.get(False)
                     count_progress = int(p_m_qp[0])
+                    if count_progress > prev_count_progress:
+                        refresh_time *= 0.5
+                        if refresh_time < 0.01:
+                            refresh_time = 0.01
+                    else:
+                        refresh_time *= 2
+                        if refresh_time > cfg.refresh_time:
+                            refresh_time = cfg.refresh_time
                     length = int(p_m_qp[1])
                     progress = int(100 * count_progress / length)
                     cfg.progress.update(
@@ -461,23 +476,23 @@ class Multiprocess(object):
                 )
             )
         ranges.append(len(raster_path_list))
-        for p in range(1, len(ranges)):
-            raster_paths = raster_path_list[ranges[p - 1]: ranges[p]]
+        for p, range_p in enumerate(ranges):
+            raster_paths = raster_path_list[ranges[p - 1]: range_p]
             if output_raster_list:
-                output_list = output_raster_list[ranges[p - 1]: ranges[p]]
+                output_list = output_raster_list[ranges[p - 1]: range_p]
             else:
                 output_list = [None]
             if output_band_number_list is None:
                 output_band_number = [1] * len(raster_paths)
             else:
                 output_band_number = output_band_number_list[
-                                     ranges[p - 1]: ranges[p]]
+                                     ranges[p - 1]: range_p]
             if scale:
-                scl = scale[ranges[p - 1]: ranges[p]]
+                scl = scale[ranges[p - 1]: range_p]
             else:
                 scl = [None] * len(raster_paths)
             if offset:
-                offs = offset[ranges[p - 1]: ranges[p]]
+                offs = offset[ranges[p - 1]: range_p]
             else:
                 offs = [None] * len(raster_paths)
             if use_value_as_nodata is None:
@@ -488,24 +503,24 @@ class Multiprocess(object):
                 None, None
             ]
             input_parameters = [
-                raster_paths, calculation_datatype[ranges[p - 1]: ranges[p]],
+                raster_paths, calculation_datatype[ranges[p - 1]: range_p],
                 boundary_size, None, scl, offs,
-                use_value_as_nodata[ranges[p - 1]: ranges[p]], None,
+                use_value_as_nodata[ranges[p - 1]: range_p], None,
                 input_nodata_as_value, multi_add_factors, dummy_bands, None,
                 None, skip_output
             ]
             output_parameters = [
-                output_list, output_data_type[ranges[p - 1]: ranges[p]],
+                output_list, output_data_type[ranges[p - 1]: range_p],
                 compress, compress_format, any_nodata_mask,
-                output_nodata_value[ranges[p - 1]: ranges[p]],
+                output_nodata_value[ranges[p - 1]: range_p],
                 output_band_number, keep_output_array, keep_output_argument
             ]
             if function_argument:
-                f_arg = function_argument[ranges[p - 1]: ranges[p]]
+                f_arg = function_argument[ranges[p - 1]: range_p]
             else:
                 f_arg = None
             if function_variable:
-                f_var = function_variable[ranges[p - 1]: ranges[p]]
+                f_var = function_variable[ranges[p - 1]: range_p]
             else:
                 f_var = None
             # run_separate_process
@@ -515,19 +530,26 @@ class Multiprocess(object):
                       function, f_arg, f_var, True, False, False)
             )
             results.append([c, p])
+        refresh_time = cfg.refresh_time
+        prev_count_progress = 0
         while True:
-            if cfg.action is True:
+            if cfg.action:
                 # update progress
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     p_m_qp = p_mq.get(False)
                     count_progress = int(p_m_qp[0])
+                    if count_progress > prev_count_progress:
+                        refresh_time *= 0.5
+                        if refresh_time < 0.01:
+                            refresh_time = 0.01
+                    else:
+                        refresh_time *= 2
+                        if refresh_time > cfg.refresh_time:
+                            refresh_time = cfg.refresh_time
                     length = int(p_m_qp[1])
                     progress = int(100 * count_progress / length)
                     cfg.progress.update(
@@ -1088,18 +1110,26 @@ class Multiprocess(object):
             args=(input_raster, output, op, process_parameters)
         )
         results.append([c, p])
+        refresh_time = cfg.refresh_time
+        prev_count_progress = 0
         while True:
-            if cfg.action is True:
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+            if cfg.action:
+                # update progress
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     p_m_qp = p_mq.get(False)
                     progress = int(p_m_qp)
+                    if progress > prev_count_progress:
+                        refresh_time *= 0.5
+                        if refresh_time < 0.01:
+                            refresh_time = 0.01
+                    else:
+                        refresh_time *= 2
+                        if refresh_time > cfg.refresh_time:
+                            refresh_time = cfg.refresh_time
                     cfg.progress.update(
                         message='writing raster', step=progress, steps=100,
                         minimum=min_progress, maximum=max_progress,
@@ -1366,15 +1396,12 @@ class Multiprocess(object):
             'features_count: %s; len(sections_range): %s'
             % (str(features_count), str(len(sections_range)))
         )
-        ranges = []
-        for index_range in range(1, len(sections_range)):
-            ranges.append(
-                features[sections_range[index_range - 1]:sections_range[
-                    index_range]]
-            )
+        ranges = [
+            features[sections_range[i - 1]:sections_range[i]]
+            for i in range(1, len(sections_range))
+        ]
         results = []
-        for p in range(len(ranges)):
-            feature_range = ranges[p]
+        for p, range_p in enumerate(ranges):
             table_1_parameters = [table1, field1_name, table1_names,
                                   table1_dtypes, table1_features,
                                   table1_features_index]
@@ -1387,23 +1414,29 @@ class Multiprocess(object):
             c = self.pool.apply_async(
                 processor.table_join,
                 args=(table_1_parameters, table_2_parameters, nodata_value,
-                      join_type, feature_range, output_names,
-                      process_parameters)
+                      join_type, range_p, output_names, process_parameters)
             )
             results.append([c, p])
+        refresh_time = cfg.refresh_time
+        prev_count_progress = 0
         while True:
-            if cfg.action is True:
+            if cfg.action:
                 # update progress
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     p_m_qp = p_mq.get(False)
                     count_progress = int(p_m_qp[0])
+                    if count_progress > prev_count_progress:
+                        refresh_time *= 0.5
+                        if refresh_time < 0.01:
+                            refresh_time = 0.01
+                    else:
+                        refresh_time *= 2
+                        if refresh_time > cfg.refresh_time:
+                            refresh_time = cfg.refresh_time
                     length = int(p_m_qp[1])
                     progress = int(100 * count_progress / length)
                     cfg.progress.update(
@@ -1435,148 +1468,6 @@ class Multiprocess(object):
         cfg.progress.update(percentage=False)
         cfg.logger.log.debug('end')
         self.output = output_table
-
-    # convert raster to vector (deprecated)
-    def multiprocess_raster_to_vector_old(
-            self, raster_path, output_vector_path, field_name=None,
-            n_processes: int = None,
-            dissolve_output=True, min_progress=0, max_progress=100,
-            available_ram: int = None
-    ):
-        max_progress_1 = int(max_progress / 3)
-        cfg.logger.log.debug('start')
-        process_result = []
-        self.output = False
-        if available_ram is None:
-            available_ram = cfg.available_ram
-        # raster blocks
-        memory_unit = cfg.memory_unit_array_8
-        (raster_x_size, raster_y_size, block_size_x, block_size_y,
-         list_range_x, list_range_y, tot_blocks, number_of_bands) = \
-            _calculate_block_size(
-                raster_path, n_processes, memory_unit, 0,
-                available_ram=available_ram
-            )
-        results = []
-        # temporary raster output
-        tmp_rast_list = []
-        # calculate raster ranges
-        for x in list_range_x:
-            bs_x = block_size_x
-            if x + bs_x > raster_x_size:
-                bs_x = raster_x_size - x
-            for y in list_range_y:
-                bs_y = block_size_y
-                if y + bs_y > raster_y_size:
-                    bs_y = raster_y_size - y
-                vrt_file = cfg.temp.temporary_raster_path(
-                    extension=cfg.vrt_suffix
-                )
-                tmp_rast_list.append(vrt_file)
-                # create virtual raster
-                raster_vector.create_virtual_raster(
-                    input_raster_list=[raster_path], output=vrt_file,
-                    relative_extent_list=[x, y, bs_x, bs_y]
-                )
-        if field_name is None:
-            field_name = 'DN'
-        # progress queue
-        p_mq = self.manager.Queue()
-        # multiple parallel processes
-        for p in range(len(tmp_rast_list)):
-            vrt_path = tmp_rast_list[p]
-            process_parameters = [
-                p, cfg.temp, cfg.gdal_path, p_mq,
-                int(int(available_ram) * 1000000 / len(tmp_rast_list)),
-                cfg.log_level
-            ]
-            t_vector = cfg.temp.temporary_raster_path(
-                extension=cfg.gpkg_suffix
-            )
-            c = self.pool.apply_async(
-                processor.raster_to_vector_process,
-                args=(vrt_path, t_vector, field_name, process_parameters)
-            )
-            results.append([c, p])
-        while True:
-            if cfg.action is True:
-                # update progress
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
-                    break
-                time.sleep(cfg.refresh_time)
-                # progress message
-                try:
-                    progress = round(p_mq.get(False))
-                    step = round(
-                        min_progress + progress * (
-                                max_progress_1 - min_progress) / 100
-                    )
-                    cfg.progress.update(
-                        message='processing to vector', step=step,
-                        percentage=progress
-                    )
-                except Exception as err:
-                    str(err)
-                    cfg.progress.update(ping=True)
-            else:
-                cfg.logger.log.info('cancel')
-                gc.collect()
-                self.stop()
-                self.start(self.n_processes, self.multiprocess_module)
-                return
-        # get results
-        for r in results:
-            res = r[0].get()
-            process_result.append(res[0])
-            cfg.logger.log.debug(res[2])
-            # error
-            if res[1] is not False:
-                cfg.logger.log.error('error multiprocess: %s' % str(res[1]))
-                gc.collect()
-                return
-        gc.collect()
-        cfg.progress.update(
-            message='merging vectors', step=max_progress_1, percentage=False
-        )
-        # merge layers to new layer
-        if len(tmp_rast_list) > 1:
-            # input layers
-            input_layers_list = []
-            # y coordinates of polygons on borders
-            y_list = []
-            for i in range(len(process_result)):
-                vector_path, min_y, max_y = process_result[i]
-                input_layers_list.append(vector_path)
-                if i > 0:
-                    if max_y is not None:
-                        y_list.append(str(max_y))
-                if i < len(tmp_rast_list) - 1:
-                    if min_y is not None:
-                        y_list.append(str(min_y))
-            if dissolve_output:
-                # merged vector
-                t_vector = cfg.temp.temporary_raster_path(
-                    extension=cfg.gpkg_suffix
-                )
-            else:
-                t_vector = output_vector_path
-            merge = raster_vector.merge_all_layers(
-                input_layers_list, t_vector, min_progress=max_progress_1,
-                max_progress=max_progress_1 * 2,
-                dissolve_output=dissolve_output
-            )
-            if dissolve_output:
-                merge = raster_vector.merge_dissolve_layer(
-                    t_vector, output_vector_path, field_name, y_list,
-                    min_progress=max_progress_1 * 2, max_progress=max_progress
-                )
-        else:
-            merge = tmp_rast_list[0]
-        self.output = merge
-        cfg.logger.log.debug('end')
 
     # convert raster to vector
     def multiprocess_raster_to_vector(
@@ -1610,15 +1501,13 @@ class Multiprocess(object):
             )
         )
         results = [[c, p]]
+        refresh_time = cfg.refresh_time
         while True:
-            if cfg.action is True:
+            if cfg.action:
                 # update progress
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     progress = round(p_mq.get(False))
@@ -1684,15 +1573,13 @@ class Multiprocess(object):
             args=(process_parameters, input_parameters, output_parameters)
         )
         results.append([c, p])
+        refresh_time = cfg.refresh_time
         while True:
-            if cfg.action is True:
+            if cfg.action:
                 # update progress
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     p_m_qp = p_mq.get(False)
@@ -1760,15 +1647,13 @@ class Multiprocess(object):
             args=(process_parameters, input_parameters, output_parameters)
         )
         results.append([c, p])
+        refresh_time = cfg.refresh_time
         while True:
-            if cfg.action is True:
+            if cfg.action:
                 # update progress
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     p_m_qp = p_mq.get(False)
@@ -2125,14 +2010,13 @@ class Multiprocess(object):
         max_progress_part = int(max_progress / max(len_of_argument_dict_list))
         max_progress_process = max_progress_part
         old_progress = 0
+        refresh_time = cfg.refresh_time
         while True:
-            if cfg.action is True:
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+            if cfg.action:
+                # update progress
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     # read progress from file
@@ -2148,10 +2032,18 @@ class Multiprocess(object):
                         minimum=min_progress,
                         maximum=max_progress_process, percentage=progress
                     )
+                    if progress > old_progress:
+                        refresh_time *= 0.5
+                        if refresh_time < 0.01:
+                            refresh_time = 0.01
                     # scale progress for next process
-                    if progress < old_progress:
+                    elif progress < old_progress:
                         min_progress = int(max_progress_process)
                         max_progress_process += max_progress_part
+                    else:
+                        refresh_time *= 2
+                        if refresh_time > cfg.refresh_time:
+                            refresh_time = cfg.refresh_time
                     old_progress = int(progress)
                 except Exception as err:
                     str(err)
@@ -2186,93 +2078,48 @@ class Multiprocess(object):
         self.output = False
         if n_processes is None:
             n_processes = self.n_processes
-        elif n_processes > self.n_processes:
+        if n_processes > self.n_processes:
             self.start(self.n_processes, self.multiprocess_module)
         if min_progress is None:
             min_progress = 0
         if max_progress is None:
             max_progress = 100
-        # progress queue
-        p_mq = self.manager.Queue()
-        # divide argument dictionaries for every process
-        len_list_of_argument_dictionaries = len(argument_list)
-        if len_list_of_argument_dictionaries <= n_processes:
-            ranges = list(range(len_list_of_argument_dictionaries))
-        # n threads running 2 dictionaries and m running 1 dictionary
-        # 2 * n + m = len_list_of_argument_dictionaries
-        # n + m = n_processes
-        elif len_list_of_argument_dictionaries / n_processes < 2:
-            n = len_list_of_argument_dictionaries - n_processes
-            ranges = list(range(0, n * 2, 2))
-            ranges.extend(
-                list(range(n * 2, len_list_of_argument_dictionaries))
-            )
-        # calculate dictionary per process
-        else:
-            ranges = list(
-                range(
-                    0, len_list_of_argument_dictionaries,
-                    int(len_list_of_argument_dictionaries / n_processes)
+        # create list of arguments for processes
+        arg_list = [
+            (i, function_list[i], [argument_list[i]], cfg.logger, cfg.temp)
+            for i in range(len(function_list))
+        ]
+        total = len(arg_list)
+        process_result = []
+        finished = 0
+        for res in self.pool.imap_unordered(create_task, arg_list):
+            if cfg.action:
+                progress = int(100 * finished / total)
+                cfg.progress.update(
+                    message=message, step=progress, steps=100,
+                    minimum=min_progress,
+                    maximum=max_progress, percentage=progress
                 )
-            )
-        ranges.append(len_list_of_argument_dictionaries)
-        argument_dict_list = []
-        for i in range(1, len(ranges)):
-            argument_dict_list.append(argument_list[ranges[i - 1]: ranges[i]])
-        # result list
-        results = []
-        # iterate over arg dict list
-        for p in range(0, len(argument_dict_list)):
-            cfg.logger.log.debug('process %s' % str(p))
-            if p == 0:
-                progress_queue = p_mq
-            else:
-                progress_queue = None
-            c = self.pool.apply_async(
-                function_list[p], args=(
-                    p, progress_queue, argument_dict_list[p], cfg.logger,
-                    cfg.temp
-                )
-            )
-            results.append([c, p])
-        while True:
-            if cfg.action is True:
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
-                    break
-                time.sleep(cfg.refresh_time)
-                # progress message
                 try:
-                    p_m_qp = p_mq.get(False)
-                    count_progress = int(p_m_qp[0])
-                    length = int(p_m_qp[1])
-                    progress = int(100 * count_progress / length)
-                    cfg.progress.update(
-                        message=message, step=progress, steps=100,
-                        minimum=min_progress,
-                        maximum=max_progress, percentage=progress
-                    )
+                    finished += 1
+                    process_result.append(res[0])
+                    if res[2]:
+                        cfg.logger.log.debug(res[2])
+                    # error
+                    if res[1] is not False:
+                        cfg.logger.log.error(
+                            'error multiprocess: %s' % str(res[1]))
+                        gc.collect()
+                        return
+                except StopIteration:
+                    break
                 except Exception as err:
-                    str(err)
-                    cfg.progress.update(ping=True)
+                    cfg.logger.log.error(str(err))
             else:
                 cfg.logger.log.info('cancel')
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
-                return
-        # get results
-        process_result = []
-        for r in results:
-            res = r[0].get()
-            process_result.append(res[0])
-            cfg.logger.log.debug(res[2])
-            # error
-            if res[1] is not False:
-                cfg.logger.log.error('error multiprocess: %s' % str(res[1]))
-                gc.collect()
                 return
         gc.collect()
         self.output = process_result
@@ -2319,7 +2166,7 @@ class Multiprocess(object):
         )
         results.append([c, p])
         while True:
-            if cfg.action is True:
+            if cfg.action:
                 p_r = []
                 for r in results:
                     p_r.append(r[0].ready())
@@ -2383,14 +2230,13 @@ class Multiprocess(object):
             )
         )
         results.append([c, p])
+        refresh_time = cfg.refresh_time
         while True:
-            if cfg.action is True:
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+            if cfg.action:
+                # update progress
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 # progress message
                 try:
                     p_m_qp = p_mq.get(False)
@@ -2453,14 +2299,13 @@ class Multiprocess(object):
                 input_parameters, process_parameters)
         )
         results.append([c, p])
+        refresh_time = cfg.refresh_time
         while True:
-            if cfg.action is True:
-                p_r = []
-                for r in results:
-                    p_r.append(r[0].ready())
-                if all(p_r):
+            if cfg.action:
+                # update progress
+                if all(r[0].ready() for r in results):
                     break
-                time.sleep(cfg.refresh_time)
+                time.sleep(refresh_time)
                 if progress is not False:
                     # progress message
                     try:
@@ -2902,3 +2747,12 @@ def _join_results(process_result):
     gc.collect()
     cfg.logger.log.debug('end')
     return output
+
+
+# function to create task for iterative process
+def create_task(task):
+    i, function, args, logger, temp = task
+    try:
+        return function(i, None, args, logger, temp)
+    except Exception as e:
+        return None, str(e), f'Error process {i}'

@@ -131,7 +131,7 @@ def raster_reclassification(
         else:
             table = _import_reclassification_table(
                 csv_path=csv_path, separator=separator
-                )
+            )
             if table.check:
                 reclassification_table = table.extra['table']
             else:
@@ -248,10 +248,10 @@ def _list_to_reclassification_table(input_list):
     dtype_list = [(cfg.old_value, 'U1024'), (cfg.new_value, 'U1024')]
     # test array
     _x = np.ones(3)
-    for i in range(len(input_list)):
+    for i, input_i in enumerate(input_list):
         # check new value
         try:
-            new_value = str(input_list[i][1]).lower().replace('null', 'nan')
+            new_value = str(input_i[1]).lower().replace('null', 'nan')
             eval(new_value.replace('nan', 'np.nan'))
         except Exception as err:
             cfg.logger.log.error(str(err))
@@ -259,11 +259,11 @@ def _list_to_reclassification_table(input_list):
             return OutputManager(check=False)
         # check old value
         try:
-            old_value = int(input_list[i][0])
+            old_value = int(input_i[0])
         except Exception as err:
             str(err)
             try:
-                old_value = input_list[i][0].lower().replace('null', 'nan')
+                old_value = input_i[0].lower().replace('null', 'nan')
                 test_old_value = old_value.replace(
                     cfg.variable_raster_name, '_x'
                 ).replace('nan', 'np.nan')
@@ -271,10 +271,10 @@ def _list_to_reclassification_table(input_list):
             except Exception as err:
                 str(err)
                 cfg.logger.log.error(
-                    'unable to process value %s' % str(input_list[i][0])
+                    'unable to process value %s' % str(input_i[0])
                 )
                 cfg.messages.error(
-                    'unable to process value %s' % str(input_list[i][0])
+                    'unable to process value %s' % str(input_i[0])
                 )
                 return OutputManager(check=False)
         # add to table
@@ -297,7 +297,7 @@ def _import_reclassification_table(csv_path, separator=','):
         file_path=csv_path, separators=separator,
         field_names=[cfg.old_value, cfg.new_value], progress_message=False,
         skip_first_line=False
-        )
+    )
     # table of values
     table = None
     dtype_list = [(cfg.old_value, 'U1024'), (cfg.new_value, 'U1024')]

@@ -161,16 +161,20 @@ def band_pca(
                             band_dict['variance_%s' % band_number] = 0
                         try:
                             band_dict[
-                                'variance_%s' % band_number] = band_dict[
-                                'variance_%s' % band_number] + (
-                                    ((ar[1]['count_%s' % band_number] - 1)
-                                     * ar[1]['var_%s' % band_number])
-                                    + (ar[1]['count_%s' % band_number]
-                                       * (ar[1]['sum_%s' % band_number]
-                                       / ar[1]['count_%s' % band_number]
-                                       - band_dict['mean_%s' % band_number])**2
-                                       )
-                            ) / (band_dict['count_%s' % band_number] - 1)
+                                'variance_%s' % band_number
+                                ] = (
+                                    band_dict['variance_%s' % band_number]
+                                    + (((ar[1]['count_%s' % band_number] - 1)
+                                        * ar[1]['var_%s' % band_number])
+                                       + (ar[1]['count_%s' % band_number]
+                                          * (ar[1]['sum_%s' % band_number]
+                                             / ar[1]['count_%s' % band_number]
+                                             - band_dict[
+                                                 'mean_%s' % band_number]) ** 2
+                                          )
+                                       ) / (
+                                            band_dict['count_%s' % band_number]
+                                            - 1))
                         except Exception as err:
                             str(err)
     except Exception as err:
@@ -298,7 +302,7 @@ def band_pca(
     return OutputManager(
         paths=output_raster_path_list,
         extra={'table': tbl_out}
-        )
+    )
 
 
 def _pca_table(

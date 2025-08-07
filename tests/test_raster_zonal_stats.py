@@ -9,7 +9,7 @@ class TestRasterZonalStats(TestCase):
     def test_raster_zonal_stats(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         data_path = Path(__file__).parent / 'data'
         v = str(data_path / 'files' / 'roi.gpkg')

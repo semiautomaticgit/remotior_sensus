@@ -140,7 +140,7 @@ def download_file(
             log.debug(
                 'block_size: %s; file_size: %s'
                 % (str(block_size), str(file_size))
-                )
+            )
         # small files
         if block_size >= file_size:
             response = url_request.read()
@@ -149,7 +149,7 @@ def download_file(
             create_parent_directory(output_path)
             with open(output_path, 'wb') as file:
                 while True:
-                    if cfg.action is True:
+                    if cfg.action:
                         if adaptive_block_size:
                             start_time = datetime.now()
                         block_read = url_request.read(block_size)
@@ -268,7 +268,7 @@ def download_copernicus_file(
                 create_parent_directory(output_path)
                 with open(output_path, 'wb') as file:
                     while True:
-                        if cfg.action is True:
+                        if cfg.action:
                             if adaptive_block_size:
                                 start_time = datetime.now()
                             block_read = url_request.read(block_size)

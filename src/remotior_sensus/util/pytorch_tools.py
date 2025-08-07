@@ -28,12 +28,15 @@ nn_module = None
 try:
     import torch
     from torch import nn
+
     nn_module = nn.Module
     from torch.utils.data import DataLoader, TensorDataset
 except Exception as error:
     # empty class
     class Module:
         pass
+
+
     nn_module = Module
     if cfg.logger is not None:
         cfg.logger.log.error(str(error))
@@ -57,14 +60,15 @@ class PyTorchNeuralNetwork(nn_module):
             else:
                 activation_function = nn.ReLU()
             layers = []
-            for x in range(0, len(hidden_layer_sizes)):
+            for x, hidden_layer_x in enumerate(hidden_layer_sizes):
                 if x == 0:
-                    layers.append(nn.Linear(columns, hidden_layer_sizes[x]))
+                    layers.append(nn.Linear(columns, hidden_layer_x))
+                    # noinspection PyUnresolvedReferences
                     layers.append(activation_function)
                 else:
                     layers.append(
                         nn.Linear(
-                            hidden_layer_sizes[x - 1], hidden_layer_sizes[x]
+                            hidden_layer_sizes[x - 1], hidden_layer_x
                         )
                     )
                     layers.append(activation_function)
@@ -185,7 +189,7 @@ def train_pytorch_model(
     epoch = 0
     test_loss_list = []
     while True:
-        if cfg.action is True:
+        if cfg.action:
             epoch += 1
             # train
             model.train()

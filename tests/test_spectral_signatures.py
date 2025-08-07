@@ -9,7 +9,7 @@ class TestSpectralSignatures(TestCase):
     def test_spectral_signatures(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         # create Spectral Signature Catalog
         cfg.logger.log.debug('>>> test create Spectral Signature Catalog')
@@ -18,12 +18,12 @@ class TestSpectralSignatures(TestCase):
         wavelength_list = [1, 2, 3, 4]
         signature_catalog.add_spectral_signature(
             value_list=value_list, wavelength_list=wavelength_list
-            )
+        )
         self.assertEqual(len(signature_catalog.signatures), 1)
         signature_catalog.add_spectral_signature(
             value_list=value_list, macroclass_id=2,
             wavelength_list=wavelength_list
-            )
+        )
         self.assertEqual(signature_catalog.table.shape[0], 2)
         cfg.logger.log.debug('>>> test save Spectral Signature Catalog')
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.scpx_suffix)
@@ -46,7 +46,7 @@ class TestSpectralSignatures(TestCase):
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'],
             root_directory=str(data_path)
-            )
+        )
         # set BandSet in SpectralCatalog
         signature_catalog_2 = rs.spectral_signatures_catalog(
             bandset=catalog.get(1)
@@ -61,7 +61,7 @@ class TestSpectralSignatures(TestCase):
         # add spectral signature with macroclass_id = 2
         signature_catalog_2.add_spectral_signature(
             value_list=value_list, macroclass_id=2
-            )
+        )
         self.assertEqual(
             signature_catalog_2.table[
                 signature_catalog_2.table[
@@ -91,7 +91,7 @@ class TestSpectralSignatures(TestCase):
                 signature_catalog_2.table[
                     'macroclass_id'] == 5].macroclass_id,
             5
-            )
+        )
         # import vector
         cfg.logger.log.debug('>>> test import vector')
         signature_catalog_2.import_vector(
@@ -134,7 +134,7 @@ class TestSpectralSignatures(TestCase):
         catalog_3.create_bandset(
             file_list, wavelengths=['Sentinel-2'],
             root_directory=str(data_path)
-            )
+        )
         region_vector = rs.shared_tools.region_growing_polygon(
             coordinate_x=230303, coordinate_y=4674704,
             input_bands=1, max_width=4,
@@ -190,7 +190,7 @@ class TestSpectralSignatures(TestCase):
         self.assertEqual(
             signature_catalog_3.table[
                 signature_catalog_3.table['class_name'] == 'merged3'
-            ].signature, 1
+                ].signature, 1
         )
         # signature distance
         cfg.logger.log.debug('>>> test signature distance')
@@ -215,7 +215,7 @@ class TestSpectralSignatures(TestCase):
         signature_id = signature_catalog_3.table.signature_id[0]
         signature_catalog_3.export_signature_values_for_plot(
             signature_id=signature_id, plot_catalog=plot_catalog
-            )
+        )
         self.assertEqual(plot_catalog.get_signature_count(), 1)
         for plot in plot_catalog.catalog:
             signature = plot_catalog.get_signature(signature_id=plot)

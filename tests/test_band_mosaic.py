@@ -9,7 +9,7 @@ class TestMosaicBands(TestCase):
     def test_mosaic_bands(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         catalog = rs.bandset_catalog()
         data_path = Path(__file__).parent / 'data'
@@ -31,15 +31,15 @@ class TestMosaicBands(TestCase):
         catalog.create_bandset(
             file_list_1, wavelengths=['Sentinel-2'], bandset_number=1,
             root_directory=str(data_path)
-            )
+        )
         catalog.create_bandset(
             file_list_2, wavelengths=['Sentinel-2'], bandset_number=2,
             root_directory=str(data_path)
-            )
+        )
         catalog.create_bandset(
             file_list_3, wavelengths=['Sentinel-2'], bandset_number=3,
             root_directory=str(data_path)
-            )
+        )
         bandset_list = [catalog.get_bandset(1), catalog.get_bandset(2),
                         catalog.get_bandset(3)]
         cfg.logger.log.debug('>>> test mosaic BandSet')
@@ -49,7 +49,7 @@ class TestMosaicBands(TestCase):
         bandset_list = [1, 2]
         mosaic = rs.mosaic(
             bandset_list, output_path=temp, bandset_catalog=catalog
-            )
+        )
         self.assertTrue(rs.files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
 
@@ -72,7 +72,7 @@ class TestMosaicBands(TestCase):
         mosaic = rs.mosaic(
             band_list, output_path=temp, bandset_catalog=catalog,
             prefix='prefix', output_name='output_name'
-            )
+        )
         self.assertTrue(rs.files_directories.is_file(mosaic.paths[0]))
         self.assertTrue(mosaic.check)
 

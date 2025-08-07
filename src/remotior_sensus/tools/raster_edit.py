@@ -178,7 +178,7 @@ def raster_edit(
     return OutputManager(extra={
         'old_array': old_array, 'column_start': column_start,
         'row_start': row_start,
-        })
+    })
 
 
 # check the expression

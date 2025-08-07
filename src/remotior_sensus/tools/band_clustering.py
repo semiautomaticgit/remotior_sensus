@@ -172,10 +172,11 @@ def band_clustering(
             bandset=input_bandset
         )
         for c in range(0, class_number):
-            signature = []
-            for i in range(len(input_raster_list)):
-                delta = (maximum_list[i] - minimum_list[i]) / class_number
-                signature.append(minimum_list[i] + (delta * (c + 0.5)))
+            signature = [
+                minimum_list[i] + ((maximum_list[i] - minimum_list[
+                    i]) / class_number) * (c + 0.5)
+                for i in range(len(input_raster_list))
+            ]
             # add signature in SpectralCatalog
             signature_catalog.add_spectral_signature(
                 value_list=signature, macroclass_id=c, class_id=c,
@@ -228,7 +229,7 @@ def _k_means_iter(
     # for potential use
     _class_number = class_number
     for iteration in range(1, max_iterations + 1):
-        if cfg.action is True:
+        if cfg.action:
             output_path = None
             # remove previously calculated raster
             try:
@@ -361,14 +362,14 @@ def _seed_signatures(
         # build function argument list of dictionaries
         argument_list = []
         function_list = []
-        for raster in range(0, len(input_raster_list)):
+        for raster, input_raster_i in enumerate(input_raster_list):
             if nodata_value is None:
                 nd = None
             else:
                 nd = nodata_value[raster]
             argument_list.append(
                 {
-                    'input_raster': input_raster_list[raster],
+                    'input_raster': input_raster_i,
                     'point_coordinate': point,
                     'output_no_data': nd,
                     'gdal_path': cfg.gdal_path,

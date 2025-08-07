@@ -576,7 +576,7 @@ def get_vector_values(vector_path, field_name):
         # copy not dissolved features
         i_feature = i_layer.GetNextFeature()
         while i_feature:
-            if cfg.action is True:
+            if cfg.action:
                 try:
                     i_fid = int(i_feature.GetFID())
                     values.append(i_fid)
@@ -1032,17 +1032,15 @@ def create_virtual_raster(
     )
     n = 0
     # iterate bands
-    for raster in range(len(input_raster_list)):
+    for raster, input_raster_i in enumerate(input_raster_list):
         for band_number in band_number_list[raster]:
             n += 1
             cfg.logger.log.debug(
-                'input_raster: %s' % str(input_raster_list[raster])
+                'input_raster: %s' % str(input_raster_i)
             )
             if bandset is None:
                 # open input_raster
-                input_raster = gdal.Open(
-                    input_raster_list[raster], gdal.GA_ReadOnly
-                )
+                input_raster = gdal.Open(input_raster_i, gdal.GA_ReadOnly)
                 ir_x_size = input_raster.RasterXSize
                 ir_y_size = input_raster.RasterYSize
                 input_band = input_raster.GetRasterBand(band_number)
@@ -1216,10 +1214,10 @@ def create_virtual_raster(
                 # check path
                 if relative_to_vrt == 1:
                     source_path = files_directories.file_name(
-                        input_raster_list[raster], True
+                        input_raster_i, True
                     )
                 else:
-                    source_path = input_raster_list[raster].replace(
+                    source_path = input_raster_i.replace(
                         '//', '/'
                     ).replace('https:/', 'https://').replace(
                         'http:/', 'http://'
@@ -1517,14 +1515,14 @@ def create_virtual_raster_2_mosaic(
     v_rast.AddBand(gdal_format)
     band = v_rast.GetRasterBand(1)
     # iterate bands
-    for b in range(len(input_raster_list)):
+    for b, input_raster_b in enumerate(input_raster_list):
         # open input_raster
         if band_number_list is None:
             band_number = 1
         else:
             band_number = band_number_list[b]
         # open input_raster
-        input_raster = gdal.Open(input_raster_list[b], gdal.GA_ReadOnly)
+        input_raster = gdal.Open(input_raster_b, gdal.GA_ReadOnly)
         input_band = input_raster.GetRasterBand(band_number)
         if scale_offset_list is None:
             offs = input_band.GetOffset()
@@ -1592,11 +1590,9 @@ def create_virtual_raster_2_mosaic(
         try:
             # check path
             if relative_to_vrt == 1:
-                source_path = files_directories.file_name(
-                    input_raster_list[b], True
-                )
+                source_path = files_directories.file_name(input_raster_b, True)
             else:
-                source_path = input_raster_list[b].replace('//', '/')
+                source_path = input_raster_b.replace('//', '/')
             # resampling can be nearest or mode
             if resampling is None:
                 resampling = 'nearest'
@@ -1843,7 +1839,7 @@ def reproject_vector(
     # iterate input features
     i_feature = i_layer.GetNextFeature()
     while i_feature:
-        if cfg.action is True:
+        if cfg.action:
             # get geometry
             geom = i_feature.GetGeometryRef()
             # project feature
@@ -1968,6 +1964,9 @@ def vector_to_raster(
     if attribute_filter is not None:
         v_layer.SetAttributeFilter(attribute_filter)
         d = ogr.GetDriverByName('MEM')
+        # for backward compatibility
+        if d is None:
+            d = ogr.GetDriverByName('memory')
         d_s = d.CreateDataSource('memData')
         layer_copy = d_s.CopyLayer(v_layer, d_s.GetName(), ['OVERWRITE=YES'])
         min_x, max_x, min_y, max_y = layer_copy.GetExtent()
@@ -2148,6 +2147,9 @@ def extract_vector_to_raster(
     # attribute filter
     v_layer.SetAttributeFilter(attribute_filter)
     d = ogr.GetDriverByName('MEM')
+    # for backward compatibility
+    if d is None:
+        d = ogr.GetDriverByName('memory')
     d_s = d.CreateDataSource('memData')
     layer_copy = d_s.CopyLayer(v_layer, d_s.GetName(), ['OVERWRITE=YES'])
     v_min_x, v_max_x, v_min_y, v_max_y = layer_copy.GetExtent()
@@ -2317,7 +2319,7 @@ def merge_all_layers(
         i_layer = input_source.GetLayer(i_name)
         i_feature = i_layer.GetNextFeature()
         while i_feature:
-            if cfg.action is True:
+            if cfg.action:
                 geometry = i_feature.GetGeometryRef()
                 o_feature = ogr.Feature(output_layer_def)
                 o_feature.SetGeometry(geometry)
@@ -2509,7 +2511,7 @@ def merge_dissolve_layer(
     i_feature = i_layer.GetNextFeature()
     c = 0
     while i_feature:
-        if cfg.action is True:
+        if cfg.action:
             c += 1
             cfg.progress.update(
                 step=c, steps=feature_count, minimum=min_p + max_p * n,
@@ -2553,7 +2555,7 @@ def split_layer_geometries_old(
     max_p = int((max_progress - min_progress) / feature_count)
     new_layers = []
     while i_feature:
-        if cfg.action is True:
+        if cfg.action:
             c += 1
             cfg.progress.update(
                 step=c, steps=feature_count, minimum=min_p + max_p * c,
@@ -2608,13 +2610,16 @@ def split_layer_geometries(
     max_p = int((max_progress - min_progress) / feature_count)
     new_layers = []
     while i_feature:
-        if cfg.action is True:
+        if cfg.action:
             c += 1
             cfg.progress.update(
                 step=c, steps=feature_count, minimum=min_p + max_p * c,
                 maximum=max_progress, percentage=int(c / feature_count * 100)
             )
             mem_drv = ogr.GetDriverByName('MEM')
+            # for backward compatibility
+            if mem_drv is None:
+                mem_drv = ogr.GetDriverByName('memory')
             mem_ds = mem_drv.CreateDataSource('in_memory')
             mem_layer = mem_ds.CreateLayer('temp', i_layer_sr,
                                            geom_type=ogr.wkbMultiPolygon)
@@ -2768,7 +2773,7 @@ def save_polygons(
     if output_values is not None:
         uv_feature = output_values.GetNextFeature()
         while uv_feature:
-            if cfg.action is True:
+            if cfg.action:
                 geometry_ref = uv_feature.GetGeometryRef()
                 if geometry_ref is not None:
                     if not geometry_ref.IsValid():

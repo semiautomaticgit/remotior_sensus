@@ -59,7 +59,9 @@ except Exception as error:
 
 try:
     import torch
-    from remotior_sensus.util.pytorch_tools import train_pytorch_model
+    from remotior_sensus.util.pytorch_tools import (
+        train_pytorch_model
+    )
 except Exception as error:
     str(error)
 
@@ -685,10 +687,9 @@ def classification_scikit(*argv):
             _prediction_proba = None
             classes = classifier.classes_
             classification_array = np.zeros_like(classification_argmax)
-            for c in range(0, len(classes)):
+            for c, class_c in enumerate(classes):
                 classification_array = np.where(
-                    classification_argmax == c, classes[c],
-                    classification_array
+                    classification_argmax == c, class_c, classification_array
                 )
             if threshold is not False:
                 classification_array[::, ::][
@@ -979,11 +980,10 @@ def bands_covariance(*argv):
     covariance_dictionary = {}
     if band_dict['normalize'] is True:
         for _x in band_number:
-            raster_array_band[::, ::, _x] = ((raster_array_band[::, ::, _x]
-                                              - band_dict['mean_%s' % _x])
-                                             / np.sqrt(
-                        band_dict['variance_%s' % _x])
-                                             )
+            raster_array_band[::, ::, _x] = (
+                    (raster_array_band[::, ::, _x] - band_dict['mean_%s' % _x])
+                    / np.sqrt(band_dict['variance_%s' % _x])
+            )
     # iterate bands
     for _x in band_number:
         # calculate covariance SUM((x - Mean_x) * (y - Mean_y))
@@ -1152,7 +1152,7 @@ def raster_erosion(*argv):
     except Exception as err:
         str(err)
     # iteration of erosion size
-    for _s in range(function_variable_list[0]):
+    for _ in range(function_variable_list[0]):
         # empty array
         erosion = np.zeros(a.shape)
         # structure core pixels
@@ -1535,10 +1535,8 @@ def get_band_arrays(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         try:
             # iterate signatures
             array_dict = {}
@@ -1583,8 +1581,7 @@ def get_band_arrays(
                 if 'numpy_functions' in d:
                     result_dict = {}
                     for f in d['numpy_functions']:
-                        # noinspection PyUnusedLocal
-                        for _a in array_list:
+                        for _ in array_list:
                             result_dict[f] = eval(d['numpy_functions'][f])
                     array_dict[s] = result_dict
                 else:
@@ -1603,12 +1600,12 @@ def fit_classifier(*argv):
     classifier_list = argv[1]
     arg_dict_list = argv[2]
     result = []
-    for i in range(0, len(arg_dict_list)):
+    for i, value in enumerate(arg_dict_list):
         classifier = classifier_list[i]
         if log_process and log_process is not None:
             with open('%s/scikit' % temp.dir, 'w') as f:
                 with redirect_stdout(f):
-                    classifier.fit(**arg_dict_list[i])
+                    classifier.fit(**value)
         else:
             # set verbose
             try:
@@ -1627,12 +1624,12 @@ def score_classifier(*argv):
     classifier_list = argv[1]
     arg_dict_list = argv[2]
     result = []
-    for i in range(0, len(arg_dict_list)):
+    for i, value in enumerate(arg_dict_list):
         classifier = classifier_list[i]
         if log_process and log_process is not None:
             with open('%s/scikit' % temp.dir, 'w') as f:
                 with redirect_stdout(f):
-                    score = classifier.score(**arg_dict_list[i])
+                    score = classifier.score(**value)
         else:
             # set verbose
             try:
@@ -1651,10 +1648,8 @@ def score_classifier_stratified(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         try:
             # calculate score by cross-validation with stratification
             scores = cross_val_score(
@@ -1677,10 +1672,8 @@ def clip_raster(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         gdal_path = d['gdal_path']
         cfg.logger.log.debug('start')
         if gdal_path is not None:
@@ -1780,10 +1773,8 @@ def vector_to_raster_iter(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         gdal_path = d['gdal_path']
         cfg.logger.log.debug('start')
         if gdal_path is not None:
@@ -1812,22 +1803,20 @@ def vector_to_raster_iter(
             field_name = d['field_name']
             reference_raster_path = d['reference_raster_path']
             background_value = d['background_value']
+            # targe pixel size
             x_y_size = d['x_y_size']
             # buffer to increase the grid size to match reference grid size
             buffer_size = d['buffer_size']
+            minimum_extent = d['minimum_extent']
             output_path = d['output']
             compress = d['compress']
             compress_format = d['compress_format']
             if background_value is None:
                 background_value = 0
-            output_format = 'GTiff'
             (
                 gt, reference_crs, unit, xy_count, nd, number_of_bands,
                 block_size, scale_offset, data_type
             ) = raster_vector.raster_info(reference_raster_path)
-            orig_x = gt[0]
-            orig_y = gt[3]
-            cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
             if x_y_size is not None:
                 x_size = x_y_size[0]
                 y_size = x_y_size[1]
@@ -1835,13 +1824,14 @@ def vector_to_raster_iter(
                 x_size = gt[1]
                 y_size = abs(gt[5])
             cfg.logger.log.debug('x_size, y_size: %s,%s' % (x_size, y_size))
+            orig_x = gt[0]
+            orig_y = gt[3]
             # number of x pixels
             grid_columns = int(round(xy_count[0] * gt[1] / x_size))
             # number of y pixels
             grid_rows = int(round(xy_count[1] * abs(gt[5]) / y_size))
             cfg.logger.log.debug(
-                'grid_columns, grid_rows: %s,%s'
-                % (grid_columns, grid_rows)
+                'grid_columns, grid_rows: %s,%s' % (grid_columns, grid_rows)
             )
             # check crs
             same_crs = raster_vector.compare_crs(reference_crs, vector_crs)
@@ -1852,6 +1842,9 @@ def vector_to_raster_iter(
                 return None, 'different crs', logger
             # create memory layer
             memory_driver = ogr.GetDriverByName('MEM')
+            # for backward compatibility
+            if memory_driver is None:
+                memory_driver = ogr.GetDriverByName('memory')
             memory_source = memory_driver.CreateDataSource('in_memory')
             memory_layer = memory_source.CreateLayer(
                 'temp', i_layer_sr, geom_type=ogr.wkbMultiPolygon
@@ -1866,7 +1859,6 @@ def vector_to_raster_iter(
                 # noinspection PyArgumentList
                 field_defn.SetPrecision(f_d['precision'])
                 memory_layer.CreateField(field_defn)
-
             o_layer_definition = memory_layer.GetLayerDefn()
             # field_value count
             o_field_count = o_layer_definition.GetFieldCount()
@@ -1877,42 +1869,39 @@ def vector_to_raster_iter(
                 field_value = attributes[i]
                 o_feature.SetField(field_n, field_value)
             memory_layer.CreateFeature(o_feature)
-            # calculate minimum extent
-            min_x, max_x, min_y, max_y = memory_layer.GetExtent()
-            if buffer_size is not None:
-                min_x -= buffer_size
-                max_x += buffer_size
-                min_y -= buffer_size
-                max_y += buffer_size
-            orig_x = orig_x + gt[1] * int((min_x - orig_x) / gt[1])
-            orig_y = orig_y + abs(gt[5]) * int(
-                round((max_y - orig_y) / abs(gt[5])))
-            cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
-            grid_columns = abs(int(round((max_x - min_x) / x_size)))
-            grid_rows = abs(int(round((max_y - min_y) / y_size)))
+            if minimum_extent is True:
+                # calculate minimum extent
+                min_x, max_x, min_y, max_y = memory_layer.GetExtent()
+                if buffer_size is not None:
+                    min_x -= buffer_size
+                    max_x += buffer_size
+                    min_y -= buffer_size
+                    max_y += buffer_size
+                orig_x = gt[0] + gt[1] * int((min_x - gt[0]) / gt[1])
+                orig_y = gt[3] + abs(gt[5]) * int(
+                    round((max_y - gt[3]) / abs(gt[5])))
+                cfg.logger.log.debug('orig_x, orig_y: %s,%s'
+                                     % (orig_x, orig_y))
+                grid_columns = abs(int(round((max_x - min_x) / x_size)))
+                grid_rows = abs(int(round((max_y - min_y) / y_size)))
             cfg.logger.log.debug(
                 'grid_columns, grid_rows: %s,%s' % (grid_columns, grid_rows)
             )
             if grid_columns > 0 and grid_rows > 0:
-                driver = gdal.GetDriverByName(output_format)
-                temporary_grid = cfg.temp.temporary_raster_path(
-                    extension=cfg.tif_suffix)
                 # create raster _grid
-                _grid = driver.Create(
-                    temporary_grid, grid_columns, grid_rows, 1,
-                    gdal.GDT_Float32, options=['COMPRESS=LZW', 'BIGTIFF=YES']
+                _grid = memory_driver.Create(
+                    '', grid_columns, grid_rows, 1, gdal.GDT_Float32
                 )
                 if _grid is None:
-                    _grid = driver.Create(
-                        temporary_grid, grid_columns, grid_rows, 1,
-                        gdal.GDT_Int16, options=['COMPRESS=LZW', 'BIGTIFF=YES']
+                    _grid = memory_driver.Create(
+                        '', grid_columns, grid_rows, 1, gdal.GDT_Int16
                     )
                 if _grid is None:
                     cfg.logger.log.error('error output raster')
                     logger = cfg.logger.stream.getvalue()
                     return None, 'error grid', logger
                 try:
-                    _grid.GetRasterBand(1)
+                    _band = _grid.GetRasterBand(1)
                 except Exception as err:
                     cfg.logger.log.error(err)
                     logger = cfg.logger.stream.getvalue()
@@ -1920,26 +1909,84 @@ def vector_to_raster_iter(
                 # set raster projection from reference
                 _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
                 _grid.SetProjection(reference_crs)
-                _grid = None
-                # create output raster
-                raster_vector.create_raster_from_reference(
-                    path=temporary_grid, band_number=1,
-                    output_raster_list=[output_path],
-                    driver='GTiff', gdal_format='Int32', compress=compress,
-                    compress_format=compress_format,
-                    constant_value=background_value
+                _band.Fill(background_value)
+                _band.FlushCache()
+                _band = None
+                gdal.RasterizeLayer(
+                    _grid, [1], memory_layer, options=[
+                        'ATTRIBUTE=%s' % str(field_name)]
                 )
-                # convert reference layer to raster
-                _output_raster = gdal.Open(output_path, gdal.GA_Update)
-                _o_c = gdal.RasterizeLayer(
-                    _output_raster, [1], memory_layer, options=[
-                        'ATTRIBUTE=%s' % str(field_name),
-                        'COMPRESS=DEFLATE', 'PREDICTOR=2', 'ZLEVEL=1']
-                )
-                _output_raster = None
-                results.append([d['output']])
+                src_nodata = d['src_nodata']
+                dst_nodata = d['dst_nodata']
+                resample_method = d['resample_method']
+                # alignment raster extent and pixel size
+                left_align = gt[0]
+                top_align = gt[3]
+                p_x_align = gt[1]
+                p_y_align = abs(gt[5])
+                right_align = gt[0] + gt[1] * xy_count[0]
+                bottom_align = gt[3] + gt[5] * xy_count[1]
+                # memory raster
+                right_x = orig_x + grid_columns * x_size
+                bottom_y = orig_y - grid_rows * y_size
+                # minimum extent
+                if orig_x < left_align:
+                    left_r = left_align - int(
+                        2 + (left_align - orig_x) / p_x_align
+                    ) * p_x_align
+                else:
+                    left_r = left_align + int(
+                        (orig_x - left_align) / p_x_align - 2
+                    ) * p_x_align
+                if right_x > right_align:
+                    right_r = right_align + int(
+                        2 + (right_x - right_align) / p_x_align
+                    ) * p_x_align
+                else:
+                    right_r = right_align - int(
+                        (right_align - right_x) / p_x_align - 2
+                    ) * p_x_align
+                if orig_y > top_align:
+                    top_r = top_align + int(
+                        2 + (orig_y - top_align) / p_y_align
+                    ) * p_y_align
+                else:
+                    top_r = top_align - int(
+                        (top_align - orig_y) / p_y_align - 2
+                    ) * p_y_align
+                if bottom_y > bottom_align:
+                    bottom_r = bottom_align + int(
+                        (bottom_y - bottom_align) / p_y_align - 2
+                    ) * p_y_align
+                else:
+                    bottom_r = bottom_align - int(
+                        2 + (bottom_align - bottom_y) / p_y_align
+                    ) * p_y_align
+
+                op = ' -r %s' % resample_method
+                if compress is None:
+                    if cfg.raster_compression:
+                        op += ' -co COMPRESS=%s' % compress_format
+                elif compress:
+                    op += ' -co COMPRESS=%s' % compress_format
+                if src_nodata is not None:
+                    op += ' -srcnodata %s' % str(src_nodata)
+                if dst_nodata is not None:
+                    op += ' -dstnodata %s' % str(dst_nodata)
+                additional_params = '-tr %s %s -te %s %s %s %s' % (
+                    str(p_x_align), str(p_y_align), str(left_r), str(bottom_r),
+                    str(right_r), str(top_r))
+                op = ' %s %s' % (additional_params, op)
+                to = gdal.WarpOptions(gdal.ParseCommandLine(op))
+                gdal.PushErrorHandler('CPLQuietErrorHandler')
+                gdal.Warp(output_path, _grid, options=to)
+                gdal.PushErrorHandler()
+                if progress_queue is not None and progress_queue.empty():
+                    progress_queue.put([n, len(argument_list)], False)
+                results.append([output_path])
             if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
+
         except Exception as err:
             errors = str(err)
     return [results, errors, str(process)]
@@ -1952,10 +1999,8 @@ def create_warped_vrt_iter(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         gdal_path = d['gdal_path']
         cfg.logger.log.debug('start')
         if gdal_path is not None:
@@ -2090,10 +2135,8 @@ def create_vrt_iter(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         gdal_path = d['gdal_path']
         cfg.logger.log.debug('start')
         if gdal_path is not None:
@@ -2158,10 +2201,8 @@ def raster_reclass(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         gdal_path = d['gdal_path']
         cfg.logger.log.debug('start')
         if gdal_path is not None:
@@ -2222,10 +2263,8 @@ def edit_raster(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         gdal_path = d['gdal_path']
         cfg.logger.log.debug('start')
         if gdal_path is not None:
@@ -2412,10 +2451,8 @@ def raster_point_values(
     cfg.logger = logger
     cfg.temp = temp
     results = []
-    n = 0
     errors = False
-    for d in argument_list:
-        n += 1
+    for n, d in enumerate(argument_list, start=1):
         try:
             pixel_value = raster_vector.get_pixel_value(
                 point_coordinates=d['point_coordinate'],

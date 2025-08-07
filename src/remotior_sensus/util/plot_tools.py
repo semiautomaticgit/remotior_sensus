@@ -19,7 +19,6 @@
 Tools to manage plots
 """
 
-
 try:
     import matplotlib.pyplot as plt
     import matplotlib.pyplot as mpl_plot
@@ -65,7 +64,7 @@ def prepare_scatter_plot(x_label=None, y_label=None):
 def add_lines_to_plot(
         name_list, wavelength_list, value_list, color_list,
         legend_max_chars=15
-        ):
+):
     plots = []
     plot_names = []
     v_lines = []
@@ -112,7 +111,7 @@ def create_plot(
     ax.legend(
         plots, plot_names, bbox_to_anchor=(0.0, 0.0, 1.1, 1.0), loc=1,
         borderaxespad=0.
-        ).set_draggable(True)
+    ).set_draggable(True)
     ax.set_xticks(x_ticks)
     ax.set_yticks(y_ticks)
     if return_plot is True:
@@ -133,7 +132,7 @@ def create_scatter_plot(
     ax.legend(
         plots, plot_names, bbox_to_anchor=(0.0, 0.0, 1.1, 1.0), loc=1,
         borderaxespad=0.
-        ).set_draggable(True)
+    ).set_draggable(True)
     ax.set_xticks(x_ticks)
     ax.set_yticks(y_ticks)
     plt.show()

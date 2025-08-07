@@ -40,4 +40,4 @@ def get_system_info():
         'temp.dir: %s'
         % (cfg.version, cfg.sys_name, cfg.sys_64bit, cfg.n_processes,
            cfg.available_ram, cfg.temp.dir)
-        )
+    )

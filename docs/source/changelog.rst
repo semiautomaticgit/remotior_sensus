@@ -1,6 +1,14 @@
 Changelog
 ===============
 
+v0.5.2
+________
+
+* Performance improvement for the tool "Vector to raster" with the method
+  area_based.
+* Improvement of the multiprocess iterator.
+* Minor fixes
+
 v0.5.1
 ________
 

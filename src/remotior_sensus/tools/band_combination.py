@@ -205,9 +205,8 @@ def band_combination(
     # random variable list
     rnd_var_list = None
     # array of combinations
-    dtype_list = []
-    for c in range(len(input_raster_list)):
-        dtype_list.append(('f%s' % str(c), calc_data_type))
+    dtype_list = [(f'f{i}', calc_data_type)
+                  for i in range(len(input_raster_list))]
     cmb_arr = np.rec.fromarrays(np.asarray(cmb).T, dtype=dtype_list)
     cmb_arr_ravel = np.asarray(cmb).ravel()
     max_v = np.nanmax(cmb_arr_ravel)
@@ -224,12 +223,12 @@ def band_combination(
     t = 0
     method = 1
     while t < 5000:
-        if cfg.action is True:
+        if cfg.action:
             t += 1
             rnd_var_list = []
             expression_comb = []
             for y in range(len(input_raster_list)):
-                if cfg.action is True:
+                if cfg.action:
                     if method == 1:
                         exp_r = int(np.random.random() * 10) + 1
                         if exp_r > max_dig:
@@ -256,15 +255,12 @@ def band_combination(
                         while np.sum(
                                 rnd_var * (np.array(
                                     max_v, dtype=calc_data_type
-                                    ) + add_c)
+                                ) + add_c)
                         ) > calc_nodata:
                             rnd_var = int(rnd_var / 2)
                     rnd_var_list.append(rnd_var)
                     # expression combination
-                    expression_comb.append(
-                        '("f%s" + %s) * %s' % (
-                            str(y), str(add_c), str(rnd_var))
-                    )
+                    expression_comb.append(f'("f{y}" + {add_c}) * {rnd_var}')
                     expression_comb.append(' + ')
             expression_comb.pop(-1)
             joined_expression_comb = ''.join(expression_comb)
@@ -289,12 +285,10 @@ def band_combination(
             cfg.progress.update(failed=True)
             return OutputManager(check=False)
     expression = []
-    for r in range(len(rnd_var_list)):
-        if cfg.action is True:
+    for r, val in enumerate(rnd_var_list):
+        if cfg.action:
             expression.append(
-                '(%s[::, ::, %s] + %s) * %s' % (
-                    cfg.array_function_placeholder, str(r), str(add_c),
-                    str(rnd_var_list[r]))
+                f'({cfg.array_function_placeholder}[::, ::, {r}] + {add_c}) * {val}'
             )
             expression.append(' + ')
     expression.pop(-1)
@@ -416,8 +410,8 @@ def _combination_table(
     if 'degree' not in crs_unit:
         output_field_names = ['RasterValue']
         input_field_names = ['new_val']
-        for c in range(len(combination_names)):
-            output_field_names.append(combination_names[c])
+        for c, combination_c in enumerate(combination_names):
+            output_field_names.append(combination_c)
             input_field_names.append('f%s' % str(c))
         output_field_names.append('PixelSum')
         output_field_names.append('Area [%s^2]' % crs_unit)
@@ -431,8 +425,8 @@ def _combination_table(
     else:
         output_field_names = ['RasterValue']
         input_field_names = ['new_val']
-        for c in range(len(combination_names)):
-            output_field_names.append(combination_names[c])
+        for c, combination_c in enumerate(combination_names):
+            output_field_names.append(combination_c)
             input_field_names.append('f%s' % str(c))
         output_field_names.append('PixelSum')
         input_field_names.append('sum')

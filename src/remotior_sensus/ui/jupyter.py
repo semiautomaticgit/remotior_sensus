@@ -229,14 +229,13 @@ class JupyterInterface(object):
             selected = change['new']
             selected_files_dirs = []
             for s in selected:
-                s_path = '%s/%s' % (
+                s_path = os.path.join(
                     browser_dir, s.replace(dir_icon, '').replace(file_icon, '')
                 )
                 if os.path.isdir(s_path):
                     selected_files_dirs = [s_path]
                     break
-                else:
-                    selected_files_dirs.append(s_path)
+                selected_files_dirs.append(s_path)
 
         selected_file_paths = widgets.Text(
             placeholder='Comma separated paths',
@@ -261,9 +260,7 @@ class JupyterInterface(object):
                          os.path.isfile(os.path.join(browser_dir, f))]
             directory_list = [dir_icon + d for d in paths if
                               os.path.isdir(os.path.join(browser_dir, d))]
-            file_options = []
-            file_options.extend(sorted(directory_list))
-            file_options.extend(sorted(file_list))
+            file_options = sorted(directory_list) + sorted(file_list)
             browser.options = file_options
 
         def activate_cancel_dir(_):
@@ -1600,9 +1597,9 @@ class JupyterInterface(object):
                     cfg.default_signature_catalog.macroclasses_color_string
                 )
                 value_color_dictionary = {}
-                for class_i in value_color:
-                    value_color_dictionary[class_i] = tuple(
-                        int(value_color[class_i][c:c + 2], 16) for c in
+                for i in value_color:
+                    value_color_dictionary[i] = tuple(
+                        int(value_color[i][c:c + 2], 16) for c in
                         (1, 3, 5)
                     )
                 value_name_dictionary = (
@@ -1614,10 +1611,10 @@ class JupyterInterface(object):
                 colors = cfg.default_signature_catalog.table.color.tolist()
                 value_name_dictionary = {}
                 value_color_dictionary = {}
-                for class_i in range(len(classes)):
-                    value_name_dictionary[classes[class_i]] = names[class_i]
-                    value_color_dictionary[classes[class_i]] = tuple(
-                        int(colors[class_i][c:c + 2], 16) for c in (1, 3, 5)
+                for i, class_i in enumerate(classes):
+                    value_name_dictionary[class_i] = names[i]
+                    value_color_dictionary[class_i] = tuple(
+                        int(colors[i][c:c + 2], 16) for c in (1, 3, 5)
                     )
             return value_name_dictionary, value_color_dictionary
 

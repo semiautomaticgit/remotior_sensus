@@ -5,11 +5,11 @@
 #
 # This file is part of Remotior Sensus.
 # Remotior Sensus is free software: you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by 
+# under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License,
 # or (at your option) any later version.
 # Remotior Sensus is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty 
+# but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 # See the GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
@@ -102,13 +102,13 @@ def open_file(
         table = _open_dbf(
             file_path=file_path, field_name_list=field_names,
             progress_message=progress_message
-            )
+        )
     else:
         table = _open_csv(
             file_path=file_path, separators=separators,
             field_name_list=field_names, progress_message=progress_message,
             skip_first_line=skip_first_line
-            )
+        )
     return table
 
 
@@ -125,7 +125,7 @@ def _open_dbf(file_path, field_name_list=None, progress_message=True):
     # fields
     dtype_list = []
     for c in range(field_count):
-        if cfg.action is False:
+        if not cfg.action:
             break
         tp = i_layer_def.GetFieldDefn(c).GetTypeName()
         width = i_layer_def.GetFieldDefn(c).GetWidth()
@@ -149,7 +149,7 @@ def _open_dbf(file_path, field_name_list=None, progress_message=True):
     feature_count = i_layer.GetFeatureCount()
     i_feature = i_layer.GetNextFeature()
     while i_feature:
-        if cfg.action is True:
+        if cfg.action:
             i += 1
             progress = int(100 * i / feature_count)
             if progress_message:
@@ -195,7 +195,7 @@ def _open_csv(
         max_progress = 80
         i = 0
         for line in split_new_line:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             i += 1
             if progress_message:
@@ -222,7 +222,7 @@ def _open_csv(
                     else:
                         data_list.append(feature_list)
                         for f in range(1, len(feature_list) + 1):
-                            if cfg.action is False:
+                            if not cfg.action:
                                 break
                             field_list.append('field%s' % f)
                 else:
@@ -234,7 +234,7 @@ def _open_csv(
     max_progress = 99
     field_count = len(field_list)
     for t in range(len(field_list)):
-        if cfg.action is False:
+        if not cfg.action:
             break
         if progress_message:
             cfg.progress.update(
@@ -403,7 +403,7 @@ def pivot_matrix(
     # primary rows
     if secondary_row_field_list is None:
         for column_function in column_function_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             out_column_name = '%s_%s' % (
                 column_function[0], column_function[1])
@@ -414,16 +414,16 @@ def pivot_matrix(
     # secondary rows
     else:
         for column_function in column_function_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             for combination in secondary_row_list:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 out_column_name = '%s_%s' % (
                     column_function[0], column_function[1].replace('.', ''))
                 function_string = ['[ ']
-                for n in range(len(secondary_row_field_list)):
-                    if cfg.action is False:
+                for n, secondary_field in enumerate(secondary_row_field_list):
+                    if not cfg.action:
                         break
                     try:
                         try:
@@ -436,11 +436,11 @@ def pivot_matrix(
                             out_column_name = str(combination[n])
                         else:
                             out_column_name = '%s_%s%s' % (
-                                out_column_name, secondary_row_field_list[n],
+                                out_column_name, secondary_field,
                                 combination[n])
                         function_string.append(
                             '(r["%s"] == %s)' % (
-                                secondary_row_field_list[n], comb_string)
+                                secondary_field, comb_string)
                         )
                         function_string.append(' &')
                     except Exception as err:
@@ -455,11 +455,11 @@ def pivot_matrix(
                             out_column_name = str(combination)
                         else:
                             out_column_name = '%s_%s%s' % (
-                                out_column_name, secondary_row_field_list[n],
+                                out_column_name, secondary_field,
                                 combination)
                         function_string.append(
                             '(r["%s"] == %s)' % (
-                                secondary_row_field_list[n], comb_string)
+                                secondary_field, comb_string)
                         )
                         function_string.append(' &')
                 if function_string[-1] == ' &':
@@ -487,7 +487,7 @@ def pivot_matrix(
     # populate table
     row_value_count = len(row_value_list)
     for v in range(row_value_count):
-        if cfg.action is False:
+        if not cfg.action:
             break
         if progress_message:
             cfg.progress.update(
@@ -503,21 +503,20 @@ def pivot_matrix(
         r = matrix_1[matrix_1[row_field] == row_value_list[v]]
         assert r.shape
         d = 0
-        for column in range(len(column_function_list)):
-            if cfg.action is False:
+        for column, column_function_c in enumerate(column_function_list):
+            if not cfg.action:
                 break
-            operator = replace_numpy_operators(column_function_list[column][1])
+            operator = replace_numpy_operators(column_function_c[1])
             try:
-                datatype = column_function_list[column][2]
+                datatype = column_function_c[2]
             except Exception as err:
                 str(err)
-                datatype = matrix_1[column_function_list[column][0]].dtype
+                datatype = matrix_1[column_function_c[0]].dtype
             if secondary_row_field_list is None:
                 try:
                     s = eval(
                         '%s(r["%s"].astype("%s"))' % (
-                            operator, column_function_list[column][0],
-                            datatype)
+                            operator, column_function_c[0], datatype)
                     )
                 except Exception as err:
                     str(err)
@@ -525,12 +524,12 @@ def pivot_matrix(
                 pivot[output_column_list[column + 1][0]][v] = s
             else:
                 for _ in secondary_row_list:
-                    if cfg.action is False:
+                    if not cfg.action:
                         break
                     try:
                         s = eval(
                             '%s((r["%s"]%s).astype("%s"))'
-                            % (operator, column_function_list[column][0],
+                            % (operator, column_function_c[0],
                                secondary_row_filter_list[d], datatype)
                         )
                     except Exception as err:
@@ -582,7 +581,7 @@ def get_values(
 # replace variables in expression for calculation
 def replace_variables(matrix, expression_string):
     for field in columns(matrix):
-        if cfg.action is False:
+        if not cfg.action:
             break
         expression_string = expression_string.replace(
             '%s%s%s' % (
@@ -595,6 +594,7 @@ def replace_variables(matrix, expression_string):
 
 
 # calculate single expression
+# noinspection PyShadowingBuiltins
 def calculate(
         matrix, expression_string, output_field_name, progress_message=True
 ):
@@ -676,6 +676,7 @@ def calculate(
 
 
 # calculate multiple expressions
+# noinspection PyShadowingBuiltins
 def calculate_multi(
         matrix, expression_string_list, output_field_name_list,
         progress_message=True
@@ -738,7 +739,7 @@ def calculate_multi(
     _nan = nan
     expression_count = len(expression_string_list)
     for e in range(expression_count):
-        if cfg.action is False:
+        if not cfg.action:
             break
         if progress_message:
             cfg.progress.update(
@@ -793,7 +794,7 @@ def redefine_matrix_columns(
     field_list = []
     c = 0
     for field in input_field_names:
-        if cfg.action is False:
+        if not cfg.action:
             break
         if field in matrix.dtype.names:
             data_type = matrix[field].dtype
@@ -803,12 +804,12 @@ def redefine_matrix_columns(
             cfg.logger.log.error('field %s not found' % field)
     matrix_f = define_fields(matrix, field_list)
     if output_field_names is not None:
-        for f in range(len(output_field_names)):
-            if cfg.action is False:
+        for f, output_field_name in enumerate(output_field_names):
+            if not cfg.action:
                 break
             try:
                 matrix_f = rename_field(
-                    matrix_f, input_field_names[f], output_field_names[f]
+                    matrix_f, input_field_names[f], output_field_name
                 )
             except Exception as err:
                 cfg.logger.log.error(str(err))
@@ -851,7 +852,7 @@ def matrix_to_csv(
         separator = cfg.tab_delimiter
     dtypes = []
     for name in matrix.dtype.names:
-        if cfg.action is False:
+        if not cfg.action:
             break
         data_type = matrix[name].dtype
         if 'int' in str(data_type).lower() or '<i' in str(data_type).lower():
@@ -869,7 +870,7 @@ def matrix_to_csv(
     header = []
     # iterate fields
     for field in fields:
-        if cfg.action is False:
+        if not cfg.action:
             break
         cfg.logger.log.debug('field: %s' % str(field))
         # header
@@ -925,7 +926,7 @@ def matrix_to_csv(
             s = decimal_separator
         if type(field_decimals) is list:
             for fd in field_decimals[c]:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 csv = csv.replace(
                     '%s%s%s' % (cfg.nodata_val_Int64, s, '0' * fd),
@@ -938,8 +939,14 @@ def matrix_to_csv(
             )
         csv = csv.replace(str(cfg.nodata_val_Int64), str(nodata_value_output))
     files_directories.create_parent_directory(output_path)
-    with open(output_path, 'w') as file:
-        file.write(csv)
+    try:
+        with open(output_path, 'w') as file:
+            file.write(csv)
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        # try encoding
+        with open(output_path, 'w', encoding='utf-8') as file:
+            file.write(csv)
     if progress_message:
         cfg.progress.update(end=True)
     cfg.logger.log.info('end')
@@ -1089,8 +1096,8 @@ def create_product_table(
 ):
     rec_array = np.rec.fromrecords(
         [(product, image, product_id, acquisition_date, cloud_cover,
-            zone_path, row, min_lat, min_lon, max_lat, max_lon,
-            collection, size, preview, uid, ref_url)],
+          zone_path, row, min_lat, min_lon, max_lat, max_lon,
+          collection, size, preview, uid, ref_url)],
         dtype=cfg.product_dtype_list
     )
     cfg.logger.log.debug('rec_array.shape: %s' % rec_array.shape)
@@ -1213,6 +1220,7 @@ def create_band_table(
         if 'empty' not in str(err):
             cfg.logger.log.error(str(err))
         # create empty table
+        # noinspection PyTypeChecker
         rec_array = np.rec.fromrecords(np.zeros((0,)), dtype=dtype_list)
     return rec_array
 

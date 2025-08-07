@@ -175,16 +175,16 @@ def band_mask(
     output_datatype = []
     variables = []
     variable_list = []
-    for b in range(0, len(input_raster_list)):
+    for _b in range(len(input_raster_list)):
         if nodata_value is None:
-            nodata_value = raster_info[b][4]
+            nodata_value = raster_info[_b][4]
         output_nodata_list.append(nodata_value)
-        output_datatype.append(raster_info[b][8])
+        output_datatype.append(raster_info[_b][8])
         calculation_datatype.append(
-            shared_tools.data_type_conversion(raster_info[b][8]))
-        scale_list.append(raster_info[b][7][0])
-        offset_list.append(raster_info[b][7][1])
-        variables.append('"band%i"' % b)
+            shared_tools.data_type_conversion(raster_info[_b][8]))
+        scale_list.append(raster_info[_b][7][0])
+        offset_list.append(raster_info[_b][7][1])
+        variables.append('"band%i"' % _b)
         # function
         expression = ''
         closing = ''
@@ -193,7 +193,7 @@ def band_mask(
                 cfg.array_function_placeholder, c, nodata_value)
             closing += ')'
         expression += '%s[::, ::, %i]%s' % (
-            cfg.array_function_placeholder, b + 1, closing)
+            cfg.array_function_placeholder, _b + 1, closing)
         argument_list.append(expression)
         variable_list.append(variables)
     cfg.logger.log.debug('argument_list: %s' % argument_list)

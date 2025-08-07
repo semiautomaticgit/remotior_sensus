@@ -9,7 +9,7 @@ class TestBandClip(TestCase):
     def test_band_clip(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         cfg.logger.log.debug('>>> test band clip')
         catalog = rs.bandset_catalog()
@@ -19,7 +19,7 @@ class TestBandClip(TestCase):
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], bandset_number=1,
             root_directory=str(data_path)
-            )
+        )
         cfg.logger.log.debug('>>> test band clip input BandSet')
         # box coordinate list
         extent_list = [230250, 4674510, 230320, 4674440]
@@ -37,7 +37,7 @@ class TestBandClip(TestCase):
         catalog.create_bandset(
             [str(data_path / 'S2_2020-01-05' / 'S2_2020-01-05.tif')],
             wavelengths=['Sentinel-2'], bandset_number=2
-            )
+        )
         output = rs.band_clip(input_bands=catalog.get_bandset(2),
                               output_path=cfg.temp.dir, prefix='clip_b_',
                               extent_list=extent_list)

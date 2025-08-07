@@ -47,6 +47,7 @@ except Exception as error:
     cfg.logger.log.error(str(error))
 try:
     from osgeo import gdal
+
     gdal.DontUseExceptions()
 except Exception as error:
     try:
@@ -320,7 +321,7 @@ class SpectralSignaturesCatalog(object):
         # get signatures and geometries from list
         count = 0
         for signature_id in signature_id_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             count += 1
             try:
@@ -420,13 +421,12 @@ class SpectralSignaturesCatalog(object):
             value_arrays = []
             std_arrays = []
             for signature in signature_ids:
-                if cfg.action is False:
+                if not cfg.action:
                     break
-                value_arrays.append(self.signatures[signature].value)
-                std_arrays.append(
-                    self.signatures[signature].standard_deviation
-                )
-                wavelength = self.signatures[signature].wavelength
+                sig_s = self.signatures[signature]
+                value_arrays.append(sig_s.value)
+                std_arrays.append(sig_s.standard_deviation)
+                wavelength = sig_s.wavelength
             unit = self.table[
                 self.table['signature_id'] == signature_ids[0]].unit[0]
             wavelength_list = wavelength.tolist()
@@ -458,7 +458,7 @@ class SpectralSignaturesCatalog(object):
         files_directories.create_directory(output_directory)
         output_list = []
         for signature_id in signature_id_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             try:
                 values = self.signatures[signature_id].value.tolist()
@@ -480,14 +480,13 @@ class SpectralSignaturesCatalog(object):
                     output_directory, macroclass_id, macroclass_name,
                     class_id, class_name
                 )
-                text = ''
-                for v in range(len(values)):
-                    if cfg.action is False:
+                rows = []
+                for v, value in enumerate(values):
+                    if not cfg.action:
                         break
-                    text += '%s%s%s%s%s\n' % (
-                        values[v], separator, wavelength[v], separator,
-                        standard_deviation[v]
-                    )
+                    sig = f'{value}{separator}{wavelength[v]}{separator}{standard_deviation[v]}'
+                    rows.append(sig)
+                text = '\n'.join(rows) + ('\n' if rows else '')
                 read_write_files.write_file(text, output_file)
                 output_list.append(output_file)
             except Exception as err:
@@ -506,8 +505,7 @@ class SpectralSignaturesCatalog(object):
         if files_directories.is_file(csv_path):
             csv = tm.open_file(
                 file_path=csv_path, separators=separator,
-                field_names=['value', 'wavelength',
-                             'standard_deviation'],
+                field_names=['value', 'wavelength', 'standard_deviation'],
                 progress_message=False, skip_first_line=False
             )
             bandset_wavelength = self.bandset.bands['wavelength']
@@ -517,7 +515,7 @@ class SpectralSignaturesCatalog(object):
             standard_deviation_list = []
             if 'wavelength' in tm.columns(csv):
                 for b in bandset_wavelength.tolist():
-                    if cfg.action is False:
+                    if not cfg.action:
                         break
                     arg_min = np.abs(csv.wavelength - b).argmin()
                     wavelength_list.append(b)
@@ -563,7 +561,7 @@ class SpectralSignaturesCatalog(object):
         geometry_file = None
         table = None
         for f in file_list:
-            if cfg.action is True:
+            if cfg.action:
                 f_name = files_directories.file_name(f, suffix=True)
                 if f_name == 'geometry.gpkg':
                     geometry_file = f
@@ -586,7 +584,7 @@ class SpectralSignaturesCatalog(object):
                         )
                     else:
                         for child in root:
-                            if cfg.action is False:
+                            if not cfg.action:
                                 break
                             macroclass_id = child.get('id')
                             macroclass_name = child.get('name')
@@ -652,7 +650,7 @@ class SpectralSignaturesCatalog(object):
             # import geometries
             i_feature = i_layer.GetNextFeature()
             while i_feature:
-                if cfg.action is True:
+                if cfg.action:
                     # get geometry
                     geom = i_feature.GetGeometryRef()
                     if coord_transform is not None:
@@ -761,7 +759,7 @@ class SpectralSignaturesCatalog(object):
             # import geometries
             i_feature = i_layer.GetNextFeature()
             while i_feature:
-                if cfg.action is True:
+                if cfg.action:
                     signature_id = generate_signature_id()
                     # get geometry
                     geom = i_feature.GetGeometryRef()
@@ -863,14 +861,14 @@ class SpectralSignaturesCatalog(object):
         path_list = self.bandset.get_absolute_paths()
         raster_bands = self.bandset.bands['raster_band'].tolist()
         virtual_path_list = []
-        for p in range(len(path_list)):
-            if cfg.action is False:
+        for p, path_p in enumerate(path_list):
+            if not cfg.action:
                 break
             temp_path = cfg.temp.temporary_file_path(
                 name_suffix=cfg.tif_suffix
             )
             virtual = raster_vector.create_virtual_raster(
-                input_raster_list=[path_list[p]], output=temp_path,
+                input_raster_list=[path_p], output=temp_path,
                 box_coordinate_list=[min_x, max_y, max_x, min_y],
                 band_number_list=[[raster_bands[p]]]
             )
@@ -915,7 +913,7 @@ class SpectralSignaturesCatalog(object):
         path_list = [band_x_path, band_y_path]
         virtual_path_list = []
         for p in path_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             temp_path = cfg.temp.temporary_file_path(
                 name_suffix=cfg.tif_suffix
@@ -970,7 +968,7 @@ class SpectralSignaturesCatalog(object):
         root.set('crs', str(self.crs))
         if self.signatures is not None:
             for signature_id in self.signatures:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 if (signature_id_list is None
                         or signature_id in signature_id_list):
@@ -1039,7 +1037,7 @@ class SpectralSignaturesCatalog(object):
         temp_dir = cfg.temp.create_temporary_directory()
         file_list = files_directories.unzip_file(file_path, temp_dir)
         for f in file_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             f_name = files_directories.file_name(f, suffix=True)
             if f_name == 'geometry.gpkg':
@@ -1068,7 +1066,7 @@ class SpectralSignaturesCatalog(object):
                     self.macroclasses = {}
                     self.macroclasses_color_string = {}
                     for child in root:
-                        if cfg.action is False:
+                        if not cfg.action:
                             break
                         macroclass_id = child.get('id')
                         macroclass_name = child.get('name')
@@ -1188,7 +1186,7 @@ class SpectralSignaturesCatalog(object):
             plot_catalog = SpectralSignaturePlotCatalog()
             ax = plot_tools.prepare_plot()
             for signature in signature_id_list:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 self.export_signature_values_for_plot(
                     signature_id=signature, plot_catalog=plot_catalog
@@ -1392,7 +1390,7 @@ class SpectralSignaturePlotCatalog(object):
         """
         property_list = []
         for signature in self.catalog:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if selected is True:
                 if self.catalog[signature].selected == 1:
@@ -1424,7 +1422,7 @@ class SpectralSignaturePlotCatalog(object):
         """
         property_list = []
         for signature in self.catalog:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if selected is True:
                 if self.catalog[signature].selected == 1:
@@ -1446,7 +1444,7 @@ class SpectralSignaturePlotCatalog(object):
         """
         property_list = []
         for signature in self.catalog:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if selected is True:
                 if self.catalog[signature].selected == 1:
@@ -1468,7 +1466,7 @@ class SpectralSignaturePlotCatalog(object):
         """
         property_list = []
         for signature in self.catalog:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if selected is True:
                 if self.catalog[signature].selected == 1:
@@ -1492,7 +1490,7 @@ class SpectralSignaturePlotCatalog(object):
         """
         property_list = []
         for signature in self.catalog:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if selected is True:
                 if self.catalog[signature].selected == 1:
@@ -1516,7 +1514,7 @@ class SpectralSignaturePlotCatalog(object):
         """
         property_list = []
         for signature in self.catalog:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if selected is True:
                 if self.catalog[signature].selected == 1:

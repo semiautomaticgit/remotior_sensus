@@ -122,9 +122,9 @@ def band_clip(
     function_list = []
     output_raster_list = []
     if virtual_output is True and extent_list is not None:
-        for raster in range(0, len(input_raster_list)):
+        for raster, input_raster_i in enumerate(input_raster_list):
             output_file = '%s.vrt' % (output_list[raster][:-4])
-            move_file(input_raster_list[raster], output_file)
+            move_file(input_raster_i, output_file)
             output_raster_list.append(output_file)
     else:
         if vector_field is not None:
@@ -132,14 +132,14 @@ def band_clip(
             unique_values = get_vector_values(
                 vector_path=vector_path, field_name=vector_field)
             for value in unique_values:
-                for raster in range(0, len(input_raster_list)):
+                for raster, input_raster_i in enumerate(input_raster_list):
                     output_p = '%s_%s_%s.tif' % (
-                            output_list[raster][:-4], str(vector_field),
-                            str(value))
+                        output_list[raster][:-4], str(vector_field),
+                        str(value))
                     output_raster_list.append(output_p)
                     argument_list.append(
                         {
-                            'input_raster': input_raster_list[raster],
+                            'input_raster': input_raster_i,
                             'extent_list': None,
                             'vector_path': vector_path,
                             'available_ram': ram,
@@ -151,10 +151,10 @@ def band_clip(
                     )
                     function_list.append(clip_raster)
         else:
-            for raster in range(0, len(input_raster_list)):
+            for raster, input_raster_i in enumerate(input_raster_list):
                 argument_list.append(
                     {
-                        'input_raster': input_raster_list[raster],
+                        'input_raster': input_raster_i,
                         'extent_list': extent_list,
                         'vector_path': vector_path,
                         'available_ram': ram,

@@ -10,7 +10,7 @@ class TestRasterVector(TestCase):
     def test_raster_vector(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         data_path = Path(__file__).parent / 'data'
         p = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
@@ -24,13 +24,13 @@ class TestRasterVector(TestCase):
         cfg.logger.log.debug('>>> test create_virtual_raster')
         raster_vector.create_virtual_raster(
             input_raster_list=raster_list, output=temp, relative_to_vrt=False
-            )
+        )
         self.assertTrue(files_directories.is_file(temp))
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
         cfg.logger.log.debug('>>> test create_virtual_raster_2_mosaic')
         raster_vector.create_virtual_raster_2_mosaic(
             input_raster_list=raster_list, output=temp
-            )
+        )
         self.assertTrue(files_directories.is_file(temp))
         p = str(data_path / 'S2_2020-01-01' / 'S2_B02.tif')
         cfg.logger.log.debug('>>> test read raster')
@@ -46,11 +46,11 @@ class TestRasterVector(TestCase):
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'],
             root_directory=str(data_path), box_coordinate_list=coordinate_list
-            )
+        )
         temp_2 = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
         raster_vector.create_virtual_raster(
             bandset=catalog.get(1), output=temp_2
-            )
+        )
         self.assertTrue(files_directories.is_file(temp_2))
 
         # clear temporary directory

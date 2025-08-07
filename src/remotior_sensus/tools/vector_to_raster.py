@@ -36,7 +36,7 @@ from remotior_sensus.core.bandset_catalog import BandSet
 from remotior_sensus.core.bandset_catalog import BandSetCatalog
 from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
-    vector_to_raster_iter, create_warped_vrt_iter
+    vector_to_raster_iter
 )
 from remotior_sensus.util import files_directories, shared_tools, raster_vector
 
@@ -135,11 +135,6 @@ def vector_to_raster(
         compress_format = 'DEFLATE21'
     (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_vector.raster_info(align_raster)
-    # find bounding box
-    left = gt[0]
-    top = gt[3]
-    right = gt[0] + gt[1] * xy_count[0]
-    bottom = gt[3] + gt[5] * xy_count[1]
     if pixel_size is None:
         x_y_size = (round(gt[1], 3), round(abs(gt[5]), 3))
     else:
@@ -160,7 +155,6 @@ def vector_to_raster(
     elif method.lower() == 'area_based':
         all_touched = None
         compress = True
-        minimum_extent = False
         max_progress = 50
         # calculate pixel size precision
         size_precision = round(x_y_size[0] / area_precision, 2)
@@ -202,15 +196,6 @@ def vector_to_raster(
             vector_path, input_vector, input_epsg=vector_crs,
             output_epsg=reference_crs
         )
-    min_x, max_x, min_y, max_y = raster_vector.get_layer_extent(vector_path)
-    if min_x < left:
-        left = min_x
-    if max_x > right:
-        right = max_x
-    if min_y < bottom:
-        bottom = min_y
-    if max_y > top:
-        top = max_y
     if method is not None and method.lower() == 'area_based':
         # force nodata value (workaround for later gdal copy issue)
         nodata_value_set = cfg.nodata_val_Int32
@@ -252,6 +237,8 @@ def vector_to_raster(
         function_list = []
         argument_list = []
         ram = int(available_ram / n_processes)
+        # create virtual raster
+        virtual_raster_list = []
         for i, feature in enumerate(feature_list):
             temporary_raster = cfg.temp.temporary_raster_path(
                 name_prefix=str(feature[2][0]), extension=cfg.tif_suffix
@@ -265,58 +252,31 @@ def vector_to_raster(
                     'background_value': nodata_value_set,
                     'x_y_size': t_pixel_size,
                     'buffer_size': x_y_size[0],
+                    'minimum_extent': minimum_extent,
                     'available_ram': ram,
                     'output': temporary_raster,
+                    'src_nodata': None,
+                    'dst_nodata': nodata_value_set,
+                    'resample_method': resampling,
                     'gdal_path': cfg.gdal_path,
                     'compress': True,
                     'compress_format': 'LZW'
                 }
             )
             function_list.append(vector_to_raster_iter)
+            virtual_raster_list.append(temporary_raster)
         cfg.multiprocess.run_iterative_process(
             function_list=function_list, argument_list=argument_list,
-            min_progress=10, max_progress=45, message='converting to raster'
+            min_progress=10, max_progress=75, message='converting to raster'
         )
         results = cfg.multiprocess.output
-        output_raster_list = []
-        for result in results:
-            for r in result:
-                output_raster_list.append(r[0])
+        output_raster_list = [r[0] for result in results for r in result]
         output_data_type = 'Int32'
-        # create virtual raster
-        virtual_raster_list = []
-        argument_list = []
-        function_list = []
-        for r in output_raster_list:
-            k = files_directories.get_base_name(r)
-            v_path = cfg.temp.temporary_raster_path(
-                name_prefix=k[0:10],
-                extension=cfg.vrt_suffix)
-            argument_list.append(
-                {
-                    'raster_path': r,
-                    'output_path': v_path,
-                    'align_raster_path': reference_path,
-                    'src_nodata': None,
-                    'dst_nodata': nodata_value_set,
-                    'same_extent': False,
-                    'resample_method': resampling,
-                    'available_ram': ram,
-                    'gdal_path': cfg.gdal_path
-                }
-            )
-            function_list.append(create_warped_vrt_iter)
-            virtual_raster_list.append(v_path)
-        cfg.multiprocess.run_iterative_process(
-            function_list=function_list, argument_list=argument_list,
-            min_progress=46, max_progress=70, message='warping raster files'
-        )
         virtual_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
         raster_vector.create_virtual_raster_2_mosaic(
-            input_raster_list=virtual_raster_list, output=virtual_path,
+            input_raster_list=output_raster_list, output=virtual_path,
             src_nodata=nodata_value_set, dst_nodata=nodata_value_set,
             data_type=output_data_type,
-            box_coordinate_list=[left, top, right, bottom],
             pixel_size=x_y_size, grid_reference=reference_path
         )
         # copy raster

@@ -108,7 +108,7 @@ def raster_split(
         if virtual_output is not True:
             raster_vector.gdal_copy_raster(
                 input_raster=virtual_path, output=output
-                )
+            )
         output_list.append(output)
         cfg.progress.update(
             message='splitting', step=band, steps=bands, minimum=1,

@@ -101,7 +101,7 @@ def band_erosion(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
         n_processes=n_processes, bandset_catalog=bandset_catalog,
         prefix=prefix, box_coordinate_list=extent_list,
-        multiple_output=True,  multiple_input=True,
+        multiple_output=True, multiple_input=True,
         multiple_resolution=multiple_resolution,
         virtual_output=virtual_output
     )

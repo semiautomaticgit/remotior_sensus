@@ -23,7 +23,7 @@ import re
 from os import path
 from random import randint
 from typing import Union, Optional
-
+from itertools import chain
 import numpy as np
 
 try:
@@ -76,53 +76,53 @@ def prepare_input_list(
     xy_count_list = []
     box_coordinates_list = []
     warped = False
-    for i in range(len(band_list)):
-        info = raster_vector.raster_info(band_list[i])
+    for i, band_i in enumerate(band_list):
+        info = raster_vector.raster_info(band_i)
         if info is not False:
             (gt, crs, un, xy_count, nd, number_of_bands, block_size,
              scale_offset, data_type) = info
         else:
             cfg.logger.log.error(
-                'unable to get raster info: %s' % band_list[i]
+                'unable to get raster info: %s' % band_i
             )
             return {
                 'input_list': [], 'information_list': [], 'nodata_list': [],
                 'name_list': [], 'warped': None,
                 'same_geotransformation': None, 'box_coordinates_list': None
             }
-        crs = raster_vector.get_crs(band_list[i])
+        crs = raster_vector.get_crs(band_i)
         # check crs
         same_crs = raster_vector.compare_crs(crs, reference_raster_crs)
         if not same_crs:
             t_pmd = cfg.temp.temporary_raster_path(
-                name=files_directories.file_name(band_list[i]),
+                name=files_directories.file_name(band_i),
                 extension=cfg.vrt_suffix
             )
             reference_raster = cfg.multiprocess.create_warped_vrt(
-                raster_path=band_list[i], output_path=t_pmd,
+                raster_path=band_i, output_path=t_pmd,
                 output_wkt=str(reference_raster_crs), n_processes=n_processes,
                 src_nodata=src_nodata, dst_nodata=dst_nodata
             )
             warped = True
         else:
-            reference_raster = band_list[i]
+            reference_raster = band_i
         if raster_bands is None:
-            name_list.append(files_directories.file_name(band_list[i]))
+            name_list.append(files_directories.file_name(band_i))
         else:
             raster_band = raster_bands[i]
             if number_of_bands > 1:
                 reference_raster = (
                     raster_vector.create_temporary_virtual_raster(
-                        input_raster_list=[band_list[i]],
+                        input_raster_list=[band_i],
                         band_number_list=[[raster_band]]
                     )
                 )
                 name_list.append(
-                    '%s_%s' % (files_directories.file_name(band_list[i]),
+                    '%s_%s' % (files_directories.file_name(band_i),
                                raster_band)
                 )
             else:
-                name_list.append(files_directories.file_name(band_list[i]))
+                name_list.append(files_directories.file_name(band_i))
         input_list.append(reference_raster)
         information_list.append(
             [gt, crs, un, xy_count, nd, number_of_bands, block_size,
@@ -208,13 +208,11 @@ def prepare_process_files(
     vrt_list = []
     if multiple_output:
         if output_path is None:
-            output_path = []
-            for _r in name_list:
-                output_path.append(
-                    cfg.temp.temporary_raster_path(
-                        name=_r, extension=cfg.vrt_suffix
-                    )
-                )
+            output_path = [
+                cfg.temp.temporary_raster_path(name=_r,
+                                               extension=cfg.vrt_suffix)
+                for _r in name_list
+            ]
         if type(output_path) is not list:
             if not files_directories.is_directory(output_path):
                 files_directories.create_directory(output_path)
@@ -351,9 +349,7 @@ def data_type_conversion(data_type):
 
 # expand list of lists
 def expand_list(input_list):
-    expanded_list = []
-    for c in input_list:
-        expanded_list.extend(c)
+    expanded_list = list(chain.from_iterable(input_list))
     return expanded_list
 
 
@@ -450,8 +446,7 @@ def region_growing_polygon(
         for i in band_number_list:
             tmp_vrt = raster_vector.create_temporary_virtual_raster(
                 input_raster_list=[temporary_virtual_raster],
-                box_coordinate_list=extent_list,
-                band_number_list=[[i]]
+                box_coordinate_list=extent_list, band_number_list=[[i]]
             )
             virtual_raster_list.append(tmp_vrt)
             function_variable.append(

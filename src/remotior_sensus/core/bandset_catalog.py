@@ -270,9 +270,8 @@ class BandSet(object):
         """Gets the list of absolute paths."""
         absolute_paths = []
         if self.bands is not None:
-            paths = self.bands['path'].tolist()
-            for path in paths:
-                if cfg.action is False:
+            for path in self.bands['path'].tolist():
+                if not cfg.action:
                     break
                 absolute_path = files_directories.relative_to_absolute_path(
                     path, self.root_directory
@@ -316,10 +315,9 @@ class BandSet(object):
 
     def get_raster_band_list(self) -> list:
         """Gets the list of raster bands."""
-        raster_band = self.bands['raster_band'].tolist()
         band_list = []
-        for n in raster_band:
-            if cfg.action is False:
+        for n in self.bands['raster_band'].tolist():
+            if not cfg.action:
                 break
             band_list.append([n])
         return band_list
@@ -401,7 +399,7 @@ class BandSet(object):
         result = []
         if self.bands is not None:
             for i in range(1, len(self.bands) + 1):
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 result.append('%s%s' % (cfg.variable_band_name, i))
         cfg.logger.log.debug('result: %s' % str(result))
@@ -481,7 +479,7 @@ class BandSet(object):
             root.set('box_coordinate_bottom', str(self.box_coordinate_list[3]))
         if self.bands is not None:
             for band in self.bands:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 band_element = cElementTree.SubElement(root, 'band')
                 band_element.set('band_number', str(band['band_number']))
@@ -544,7 +542,7 @@ class BandSet(object):
         if self.bands is not None:
             max_widths = {}
             for attribute in self.bands.dtype.names:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 max_widths[attribute] = len(attribute)
                 for band in self.bands:
@@ -553,7 +551,7 @@ class BandSet(object):
                     )
             attributes = []
             for band in self.bands:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 attributes.append('│ ')
                 for attribute in self.bands.dtype.names:
@@ -570,7 +568,7 @@ class BandSet(object):
             lines = ['├']
             last_line = ['└']
             for attribute in self.bands.dtype.names:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 names.append(
                     '%s %s'
@@ -641,7 +639,7 @@ class BandSet(object):
                 ]
             bands_list = []
             for child in root:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 band_number = child.get('band_number')
                 attributes = {}
@@ -814,7 +812,7 @@ class BandSet(object):
         try:
             if wavelengths is not None and len(wavelengths) == 1:
                 for sat in cfg.sat_band_list:
-                    if cfg.action is False:
+                    if not cfg.action:
                         break
                     if (wavelengths[0].lower() in sat.lower()
                             or wavelengths[0].lower().replace(' ', '')
@@ -837,16 +835,16 @@ class BandSet(object):
         bands_list = []
         date = None
         counter = 1
-        for f in range(len(file_list)):
-            if cfg.action is False:
+        for f, file_f in enumerate(file_list):
+            if not cfg.action:
                 break
             # band names from raster
             if band_names is None:
-                band_name = _raster_to_band_names(file_list[f])[0]
+                band_name = _raster_to_band_names(file_f)[0]
             else:
                 band_name = band_names[f]
             # path
-            path = file_list[f]
+            path = file_f
             cfg.logger.log.debug('band %s path: %s' % (str(counter), path))
             # date
             if dates is not None:
@@ -904,7 +902,7 @@ class BandSet(object):
                 except Exception as err:
                     wl = f + 1
                     cfg.logger.log.error(err)
-            if cfg.action is True:
+            if cfg.action:
                 # single band
                 if multiband is None:
                     # multiplicative factors
@@ -956,7 +954,7 @@ class BandSet(object):
                             except Exception as err:
                                 cfg.logger.log.error(err)
                                 wl = b + 1
-                        if cfg.action is False:
+                        if not cfg.action:
                             break
                         new_band = _create_table_of_bands(
                             path, band_number=counter, raster_band=b + 1,
@@ -1074,7 +1072,7 @@ class BandSet(object):
         # get bands
         bands = []
         for c in c_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             band = self.get_band_by_wavelength(
                 wavelength=c[0], threshold=c[1],
@@ -1196,7 +1194,7 @@ class BandSet(object):
         """  # noqa: E501
         band_list = []
         for value in value_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if output_attribute is None:
                 bandset_attributes = self.bands['band_number'][
@@ -1554,7 +1552,7 @@ def _raster_to_band_names(path: str, raster_band=1) -> list:
         name_list.append(raster_name)
     else:
         for i in range(raster_band):
-            if cfg.action is False:
+            if not cfg.action:
                 break
             name_list.append(
                 '%s%s%s' % (raster_name, cfg.band_name_suf, str(i))
@@ -1778,7 +1776,7 @@ class BandSetCatalog(object):
         uids = []
         b_uids = []
         for d in date_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             date_l = date_le = date_g = date_ge = date_eq = None
             try:
@@ -1865,7 +1863,7 @@ class BandSetCatalog(object):
         else:
             bandset_list = []
             for b in set(b_uids):
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 bandset_list.append(self.bandsets[b])
         return bandset_list
@@ -2688,7 +2686,7 @@ class BandSetCatalog(object):
         if bandset_list is None:
             bandset_list = range(1, self.get_bandset_count() + 1)
         for i in bandset_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if output_number:
                 bandsets.append(i)
@@ -2715,7 +2713,7 @@ class BandSetCatalog(object):
         """  # noqa: E501
         attributes = []
         for i in range(1, self.get_bandset_count() + 1):
-            if cfg.action is False:
+            if not cfg.action:
                 break
             attributes.extend(self.get_bandset(i, attribute))
         return attributes
@@ -2749,11 +2747,11 @@ class BandSetCatalog(object):
         bandset_list = []
         # iterate names
         for bandset_name in bandset_names.tolist():
-            if cfg.action is False:
+            if not cfg.action:
                 break
             bandset_name_check = bandset_name
             for name in names:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 if lower:
                     name = name.lower()
@@ -2961,7 +2959,7 @@ class BandSetCatalog(object):
                     sat_wl = cfg.no_satellite
                 else:
                     for satellite in cfg.sat_band_list:
-                        if cfg.action is False:
+                        if not cfg.action:
                             break
                         if (satellite_name.lower() in satellite.lower()
                                 and satellite != cfg.no_satellite):
@@ -2976,7 +2974,7 @@ class BandSetCatalog(object):
                     unit = cfg.no_unit
                     counter = 1
                     for band in bands:
-                        if cfg.action is False:
+                        if not cfg.action:
                             break
                         wl = counter
                         counter += 1
@@ -2986,7 +2984,7 @@ class BandSetCatalog(object):
                     unit = sat_unit
                     counter = 1
                     for band in bands:
-                        if cfg.action is False:
+                        if not cfg.action:
                             break
                         wl = counter
                         counter += 1
@@ -3049,7 +3047,7 @@ class BandSetCatalog(object):
         bands = bandset_x.bands
         if bands is not None:
             for band in bands:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 try:
                     wl = wavelength_list[band['band_number'] - 1]
@@ -3080,7 +3078,7 @@ class BandSetCatalog(object):
         bands = bandset_x.bands
         if bands is not None:
             for band in bands:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 try:
                     path = path_list[band['band_number'] - 1]
@@ -3413,7 +3411,7 @@ class BandSetCatalog(object):
         path_list = [band_x_path, band_y_path]
         virtual_path_list = []
         for p in path_list:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             temp_path = cfg.temp.temporary_file_path(
                 name_suffix=cfg.tif_suffix

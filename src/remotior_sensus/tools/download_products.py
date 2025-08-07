@@ -2343,7 +2343,7 @@ def export_product_table_as_xml(product_table, output_path=None):
     root.set('version', str(cfg.version))
     total_products = product_table.shape[0]
     for i in range(total_products):
-        if cfg.action is False:
+        if not cfg.action:
             break
         product_element = cElementTree.SubElement(root, 'product')
         product_element.set('uid', str(product_table['uid'][i]))
@@ -2381,7 +2381,7 @@ def import_as_xml(xml_path):
     else:
         product_table_list = []
         for child in root:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             uid = child.get('uid')
             attributes = {}

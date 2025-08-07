@@ -494,8 +494,7 @@ class Classifier(object):
                         10, rf_number_trees, n_estimators_step
                 ):
                     for min_samples_split in range(
-                            2, 10,
-                            min_samples_split_step
+                            2, 10, min_samples_split_step
                     ):
                         for max_features in list_rf_max_features:
                             for class_weight in [None, 'balanced']:
@@ -1514,12 +1513,11 @@ def _get_x_y_arrays_from_rois(
         # build function argument list of dictionaries
         argument_list = []
         function_list = []
-        for signature_ids_index in range(1, len(signature_ids_index_list)):
+        for sig_index, signature_i in enumerate(signature_ids_index_list):
             # signature ids
             signature_id_list = signature_ids[
-                                signature_ids_index_list[signature_ids_index
-                                                         - 1]:
-                                signature_ids_index_list[signature_ids_index]
+                                signature_ids_index_list[sig_index - 1]:
+                                signature_i
                                 ]
             argument_list.append(
                 {

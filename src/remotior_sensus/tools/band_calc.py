@@ -168,6 +168,8 @@ def band_calc(
         point_coordinates: list of a point coordinates [x, y] for pixel calculations on Bandset
         progress_message: if True then start progress message, if False does 
             not start the progress message (useful if launched from other tools).
+        device: experimental parameter for processing device :py:attr:`cpu` (default) 
+            or :py:attr:`cuda` if available.
 
     Returns:
         :func:`~remotior_sensus.core.output_manager.OutputManager` object with
@@ -400,7 +402,8 @@ def _run_expression(
             output_raster_path=output, output_data_type=output_datatype,
             output_nodata_value=output_nodata, compress=cfg.raster_compression,
             scale=use_scale, offset=use_offset, dummy_bands=dummy_bands,
-            input_nodata_as_value=input_nodata_as_value, virtual_raster=virtual,
+            input_nodata_as_value=input_nodata_as_value,
+            virtual_raster=virtual,
             progress_message=progress_message, min_progress=min_progress,
             max_progress=max_progress, keep_output_array=keep_output_array,
             device=device
@@ -415,7 +418,8 @@ def _run_expression(
             output_raster_path=output, output_data_type=output_datatype,
             output_nodata_value=output_nodata, compress=cfg.raster_compression,
             scale=use_scale, offset=use_offset, dummy_bands=dummy_bands,
-            input_nodata_as_value=input_nodata_as_value, virtual_raster=virtual,
+            input_nodata_as_value=input_nodata_as_value,
+            virtual_raster=virtual,
             progress_message=progress_message, min_progress=min_progress,
             max_progress=max_progress, keep_output_array=keep_output_array
         )
@@ -527,18 +531,18 @@ def _band_names_alias(
     band_names = {}
     # raster files
     if input_raster_list is not None:
-        for i in range(len(input_raster_list)):
+        for i, input_raster_i in enumerate(input_raster_list):
             try:
-                if type(input_raster_list[i]) is list:
+                if type(input_raster_i) is list:
                     band_names['%s%s%s' % (
-                        cfg.variable_band_quotes, input_raster_list[i][1],
+                        cfg.variable_band_quotes, input_raster_i[1],
                         cfg.variable_band_quotes)
-                               ] = str(input_raster_list[i][0])
+                               ] = str(input_raster_i[0])
                 else:
                     band_names['%s%s%s' % (
                         cfg.variable_band_quotes, input_name_list[i],
                         cfg.variable_band_quotes)
-                               ] = str(input_raster_list[i])
+                               ] = str(input_raster_i)
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 cfg.messages.error(str(err))
@@ -548,13 +552,13 @@ def _band_names_alias(
         if bandset_number is None:
             bandset_number = bandset_catalog.current_bandset
         for i in range(1, bandset_catalog.get_bandset_count() + 1):
-            if cfg.action is False:
+            if not cfg.action:
                 break
             bands = bandset_catalog.get(i).get_band_alias()
             apaths = bandset_catalog.get(i).get_absolute_paths()
             raster_bands = bandset_catalog.get(i).bands['raster_band'].tolist()
             for b in range(bandset_catalog.get_band_count(i)):
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 if raster_bands[b] != 1:
                     raster_path = (
@@ -571,8 +575,8 @@ def _band_names_alias(
                 )] = raster_path
             # current BandSet
             if i == bandset_number:
-                for b in range(len(bands)):
-                    if cfg.action is False:
+                for b, band_b in enumerate(bands):
+                    if not cfg.action:
                         break
                     if raster_bands[b] != 1:
                         raster_path = (
@@ -585,7 +589,7 @@ def _band_names_alias(
                         raster_path = apaths[b]
                     band_names['%s%s%s%s%s' % (
                         cfg.variable_band_quotes, cfg.variable_bandset_name,
-                        cfg.variable_current_bandset, bands[b],
+                        cfg.variable_current_bandset, band_b,
                         cfg.variable_band_quotes)] = raster_path
     cfg.logger.log.debug('band_names: %s' % (str(band_names)))
     return band_names
@@ -645,7 +649,7 @@ def _check_expression(
             cfg.logger.log.debug('expressions: %s' % str(expressions))
             # comment lines starting with # character
             for line in expressions:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 if line.strip()[0] == '#':
                     counter0 += 1
@@ -688,23 +692,23 @@ def _check_expression(
                 lines = []
                 # replace BandSet number in expressions for iteration
                 for bandset_x in bandset_list:
-                    if cfg.action is False:
+                    if not cfg.action:
                         return exp_list, all_out_name_list, output_message
                     bs_x = bandset_catalog.get_bandset(bandset_x)
                     counter = counter0
-                    for line_number in range(0, len(expressions)):
-                        if cfg.action is False:
+                    for line_number, expressions_b in enumerate(expressions):
+                        if not cfg.action:
                             return exp_list, all_out_name_list, output_message
                         counter = counter + counter0 + 1
                         # skip comment lines starting with # character
-                        if expressions[line_number].strip()[0] != '#':
+                        if expressions_b.strip()[0] != '#':
                             output_bandset_number = None
                             date_string = dates_times.get_time_string()
-                            line_split = expressions[line_number].split(at)
+                            line_split = expressions_b.split(at)
                             calculation = str(line_split[0])
                             # replace expression alias
                             for ex_alias in cfg.expression_alias:
-                                if cfg.action is False:
+                                if not cfg.action:
                                     return (
                                         exp_list, all_out_name_list,
                                         output_message
@@ -724,11 +728,9 @@ def _check_expression(
                                 # variable_output_separator and output name
                                 # after the second
                                 if len(line_split) == 3:
-                                    output_name = \
-                                        expressions[line_number].split(at)[
-                                            2].strip()
-                                    output_path = \
-                                        expressions[line_number].split(at)[1]
+                                    output_name = expressions_b.split(at)[
+                                        2].strip()
+                                    output_path = expressions_b.split(at)[1]
                                     # output variable path in the same
                                     # directory as the first band of the
                                     # BandSet
@@ -754,9 +756,8 @@ def _check_expression(
                                 elif len(line_split) == 2:
                                     output_path = None
                                     try:
-                                        output_name = \
-                                            expressions[line_number].split(at)[
-                                                1].strip()
+                                        output_name = expressions_b.split(at)[
+                                            1].strip()
                                     except Exception as err:
                                         str(err)
                                         output_name = None
@@ -822,7 +823,7 @@ def _check_expression(
                                         [cfg.variable_swir1_name, swir_1_band],
                                         [cfg.variable_swir2_name, swir_2_band]]
                                     for spectral_band in spectral_bands:
-                                        if cfg.action is False:
+                                        if not cfg.action:
                                             return (
                                                 exp_list, all_out_name_list,
                                                 output_message
@@ -838,7 +839,7 @@ def _check_expression(
                                                            bn,
                                                            str(
                                                                spectral_band[1]
-                                                               )
+                                                           )
                                                            )
                                                     )
                                                 )
@@ -863,7 +864,7 @@ def _check_expression(
                                     for band_x in range(
                                             1, bs_x.get_band_count() + 1
                                     ):
-                                        if cfg.action is False:
+                                        if not cfg.action:
                                             return (
                                                 exp_list, all_out_name_list,
                                                 output_message
@@ -950,7 +951,7 @@ def _check_expression(
             exp_list = []
             # build expressions for process
             for line in expressions:
-                if cfg.action is False:
+                if not cfg.action:
                     exp_list = False
                     break
                 cfg.logger.log.debug('line: %s' % str(line))
@@ -1158,7 +1159,7 @@ def _bandsets_iterator(expression, bandset_catalog):
         bandsets_arg = first_line.replace('[', '').replace(']', '')
         split_bandsets_arg = bandsets_arg.split(',')
         for x in split_bandsets_arg:
-            if cfg.action is False:
+            if not cfg.action:
                 output_message = '1'
                 break
             split_x = x.split(':')
@@ -1216,7 +1217,7 @@ def _bandsets_iterator(expression, bandset_catalog):
             bandset_list = bandset_list_arg.copy()
         else:
             for j in bandset_list_arg:
-                if cfg.action is False:
+                if not cfg.action:
                     output_message = '1'
                     break
                 band_name = bandset_catalog.bandsets_table['bandset_name'][
@@ -1232,7 +1233,7 @@ def _bandsets_iterator(expression, bandset_catalog):
         # list of dates
         if len(date_list) > 0:
             for date_x in date_list:
-                if cfg.action is False:
+                if not cfg.action:
                     output_message = '1'
                     break
                 bandset_number = (
@@ -1247,7 +1248,7 @@ def _bandsets_iterator(expression, bandset_catalog):
                         bandset_list.extend(bandset_number)
                     else:
                         for bandset_n in bandset_number:
-                            if cfg.action is False:
+                            if not cfg.action:
                                 output_message = '1'
                                 break
                             bandset_n_name = (
@@ -1256,7 +1257,7 @@ def _bandsets_iterator(expression, bandset_catalog):
                                         'bandset_number'] == bandset_n]
                             )
                             for filter_x in bandset_filter:
-                                if cfg.action is False:
+                                if not cfg.action:
                                     output_message = '1'
                                     break
                                 if (filter_x.lower()
@@ -1266,7 +1267,7 @@ def _bandsets_iterator(expression, bandset_catalog):
         if len(date_range_list) > 0:
             # range of dates
             for date_range_x in date_range_list:
-                if cfg.action is False:
+                if not cfg.action:
                     output_message = '1'
                     break
                 bandset_number = (
@@ -1282,7 +1283,7 @@ def _bandsets_iterator(expression, bandset_catalog):
                         bandset_list.extend(bandset_number)
                     else:
                         for bandset_n in bandset_number:
-                            if cfg.action is False:
+                            if not cfg.action:
                                 output_message = '1'
                                 break
                             bandset_n_name = (
@@ -1291,7 +1292,7 @@ def _bandsets_iterator(expression, bandset_catalog):
                                         'bandset_number'] == bandset_n]
                             )
                             for filter_x in bandset_filter:
-                                if cfg.action is False:
+                                if not cfg.action:
                                     output_message = '1'
                                     break
                                 if (filter_x.lower()
@@ -1316,7 +1317,7 @@ def _expression_to_function(expression, raster_variables: dict):
         # find all non-greedy expression
         nodata_names = re.findall(r'nodata\(#?(.*?)#?\)', expr_func)
         for name in nodata_names:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             try:
                 path = raster_variables[name]
@@ -1332,7 +1333,7 @@ def _expression_to_function(expression, raster_variables: dict):
     input_rasters = {}
     layer_number = 0
     for k in raster_variables:
-        if cfg.action is False:
+        if not cfg.action:
             break
         if k in expr_func:
             input_rasters[k] = raster_variables[k]
@@ -1370,12 +1371,11 @@ def _replace_operator_names(
         for band in range(
                 1, bandset_catalog.get_band_count(bandset_number) + 1
         ):
-            if cfg.action is False:
+            if not cfg.action:
                 break
             band_list += '%s%s%s%s%s%s, ' % (
                 cfg.variable_band_quotes, cfg.variable_bandset_name,
-                str(bandset_number),
-                cfg.variable_band_name, str(band),
+                str(bandset_number), cfg.variable_band_name, str(band),
                 cfg.variable_band_quotes
             )
         # percentile
@@ -1383,7 +1383,7 @@ def _replace_operator_names(
             r'percentile\(#?(.*?)#?\)', expression.replace(' ', '')
         )
         for percentile_x in percentiles:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if var_current_bandset in percentile_x:
                 per_x_split = percentile_x.split(',')
@@ -1410,7 +1410,7 @@ def _replace_operator_names(
             expression
         )
         for parts in band_numbers:
-            if cfg.action is True:
+            if cfg.action:
                 try:
                     num_b = int(parts)
                 except Exception as err:
@@ -1419,7 +1419,7 @@ def _replace_operator_names(
                     break
                 band_list = '['
                 for n in range(1, bandset_catalog.get_bandset_count() + 1):
-                    if cfg.action is False:
+                    if not cfg.action:
                         break
                     # if band in BandSet
                     if num_b <= bandset_catalog.get_band_count(n):
@@ -1431,7 +1431,7 @@ def _replace_operator_names(
             # percentile
             percentiles = re.findall(r'percentile\(#?(.*?)#?\)', expression)
             for percentile_x in percentiles:
-                if cfg.action is True:
+                if cfg.action:
                     if '%s%s%s%s' % (
                             cfg.variable_band_quotes,
                             cfg.variable_bandset_name,
@@ -1461,7 +1461,7 @@ def _replace_operator_names(
         )
         band_set_list = []
         for parts in band_numbers:
-            if cfg.action is False:
+            if not cfg.action:
                 cfg.logger.log.error('cancel')
                 break
             part_split = parts.split('}b')
@@ -1480,7 +1480,7 @@ def _replace_operator_names(
                 try:
                     lrg = bandset_arg.split(',')
                     for g in lrg:
-                        if cfg.action is False:
+                        if not cfg.action:
                             cfg.logger.log.error('cancel')
                             break
                         try:
@@ -1489,7 +1489,7 @@ def _replace_operator_names(
                             for r in range(
                                     int(rg[0].strip()), int(rg[1].strip()) + 1
                             ):
-                                if cfg.action is False:
+                                if not cfg.action:
                                     cfg.logger.log.error('cancel')
                                     break
                                 bandset_number_list.append(r)
@@ -1532,7 +1532,7 @@ def _replace_operator_names(
                         for r in range(
                                 int(rg[0].strip()), int(rg[1].strip()) + 1
                         ):
-                            if cfg.action is False:
+                            if not cfg.action:
                                 cfg.logger.log.error('cancel')
                                 break
                             bandset_number_list.append(r)
@@ -1563,7 +1563,7 @@ def _replace_operator_names(
                     try:
                         rg = bandset_arg.split(',')
                         for r in rg:
-                            if cfg.action is False:
+                            if not cfg.action:
                                 cfg.logger.log.error('cancel')
                                 break
                             try:
@@ -1583,14 +1583,14 @@ def _replace_operator_names(
             # date of BandSet
             elif len(date_list) > 0:
                 for j in range(bandset_catalog.get_bandset_count()):
-                    if cfg.action is False:
+                    if not cfg.action:
                         break
                     if bandset_catalog.get_date(j + 1) in date_list:
                         band_set_list.append(j + 1)
             # range of dates of BandSet
             else:
                 for j in range(bandset_catalog.get_bandset_count()):
-                    if cfg.action is False:
+                    if not cfg.action:
                         break
                     try:
                         b_date = bandset_catalog.bandsets_table['date'][
@@ -1604,7 +1604,7 @@ def _replace_operator_names(
                         str(err)
             band_list = '['
             for n in band_set_list:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 try:
                     # if band in BandSet
@@ -1619,7 +1619,7 @@ def _replace_operator_names(
             # percentile
             percentiles = re.findall(r'percentile\((.*?)\)', expression)
             for percentile_x in percentiles:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 if '%s%s{%s' % (
                         cfg.variable_band_quotes, cfg.variable_bandset_name,
@@ -1646,7 +1646,7 @@ def _replace_operator_names(
             cfg.variable_band_name, cfg.variable_all,
             cfg.variable_band_quotes) in expression:
         for n in range(1, bandset_catalog.get_bandset_count() + 1):
-            if cfg.action is False:
+            if not cfg.action:
                 break
             band_list = '['
             if '%s%s%s%s%s%s' % (
@@ -1654,7 +1654,7 @@ def _replace_operator_names(
                     str(n), cfg.variable_band_name,
                     cfg.variable_all, cfg.variable_band_quotes) in expression:
                 for band in range(1, bandset_catalog.get_band_count(n) + 1):
-                    if cfg.action is False:
+                    if not cfg.action:
                         break
                     band_list += '%s%s%s%s%s%s, ' % (
                         cfg.variable_band_quotes, cfg.variable_bandset_name,
@@ -1665,7 +1665,7 @@ def _replace_operator_names(
                     r'percentile\(#?(.*?)#?\)', expression
                 )
                 for percentile_x in percentiles:
-                    if cfg.action is False:
+                    if not cfg.action:
                         break
                     if '%s%s' % (
                             cfg.variable_band_quotes,
@@ -1873,11 +1873,11 @@ def _bandset_names_alias(bandset: BandSet) -> dict:
     bands = bandset.get_band_alias()
     apaths = bandset.get_absolute_paths()
     # current BandSet
-    for b in range(len(bands)):
-        if cfg.action is False:
+    for b, band in enumerate(bands):
+        if not cfg.action:
             break
         band_names['%s%s%s' % (
-            cfg.variable_band_quotes, bands[b], cfg.variable_band_quotes
+            cfg.variable_band_quotes, band, cfg.variable_band_quotes
         )] = apaths[b]
     (blue_band, green_band, red_band, nir_band, swir_1_band,
      swir_2_band) = bandset.spectral_range_bands(output_as_number=False)
@@ -1888,7 +1888,7 @@ def _bandset_names_alias(bandset: BandSet) -> dict:
         [cfg.variable_swir1_name, swir_1_band],
         [cfg.variable_swir2_name, swir_2_band]]
     for spectral_band in spectral_bands:
-        if cfg.action is False:
+        if not cfg.action:
             break
         try:
             band_names['%s%s%s' % (
@@ -2010,7 +2010,7 @@ def _check_expression_bandset(
             exp_list = []
             # replace expression alias
             for ex_alias in cfg.expression_alias:
-                if cfg.action is False:
+                if not cfg.action:
                     break
                 new_line = shared_tools.replace(
                     new_line, '%s%s%s' % (
@@ -2034,7 +2034,7 @@ def _check_expression_bandset(
                     [cfg.variable_swir1_name, swir_1_band],
                     [cfg.variable_swir2_name, swir_2_band]]
                 for spectral_band in spectral_bands:
-                    if cfg.action is False:
+                    if not cfg.action:
                         cfg.logger.log.error('cancel')
                         output_message = '1'
                         break
@@ -2180,7 +2180,7 @@ def _replace_bandset_operator_names(expression, bandset: BandSet):
             cfg.variable_band_quotes) in expression:
         band_list = '['
         for band in range(1, bandset.get_band_count() + 1):
-            if cfg.action is False:
+            if not cfg.action:
                 break
             band_list += '%s%s%s%s, ' % (
                 cfg.variable_band_quotes, cfg.variable_band_name,
@@ -2190,7 +2190,7 @@ def _replace_bandset_operator_names(expression, bandset: BandSet):
             r'percentile\(#?(.*?)#?\)', expression
         )
         for percentile_x in percentiles:
-            if cfg.action is False:
+            if not cfg.action:
                 break
             if '%s%s%s%s' % (cfg.variable_band_quotes,
                              cfg.variable_band_name, cfg.variable_all,

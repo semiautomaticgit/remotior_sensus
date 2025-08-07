@@ -9,7 +9,7 @@ class TestBandSpectralDistance(TestCase):
     def test_band_spectral_distance(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         catalog = rs.bandset_catalog()
         data_path = Path(__file__).parent / 'data'
@@ -20,11 +20,11 @@ class TestBandSpectralDistance(TestCase):
         catalog.create_bandset(
             file_list_1, wavelengths=['Sentinel-2'], bandset_number=1,
             root_directory=str(data_path)
-            )
+        )
         catalog.create_bandset(
             file_list_2, wavelengths=['Sentinel-2'], bandset_number=2,
             root_directory=str(data_path)
-            )
+        )
         bandset_list = [catalog.get_bandset(1), catalog.get_bandset(2)]
         cfg.logger.log.debug('>>> test spectral distance')
         temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)

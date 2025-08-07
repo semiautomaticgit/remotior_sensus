@@ -129,23 +129,29 @@ cop_dem_glo_30_mpc = 'Copernicus_DEM_30_MPC'
 cop_dem_glo_30_mpc_collection = 'cop-dem-glo-30'
 product_description = {
     sentinel2: 'Copernicus Sentinel-2 '
-               'https://dataspace.copernicus.eu/explore-data/data-collections/sentinel-data/sentinel-2',  # noqa: E501
+               'https://dataspace.copernicus.eu/explore-data/data-collections/sentinel-data/sentinel-2',
+    # noqa: E501
     landsat_mpc: 'Landsat Collection from Microsoft Planetary Computer '
-                 'https://planetarycomputer.microsoft.com/dataset/group/landsat',  # noqa: E501
+                 'https://planetarycomputer.microsoft.com/dataset/group/landsat',
+    # noqa: E501
     sentinel2_mpc: 'Sentinel-2 Level-2A from Microsoft Planetary Computer '
-                   'https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a',  # noqa: E501
+                   'https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a',
+    # noqa: E501
     landsat_hls: 'Landsat from Harmonized Landsat and Sentinel-2 by NASA '
                  'https://hls.gsfc.nasa.gov',
     sentinel2_hls: 'Sentinel-2 from Harmonized Landsat and Sentinel-2 by NASA '
                    'https://hls.gsfc.nasa.gov',
     modis_09q1_mpc: 'MODIS Surface Reflectance 8-Day (250m) from Microsoft '
-                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-09Q1-061',  # noqa: E501
+                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-09Q1-061',
+    # noqa: E501
     modis_11a2_mpc: 'MODIS Land Surface Temperature 8-Day from Microsoft '
-                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-11A2-061',  # noqa: E501
+                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-11A2-061',
+    # noqa: E501
     aster_l1t_mpc: 'ASTER L1T from Microsoft Planetary Computer '
                    'https://planetarycomputer.microsoft.com/dataset/aster-l1t',
     cop_dem_glo_30_mpc: 'Copernicus DEM GLO-30 from Microsoft Planetary '
-                        'Computer https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-30'  # noqa: E501
+                        'Computer https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-30'
+    # noqa: E501
 }
 # satellites bands for center wavelength definition
 no_satellite = 'Band order'

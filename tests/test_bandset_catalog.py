@@ -11,7 +11,7 @@ class TestBandSetCatalog(TestCase):
     def test_bandset_catalog(self):
         rs = remotior_sensus.Session(
             n_processes=2, available_ram=1000, log_level=10
-            )
+        )
         cfg = rs.configurations
         data_path = Path(__file__).parent / 'data'
         data_directory = str(data_path / 'S2_2020-01-01')
@@ -325,7 +325,7 @@ class TestBandSetCatalog(TestCase):
         self.assertEqual(
             str(empty_catalog.get(1).date),
             empty_catalog.get_date(1)
-            )
+        )
         # BandSet band count
         self.assertEqual(
             empty_catalog.get_band_count(bandset_number=1),
