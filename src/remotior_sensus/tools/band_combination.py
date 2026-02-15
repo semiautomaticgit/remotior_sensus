@@ -239,8 +239,8 @@ def band_combination(
                         add_c = 0
                     # expression combination
                     expression_comb.append(
-                        f'("f{y}".astype("datatype") + {add_c}) * {
-                            first_var_list[y]}'
+                        f'("f{y}".astype("datatype") + {add_c}) '
+                        f'* {first_var_list[y]}'
                     )
                     expression_comb.append(' + ')
                     maximum_value += np.array((first_var_list[y] + add_c)
@@ -259,8 +259,8 @@ def band_combination(
                         add_c = 0
                     # expression combination
                     expression_comb.append(
-                        f'("f{y}".astype("datatype") + {add_c}) * {
-                            first_var_list[y]}'
+                        f'("f{y}".astype("datatype") + {add_c}) '
+                        f'* {first_var_list[y]}'
                     )
                     expression_comb.append(' + ')
                     maximum_value += np.array((first_var_list[y] + add_c)
