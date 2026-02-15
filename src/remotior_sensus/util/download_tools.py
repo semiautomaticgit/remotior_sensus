@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -24,6 +24,7 @@ from datetime import datetime
 from http.cookiejar import CookieJar
 from os import stat
 from time import sleep
+import json
 
 from remotior_sensus.core import configurations as cfg
 from remotior_sensus.util.files_directories import create_parent_directory
@@ -31,6 +32,7 @@ from remotior_sensus.util.read_write_files import write_file
 
 
 # get proxy handler
+# noinspection HttpUrlsUsage
 def get_proxy_handler(
         proxy_host, proxy_port, proxy_user=None, proxy_password=None
 ):
@@ -120,6 +122,7 @@ def download_file(
     else:
         opener = urllib.request.build_opener(cookie_proc)
     urllib.request.install_opener(opener)
+    # noinspection PyUnresolvedReferences
     try:
         url_request = urllib.request.urlopen(url, timeout=timeout)
         if log is not None:
@@ -169,7 +172,7 @@ def download_file(
                                     speed = new_speed
                             except Exception as err:
                                 str(err)
-                        if progress is True:
+                        if progress:
                             try:
                                 downloaded_part_size = round(
                                     int(stat(output_path).st_size) / 1048576, 2
@@ -200,6 +203,12 @@ def download_file(
                     else:
                         return False, 'cancel'
         return True, output_path
+    except urllib.error.URLError as err:
+        if log is not None:
+            log.error('{}; url:{}'.format(err, url))
+        cfg.logger.log.error('{}; url:{}'.format(err, url))
+        cfg.messages.error(str(err))
+        return False, str(err)
     except Exception as err:
         if retried is False and '403' not in str(err):
             sleep(2)
@@ -289,7 +298,7 @@ def download_copernicus_file(
                                         speed = new_speed
                                 except Exception as err:
                                     str(err)
-                            if progress is True:
+                            if progress:
                                 try:
                                     downloaded_part_size = round(
                                         int(stat(
@@ -370,3 +379,37 @@ def request_url(url, headers=None, data=None, method=None):
     return urllib.request.Request(
         url=url, headers=headers, data=data, method=method
     )
+
+# get latest downloadable version from PyPI
+def get_latest_rs_version(proxy_host=None, proxy_port=None, proxy_user=None,
+                          proxy_password=None):
+    url = 'https://pypi.org/pypi/remotior-sensus/json'
+    response = open_general_url(
+        url=url, proxy_host=proxy_host, proxy_port=proxy_port,
+        proxy_user=proxy_user, proxy_password=proxy_password
+    )
+    if response is None:
+        return None
+    else:
+        response_text = json.loads(response.read())
+        info = response_text['info']
+        return info['version']
+
+
+# download version from PyPI
+def download_rs_version(
+        version, output_path, proxy_host=None, proxy_port=None,
+        proxy_user=None, proxy_password=None
+):
+    url = (f'https://pypi.org/packages/source/r/remotior-sensus/'
+           f'remotior_sensus-{version}.tar.gz')
+    downloaded = download_file(
+        url=url, output_path=output_path,proxy_host=proxy_host,
+        proxy_port=proxy_port, proxy_user=proxy_user,
+        proxy_password=proxy_password)
+    if downloaded is None or downloaded[0] is False:
+        cfg.logger.log.error('unable to download: %s' % url)
+        cfg.messages.error('unable to download: %s' % url)
+        return None
+    else:
+        return output_path

@@ -14,9 +14,11 @@ class TestDownloadProducts(TestCase):
         cfg.logger.log.debug('>>> test query database Sentinel-2')
         rs.download_products.product_names()
         coordinate_list = [8, 43, 10, 41]
+        year = time.localtime().tm_year - 1
         output_manager = rs.download_products.query_sentinel_2_database(
-            date_from='2024-01-01', date_to='2024-01-30', max_cloud_cover=80,
-            result_number=5, coordinate_list=coordinate_list, name_filter='L2A'
+            date_from=f'{year}-01-01', date_to=f'{year}-01-30',
+            max_cloud_cover=80, result_number=5,
+            coordinate_list=coordinate_list, name_filter='L2A'
         )
         product_table = output_manager.extra['product_table']
         temp = cfg.temp.temporary_file_path(name_suffix='.xml')
@@ -30,15 +32,15 @@ class TestDownloadProducts(TestCase):
         self.assertEqual(product_table['product'][0], cfg.sentinel2)
         cfg.logger.log.debug('>>> test search')
         output_manager = rs.download_products.search(
-            product=cfg.sentinel2, date_from='2024-01-01',
-            date_to='2024-01-30', max_cloud_cover=80,
+            product=cfg.sentinel2, date_from=f'{year}-01-01',
+            date_to=f'{year}-01-30', max_cloud_cover=80,
             result_number=5, coordinate_list=coordinate_list, name_filter='L2A'
         )
         product_table = output_manager.extra['product_table']
         self.assertEqual(product_table['product'][0], cfg.sentinel2)
         output_manager = rs.download_products.query_sentinel_2_database(
-            date_from='2024-01-01', date_to='2024-01-10', max_cloud_cover=80,
-            result_number=5, name_filter='33SVB'
+            date_from=f'{year}-01-01', date_to=f'{year}-01-10',
+            max_cloud_cover=80, result_number=5, name_filter='33SVB'
         )
         product_table = output_manager.extra['product_table']
         self.assertEqual(product_table['product'][0], cfg.sentinel2)
@@ -47,6 +49,13 @@ class TestDownloadProducts(TestCase):
         output_manager = rs.download_products.download(
             product_table=product_table, output_path=cfg.temp.dir,
             exporter=True
+        )
+        self.assertTrue(rs.files_directories.is_file(output_manager.path))
+        # export download links Sentinel-2
+        cfg.logger.log.debug('>>> test export download links Sentinel-2')
+        output_manager = rs.download_products.download(
+            product_table=product_table, output_path=cfg.temp.dir,
+            band_list=['scl'], exporter=True
         )
         self.assertTrue(rs.files_directories.is_file(output_manager.path))
         time.sleep(1)
@@ -104,8 +113,14 @@ class TestDownloadProducts(TestCase):
             product_table=product_table_3[product_table_3['cloud_cover'] < 28],
             output_path=cfg.temp.dir, exporter=True
         )
+        # band list
         self.assertTrue(rs.files_directories.is_file(output_manager.path))
         self.assertEqual(product_table_3['product'][0], cfg.sentinel2_mpc)
+        output_manager = rs.download_products.download(
+            product_table=product_table_3[product_table_3['cloud_cover'] < 28],
+            band_list=['SCL'], output_path=cfg.temp.dir, exporter=True
+        )
+        self.assertTrue(rs.files_directories.is_file(output_manager.path))
         output_manager = rs.download_products.search(
             product=cfg.landsat_mpc, date_from='1991-01-27',
             date_to='1991-01-27', max_cloud_cover=9,

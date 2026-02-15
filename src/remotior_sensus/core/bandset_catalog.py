@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -354,6 +354,7 @@ class BandSet(object):
                 result = None
         return result
 
+    # noinspection PyTypeHints
     def get_bands_by_attributes(
             self, attribute: str, attribute_value, output_as_number=False
     ) -> np.array:
@@ -405,6 +406,7 @@ class BandSet(object):
         cfg.logger.log.debug('result: %s' % str(result))
         return result
 
+    # noinspection PyTypeHints
     def get_band(self, number=None) -> np.array:
         """Gets a band.
 
@@ -982,6 +984,7 @@ class BandSet(object):
             catalog=catalog, root_directory=root_directory
         )
 
+    # noinspection PyTypeHints
     def get_band_by_wavelength(
             self, wavelength: float, threshold: float = None,
             output_as_number=False
@@ -1460,6 +1463,7 @@ class BandSet(object):
         return uid
 
 
+# noinspection PyTypeHints
 def _create_table_of_bands(
         path, band_number=None, raster_band=None, name=None,
         multiplicative_factor=None, additive_factor=None, date=None,
@@ -1733,6 +1737,7 @@ class BandSetCatalog(object):
                     self.bandsets_table['uid'] == str(uid[0])]
                 if len(bandset_array) > 0:
                     return bandset_array[0]
+                return None
             else:
                 return self.bandsets[str(uid[0])]
 
@@ -2411,7 +2416,7 @@ class BandSetCatalog(object):
                 cfg.logger.log.error(str(err))
                 cfg.messages.error(str(err))
         # add BandSet to dictionary by uid
-        if keep_uid is False:
+        if not keep_uid:
             bandset_copy.uid = bandset_copy.generate_uid()
         # replace catalog with current one
         bandset_copy.catalog = self

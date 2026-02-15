@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -20,7 +20,14 @@ PyTorch tools
 """
 
 import numpy as np
-from sklearn.model_selection import train_test_split
+from collections import OrderedDict
+
+try:
+    # noinspection PyPackageRequirements
+    from sklearn.model_selection import train_test_split
+except Exception as error:
+    str(error)
+    train_test_split = None
 
 from remotior_sensus.core import configurations as cfg
 
@@ -28,7 +35,7 @@ nn_module = None
 try:
     import torch
     from torch import nn
-
+    import torch.nn.functional as functional
     nn_module = nn.Module
     from torch.utils.data import DataLoader, TensorDataset
 except Exception as error:
@@ -40,6 +47,22 @@ except Exception as error:
     nn_module = Module
     if cfg.logger is not None:
         cfg.logger.log.error(str(error))
+
+try:
+    # noinspection PyPackageRequirements
+    from torchvision.models import swin_v2_b, swin_v2_t
+    # noinspection PyPackageRequirements
+    from torchvision.models.feature_extraction import create_feature_extractor
+    # noinspection PyPackageRequirements
+    from torchvision.ops import FeaturePyramidNetwork
+except Exception as error:
+    str(error)
+
+
+try:
+    from .model_implementation import SatlasSegmentationModel
+except Exception as error:
+    str(error)
 
 
 class PyTorchNeuralNetwork(nn_module):
@@ -263,3 +286,135 @@ def train_pytorch_model(
             return None, None, None, None
     cfg.logger.log.debug('end')
     return model, training_loss, test_loss, accuracy
+
+
+# implementation of pretrained swin_v2 model
+def pretrained_pytorch_model_swin2(
+        array_dic, weights_path, band_number, variant=None,
+        zone_raster_dic=None, pytorch_device=None, stack=True, seed = None,
+        n_processes=1
+):
+    cfg.logger.log.debug('pretrained_pytorch_model_swin2')
+    if pytorch_device is None:
+        pytorch_device = 'cpu'
+    if pytorch_device == 'cpu':
+        torch.set_num_threads(n_processes)
+    # set fixed seed
+    seed = 0 if seed is None else seed
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    model = None
+    if variant is None or variant == cfg.variant_base:
+        model = swin_v2_b()
+        model.features[0][0] = nn.Conv2d(
+            in_channels=band_number, out_channels=128, kernel_size=(4, 4),
+            stride=(4, 4)
+        )
+    elif variant == cfg.variant_tiny:
+        model = swin_v2_t()
+        model.features[0][0] = nn.Conv2d(
+            in_channels=band_number, out_channels=96, kernel_size=(4, 4),
+            stride=(4, 4)
+        )
+    # load weights
+    state_dict = torch.load(weights_path, map_location=pytorch_device,
+                            weights_only=True)
+    # adapt keys
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        if k.startswith('backbone.backbone.'):
+            new_key = k.replace('backbone.backbone.', '')
+        else:
+            new_key = k
+        new_state_dict[new_key] = v
+    state_dict = new_state_dict
+    model.load_state_dict(state_dict, strict=False)
+    model = model.to(pytorch_device).eval()
+    # get stage 0 features
+    extractor = create_feature_extractor(
+        model, return_nodes={'features.0': 'last_feats'}
+    )
+    extractor.eval()
+    results = {}
+    with torch.no_grad():
+        for s in array_dic:
+            if stack:
+                bands = np.stack(array_dic[s], axis=0)
+            else:
+                bands = np.transpose(array_dic[s], (2, 0, 1))
+            # (Batch, Channels, Height, Width)
+            input_tensor = torch.from_numpy(bands).unsqueeze(0).to(
+                pytorch_device)
+            # (B, H, W, C)
+            feats = extractor(input_tensor)['last_feats']
+            # (B, C, H, W)
+            feats = feats.permute(0, 3, 1, 2)
+            # interpolate to original resolution
+            feats = nn.functional.interpolate(
+                feats, size=(bands.shape[1], bands.shape[2])
+            )
+            # get first batch (H, W, C)
+            feats = feats.permute(0, 2, 3, 1).cpu().numpy()[0]
+            # mask raster zone
+            if zone_raster_dic is not None:
+                feats = feats[zone_raster_dic[s] == 1]
+            results[s] = feats
+    # ravel for training
+    if zone_raster_dic is not None:
+        results_ravel = np.concatenate(list(results.values()), axis=0)
+        results = results_ravel.T
+    return results
+
+
+# segmentation from pretrained swin_v2 model
+def segmentation_pytorch_model_swin2(
+        array_dic, weights_path, band_number, variant=None,
+        pytorch_device=None, stack=True, seed = None, num_classes=None,
+        replace_keys:list=None, n_processes=1
+):
+    cfg.logger.log.debug('segmentation_pytorch_model_swin2')
+    if pytorch_device is None:
+        pytorch_device = 'cpu'
+    if pytorch_device == 'cpu':
+        torch.set_num_threads(n_processes)
+    # set fixed seed
+    seed = 0 if seed is None else seed
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    model = SatlasSegmentationModel(variant, num_classes=num_classes,
+                                    band_number=band_number)
+    # load model
+    state_dict = torch.load(weights_path, map_location=pytorch_device)
+    # adapt keys
+    if replace_keys:
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            if k.startswith(replace_keys[0]):
+                new_key = k.replace(replace_keys[0], replace_keys[1])
+            else:
+                new_key = k
+            new_state_dict[new_key] = v
+        state_dict = new_state_dict
+    model.load_state_dict(state_dict, strict=True)
+    model = model.to(pytorch_device).eval()
+    results = {}
+    with torch.inference_mode():
+        for s in array_dic:
+            if stack:
+                bands = np.stack(array_dic[s], axis=0)
+            else:
+                bands = np.transpose(array_dic[s], (2, 0, 1))
+            # (Batch, Channels, Height, Width)
+            input_tensor = torch.from_numpy(bands).unsqueeze(0).to(
+                pytorch_device)
+            # (B, H, W, C)
+            feats, _ = model(input_tensor)
+            feats = nn.functional.interpolate(
+                feats, size=(bands.shape[1], bands.shape[2]),
+                mode='bilinear',  align_corners=False
+            )
+            feats = torch.argmax(feats, dim=1)
+            results[s] = feats.squeeze(0).cpu().numpy()
+    return results

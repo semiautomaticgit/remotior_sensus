@@ -10,9 +10,10 @@ class TestBandClassification(TestCase):
 
     def test_band_classification(self):
         rs = remotior_sensus.Session(
-            n_processes=2, available_ram=1000, log_level=10
+            n_processes=2, available_ram=10000, log_level=10
         )
         cfg = rs.configurations
+
         cfg.logger.log.debug('>>> test semiautomatic classification')
         data_path = Path(__file__).parent / 'data'
         # create BandSet
@@ -39,6 +40,7 @@ class TestBandClassification(TestCase):
             str(data_path / 'L8_2020-01-01/L8_B3.tif'),
             str(data_path / 'L8_2020-01-01/L8_B4.tif'),
         ]
+
         x_y_arrays = _get_x_y_arrays_from_rois(
             raster_paths=input_raster_list,
             roi_path=signature_catalog_1.geometry_file,
@@ -221,6 +223,114 @@ class TestBandClassification(TestCase):
             load_classifier=classification.extra['model_path']
         )
         self.assertTrue(rs.files_directories.is_file(classification2.path))
+
+        # download requested
+        """
+        cfg.logger.log.debug('>>> test pytorch pretrained')
+        file_list = [
+            str(data_path / 'S2_2020-01-06' / 'S2_B04.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B03.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B02.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B05.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B06.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B07.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B08.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B11.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B12.tif')
+        ]
+        catalog_s2 = rs.bandset_catalog()
+        catalog_s2.create_bandset(file_list, wavelengths=['Sentinel-2'])
+        s2_bandset = catalog_s2.get(1)
+        # B04, B03, B02, B05, B06, B07, B08, B11, B12
+        wl_list = [
+            cfg.satellites[cfg.satSentinel2][0][3],
+            cfg.satellites[cfg.satSentinel2][0][2],
+            cfg.satellites[cfg.satSentinel2][0][1],
+            cfg.satellites[cfg.satSentinel2][0][4],
+            cfg.satellites[cfg.satSentinel2][0][5],
+            cfg.satellites[cfg.satSentinel2][0][6],
+            cfg.satellites[cfg.satSentinel2][0][7],
+            cfg.satellites[cfg.satSentinel2][0][11],
+            cfg.satellites[cfg.satSentinel2][0][12],
+        ]
+        s2_bands = s2_bandset.get_absolute_paths()
+        s2_band_list = []
+        for wl in wl_list:
+            band = s2_bandset.get_band_by_wavelength(wavelength=wl,
+                                                     output_as_number=True)
+            s2_band_list.append(s2_bands[band - 1])
+        catalog_s2.create_bandset(paths=s2_band_list, bandset_number=2)
+        # set BandSet in SpectralCatalog
+        signature_catalog_s2 = rs.spectral_signatures_catalog(
+            bandset=catalog_s2.get(2)
+        )
+        # import vector
+        signature_catalog_s2.import_vector(
+            file_path=str(data_path / 'files' / 'roi.gpkg'),
+            macroclass_field='macroclass', class_field='class',
+            macroclass_name_field='macroclass', class_name_field='class',
+            calculate_signature=False
+        )
+
+        temp = cfg.temp.temporary_file_path(name='class')
+        classification = rs.band_classification(
+            input_bands=catalog_s2.get(2),
+            output_path=temp,
+            spectral_signatures=signature_catalog_s2,
+            algorithm_name=cfg.pytorch_pretrained_s2_swin_v2_tiny_a,
+            only_fit=True, save_classifier=True,
+            pytorch_device='cpu', overwrite=True,
+            additional_algorithm_name=cfg.random_forest_a
+        )
+        self.assertTrue(
+            rs.files_directories.is_file(classification.extra['model_path'])
+        )
+        temp = cfg.temp.temporary_file_path(
+            name='class', name_suffix=cfg.tif_suffix
+        )
+        classification_p = rs.band_classification(
+            input_bands=catalog_s2.get(2), output_path=temp,
+            load_classifier=classification.extra['model_path']
+        )
+        self.assertTrue(
+            rs.files_directories.is_file(classification_p.path)
+        )
+        # segmentation from pretrained model
+        file_list = [
+            str(data_path / 'S2_2020-01-06' / 'S2_B04.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B03.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B02.tif'),
+            str(data_path / 'S2_2020-01-06' / 'S2_B08.tif'),
+        ]
+        catalog_s2 = rs.bandset_catalog()
+        catalog_s2.create_bandset(file_list, wavelengths=['Sentinel-2'])
+        s2_bandset = catalog_s2.get(1)
+        # B04, B03, B02, B08
+        wl_list = [
+            cfg.satellites[cfg.satSentinel2][0][3],
+            cfg.satellites[cfg.satSentinel2][0][2],
+            cfg.satellites[cfg.satSentinel2][0][1],
+            cfg.satellites[cfg.satSentinel2][0][7],
+        ]
+        s2_bands = s2_bandset.get_absolute_paths()
+        s2_band_list = []
+        for wl in wl_list:
+            band = s2_bandset.get_band_by_wavelength(wavelength=wl,
+                                                     output_as_number=True)
+            s2_band_list.append(s2_bands[band - 1])
+        catalog_s2.create_bandset(paths=s2_band_list, bandset_number=2)
+
+        temp = cfg.temp.temporary_file_path(name='class')
+        classification_p = rs.band_classification(
+            input_bands=catalog_s2.get(2),
+            output_path=temp,
+            algorithm_name=cfg.pytorch_pretrained_s2_swin_v2_base_seg_a,
+            pytorch_device='cpu', overwrite=True
+        )
+        self.assertTrue(
+            rs.files_directories.is_file(classification_p.path)
+        )
+        """
 
         # clear temporary directory
         rs.close()

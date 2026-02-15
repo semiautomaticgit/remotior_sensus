@@ -30,8 +30,8 @@ Submodules
    remotior_sensus.tools.raster_reclassification
    remotior_sensus.tools.raster_report
    remotior_sensus.tools.raster_split
-   remotior_sensus.tools.raster_zonal_stats
    remotior_sensus.tools.raster_to_vector
+   remotior_sensus.tools.raster_zonal_stats
    remotior_sensus.tools.vector_to_raster
 
 Module contents

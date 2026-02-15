@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -23,6 +23,101 @@ Also, machine learning algorithms are provided through
 `PyTorch <https://pytorch.org/>`_ (pytorch_multi_layer_perceptron) and
 `scikit-learn <https://scikit-learn.org/stable/>`_ (random_forest,
 random_forest_ovr, support_vector_machine, multi_layer_perceptron).
+
+Pretrained models are also available.
+
+Currently, included pretrained models are:
+
+- Swin-v2-Base model for Sentinel-2 single image.
+  Requirements: Sentinel-2 bandset
+  (TCI RGB (B04, B03, B02), TOA bands B05, B06, B07, B08, B11, B12).
+  Normalization: TCI RGB bands divided by 255; B05, B06, B07, B08,
+  B11, B12 divided by 8160 and clipped to 0-1.
+  Framework: PyTorch.
+  Source: Sentinel2_SwinB_SI_MS,
+  pretrained by the Allen Institute for Artificial Intelligence
+  (SatlasPretrain: https://satlas-pretrain.allen.ai).
+  The model weights are released under the Open Data Commons
+  Attribution License (ODC-BY).
+  The repository code is licensed under the Apache License 2.0
+  (https://huggingface.co/allenai/satlas-pretrain).
+  This tool downloads the official SatlasPretrain weights
+  (Bastani et al., "SatlasPretrain: A Large-Scale Dataset for Remote
+  Sensing Image Understanding", ICCV 2023, arXiv:2211.15660,
+  https://doi.org/10.48550/arXiv.2211.15660).
+  All model weights remain the property of their respective authors.
+- Swin-v2-Tiny model for Sentinel-2 single image.
+  Requirements: Sentinel-2 bandset
+  (TCI RGB (B04, B03, B02), TOA bands B05, B06, B07, B08, B11, B12).
+  Normalization: TCI RGB bands divided by 255; B05, B06, B07, B08,
+  B11, B12 divided by 8160 and clipped to 0-1.
+  Framework: PyTorch.
+  Source: Sentinel2_SwinT_SI_MS,
+  pretrained by the Allen Institute for Artificial Intelligence
+  (SatlasPretrain: https://satlas-pretrain.allen.ai).
+  The model weights are released under the Open Data Commons
+  Attribution License (ODC-BY).
+  The repository code is licensed under the Apache License 2.0
+  (https://huggingface.co/allenai/satlas-pretrain).
+  This tool downloads the official SatlasPretrain weights
+  (Bastani et al., "SatlasPretrain: A Large-Scale Dataset for Remote
+  Sensing Image Understanding", ICCV 2023, arXiv:2211.15660,
+  https://doi.org/10.48550/arXiv.2211.15660).
+  All model weights remain the property of their respective authors.
+- Swin-v2-Base model for Landsat 8 or Landsat 9 single image.
+  Requirements: Landsat 8 or Landsat 9 bandset (Collection 2 Level-1
+  bands B01, B02, B03, B04, B05, B06, B07, B08, B09, B10, B11);
+  Normalization: (band - 4000)/16320 and clipped to 0-1.
+  Framework: PyTorch.
+  Source: Landsat_SwinB_SI,
+  pretrained by the Allen Institute for Artificial Intelligence
+  (SatlasPretrain: https://satlas-pretrain.allen.ai).
+  The model weights are released under the Open Data Commons
+  Attribution License (ODC-BY).
+  The repository code is licensed under the Apache License 2.0
+  (https://huggingface.co/allenai/satlas-pretrain).
+  This tool downloads the official SatlasPretrain weights
+  (Bastani et al., "SatlasPretrain: A Large-Scale Dataset for Remote
+  Sensing Image Understanding", ICCV 2023, arXiv:2211.15660,
+  https://doi.org/10.48550/arXiv.2211.15660).
+  All model weights remain the property of their respective authors.
+
+Also, pretrained segmentation models are available:
+
+- Swin-v2-Base segmentation for Sentinel-2 single image (4 bands).
+  Requirements: Sentinel-2 bandset
+  (TCI RGB (B04, B03, B02), TOA bands B08).
+  Normalization: TCI RGB bands divided by 255; B08
+  divided by 8160 and clipped to 0-1.
+  Framework: PyTorch.
+  Output classes: background, water, developed, tree, shrub, grass,
+  crop, bare, snow, wetland, mangroves, moss.
+  Source: Satlas_MS_tci-b08_epoch150,
+  pretrained by DPR Team as part of the DPR Zoo Segmentation Hub
+  framework (https://github.com/DPR25/dpr-zoo-segmentation-hub)
+  based on SatlasPretrain models.
+  The repository code is licensed under the MIT License
+  (https://huggingface.co/martinkorelic/dpr-zoo-models).
+  This tool downloads the model weights (DPR Team, 2025. Made as part
+  of Arnes Hackathon 2025).
+  All model weights remain the property of their respective authors.
+- Swin-v2-Base segmentation for Sentinel-2 single image (3 bands).
+  Requirements: Sentinel-2 bandset
+  (TCI RGB (B04, B03, B02)).
+  Normalization: TCI RGB bands divided by 255.
+  Framework: PyTorch.
+  Output classes: background, water, developed, tree, shrub, grass,
+  crop, bare, snow, wetland, mangroves, moss.
+  Source: Satlas_RGB1_epoch70,
+  pretrained by DPR Team as part of the DPR Zoo Segmentation Hub
+  framework (https://github.com/DPR25/dpr-zoo-segmentation-hub)
+  based on SatlasPretrain models.
+  The repository code is licensed under the MIT License
+  (https://huggingface.co/martinkorelic/dpr-zoo-models).
+  This tool downloads the model weights (DPR Team, 2025. Made as part
+  of Arnes Hackathon 2025).
+  All model weights remain the property of their respective authors.
+
 This module includes tools for training the algorithms using
 Regions of Interest (ROIs) or spectral signatures.
 
@@ -31,10 +126,50 @@ Typical usage example:
     >>> # import Remotior Sensus and start the session
     >>> import remotior_sensus
     >>> rs = remotior_sensus.Session()
-    >>> # start the process
+    >>> file_list = ['file1.tif', 'file2.tif', 'file3.tif']
+    >>> # create BandSet
+    >>> catalog = rs.bandset_catalog()
+    >>> catalog.create_bandset(file_list, bandset_number=1)
+    >>> # create signature catalog
+    >>> signature_catalog = rs.spectral_signatures_catalog(
+    ... bandset=catalog.get(1)
+    ... )
+    >>> # import vector for training
+    >>> signature_catalog.import_vector(
+    ... file_path='roi.gpkg',
+    ... macroclass_field='macroclass', class_field='class',
+    ... macroclass_name_field='macroclass', class_name_field='class',
+    ... calculate_signature=True
+    ... )
+    >>> # start the classification process
     >>> classification = rs.band_classification(
-    ... input_bands=['file1.tif', 'file2.tif'], output_path='output.tif',
+    ... input_bands=file_list, output_path='output.tif',
+    ... spectral_signatures=signature_catalog,
     ... algorithm_name=cfg.maximum_likelihood
+    ... )
+    >>> # classification using a pretrained model
+    >>> file_list_2 = ['S2_B04.tif', 'S2_B03.tif', 'S2_B02.tif', 'S2_B05.tif',
+    ... 'S2_B06.tif', 'S2_B07.tif', 'S2_B08.tif', 'S2_B11.tif', 'S2_B12.tif'
+    ... ]
+    >>> # create BandSet
+    >>> catalog_2 = rs.bandset_catalog()
+    >>> catalog_2.create_bandset(file_list_2, bandset_number=1)
+    >>> # create signature catalog
+    >>> signature_catalog_2 = rs.spectral_signatures_catalog(
+    ... bandset=catalog.get(1)
+    ... )
+    >>> # import vector for training
+    >>> signature_catalog_2.import_vector(
+    ... file_path='roi.gpkg',
+    ... macroclass_field='macroclass', class_field='class',
+    ... macroclass_name_field='macroclass', class_name_field='class',
+    ... calculate_signature=True
+    ... )
+    >>> classification_2 = rs.band_classification(
+    ... input_bands=file_list_2, output_path='output.tif',
+    ... spectral_signatures=signature_catalog_2,
+    ... algorithm_name=cfg.pytorch_pretrained_s2_swin_v2_tiny_a,
+    ... additional_algorithm_name=cfg.random_forest,
     ... )
 """
 
@@ -51,7 +186,9 @@ from remotior_sensus.core.output_manager import OutputManager
 from remotior_sensus.core.processor_functions import (
     classification_maximum_likelihood, classification_minimum_distance,
     classification_spectral_angle_mapping, classification_scikit,
-    classification_pytorch, get_band_arrays, fit_classifier,
+    classification_pytorch, classification_pytorch_pretrained,
+    segmentation_pytorch_pretrained,
+    get_band_arrays, fit_classifier,
     score_classifier_stratified, score_classifier
 )
 from remotior_sensus.core.spectral_signatures import SpectralSignaturesCatalog
@@ -61,18 +198,29 @@ from remotior_sensus.util import (
 
 try:
     import torch
-    from remotior_sensus.util.pytorch_tools import train_pytorch_model
+    from remotior_sensus.util.pytorch_tools import (
+        train_pytorch_model, pretrained_pytorch_model_swin2,
+        segmentation_pytorch_model_swin2
+    )
 except Exception as error:
-    torch = train_pytorch_model = None
+    torch = None
+    train_pytorch_model = pretrained_pytorch_model_swin2 = None
+    segmentation_pytorch_model_swin2 = None
     if cfg.logger is not None:
         cfg.logger.log.error(str(error))
 
 try:
+    # noinspection PyPackageRequirements
     from sklearn import svm
+    # noinspection PyPackageRequirements
     from sklearn.base import clone
+    # noinspection PyPackageRequirements
     from sklearn.ensemble import RandomForestClassifier
+    # noinspection PyPackageRequirements
     from sklearn.model_selection import StratifiedKFold
+    # noinspection PyPackageRequirements
     from sklearn.multiclass import OneVsRestClassifier
+    # noinspection PyPackageRequirements
     from sklearn.neural_network import MLPClassifier
 except Exception as error:
     if cfg.logger is not None:
@@ -134,7 +282,9 @@ class Classifier(object):
 
     def __init__(
             self, algorithm_name, spectral_signatures, covariance_matrices,
-            model_classifier, input_normalization, normalization_values
+            model_classifier, input_normalization, normalization_values,
+            additional_algorithm_name, pretrained_model_path,
+            pretrained_model_replace, n_processes, num_classes
     ):
         """Initializes a classifier.
 
@@ -152,22 +302,36 @@ class Classifier(object):
             normalization_values: list of normalization parameters defined for 
                 each variable [normalization expressions, mean values, 
                 standard deviation values, minimum values, maximum values].
+            additional_algorithm_name: additional algorithm name useful for 
+                pretrained models, using parameters of the named algorithm;
+                after executing the pretrained model, the additional 
+                algorithm is executed on the embeddings.
+            pretrained_model_path: path to pretrained model
+            pretrained_model_replace: pretrained model replace list
+            n_processes: number of processes
+            num_classes: number of classes for pretrained model
         """  # noqa: E501
         self.algorithm_name = algorithm_name
+        self.additional_algorithm_name = additional_algorithm_name
         self.spectral_signatures = spectral_signatures
         self.covariance_matrices = covariance_matrices
         self.model_classifier = model_classifier
         self.input_normalization = input_normalization
         self.normalization_values = normalization_values
+        self.pretrained_model_path = pretrained_model_path
+        self.pretrained_model_replace = pretrained_model_replace
+        self.num_classes = num_classes
         self.framework_name = None
         self.classification_function = None
+        self.n_processes = None
+        additional_algorithm = None
+        # replace algorithm with additional algorithm
+        if self.additional_algorithm_name is None:
+            algorithm = self.algorithm_name
+        else:
+            algorithm = self.additional_algorithm_name
         # spectral signatures catalog
-        if (algorithm_name == cfg.minimum_distance
-                or algorithm_name == cfg.minimum_distance_a
-                or algorithm_name == cfg.spectral_angle_mapping
-                or algorithm_name == cfg.spectral_angle_mapping_a
-                or algorithm_name == cfg.maximum_likelihood
-                or algorithm_name == cfg.maximum_likelihood_a):
+        if algorithm_name in cfg.class_framework_dict[cfg.core_framework]:
             if spectral_signatures.signatures is None:
                 # import vector
                 spectral_signatures.import_vector(
@@ -187,41 +351,50 @@ class Classifier(object):
         else:
             spectral_signatures_catalog = spectral_signatures
         # minimum distance
-        if (algorithm_name == cfg.minimum_distance
-                or algorithm_name == cfg.minimum_distance_a):
+        if (algorithm == cfg.minimum_distance
+                or algorithm == cfg.minimum_distance_a):
             self.classification_function = classification_minimum_distance
         # spectral angle mapping
-        elif (algorithm_name == cfg.spectral_angle_mapping
-              or algorithm_name == cfg.spectral_angle_mapping_a):
+        elif (algorithm == cfg.spectral_angle_mapping
+              or algorithm == cfg.spectral_angle_mapping_a):
             self.classification_function = (
                 classification_spectral_angle_mapping
             )
         # maximum likelihood
-        elif (algorithm_name == cfg.maximum_likelihood
-              or algorithm_name == cfg.maximum_likelihood_a):
+        elif (algorithm == cfg.maximum_likelihood
+              or algorithm == cfg.maximum_likelihood_a):
             self.classification_function = classification_maximum_likelihood
         # scikit framework
-        elif (
-                algorithm_name == cfg.random_forest
-                or algorithm_name == cfg.random_forest_a
-                or algorithm_name == cfg.random_forest_ovr
-                or algorithm_name == cfg.random_forest_ovr_a
-                or algorithm_name == cfg.support_vector_machine
-                or algorithm_name == cfg.support_vector_machine_a
-                or algorithm_name == cfg.multi_layer_perceptron
-                or algorithm_name == cfg.multi_layer_perceptron_a):
+        elif algorithm in cfg.class_framework_dict[cfg.scikit_framework]:
             self.classification_function = classification_scikit
             self.framework_name = cfg.scikit_framework
         # pytorch framework
-        elif (algorithm_name == cfg.pytorch_multi_layer_perceptron
-              or algorithm_name == cfg.pytorch_multi_layer_perceptron_a):
+        elif algorithm in cfg.class_framework_dict[cfg.pytorch_framework]:
             self.classification_function = classification_pytorch
             self.framework_name = cfg.pytorch_framework
+        elif algorithm in cfg.class_framework_dict[cfg.segmentation_framework]:
+            self.classification_function = segmentation_pytorch_pretrained
+            self.framework_name = cfg.pytorch_framework
+            self.n_processes = n_processes
+        # pretrained models
+        if self.additional_algorithm_name is not None:
+            # pytorch pretrained with additional algorithm
+            if (self.algorithm_name
+                    in cfg.class_framework_dict[cfg.pretrained_framework]):
+                additional_algorithm = self.classification_function
+                self.classification_function = (
+                    classification_pytorch_pretrained)
         self.function_argument = {
+            cfg.algorithm_name_framework: self.algorithm_name,
             cfg.model_classifier_framework: model_classifier,
             cfg.covariance_matrices_framework: covariance_matrices,
             cfg.normalization_values_framework: normalization_values,
-            cfg.spectral_signatures_framework: spectral_signatures_catalog
+            cfg.spectral_signatures_framework: spectral_signatures_catalog,
+            cfg.additional_algorithm_framework: additional_algorithm,
+            cfg.model_path_framework: pretrained_model_path,
+            cfg.model_reclass_framework: pretrained_model_replace,
+            cfg.n_processes_framework: n_processes,
+            cfg.num_classes_framework: num_classes
         }
 
     # noinspection PyTypeChecker
@@ -232,11 +405,11 @@ class Classifier(object):
 
         Args:
             output_path: path of output file.
-        
+
         Returns:
             :func:`~remotior_sensus.core.output_manager.OutputManager` object with
                 - path = [output path]
-            
+
         Examples:
             Save a trainied classifier
                 >>> classifier = Classifier()
@@ -249,10 +422,14 @@ class Classifier(object):
         file_path = cfg.temp.temporary_file_path(
             name=cfg.classification_framework
         )
-        classification_parameters = '%s=%s%s%s=%s' % (
+        classification_parameters = '%s=%s%s%s=%s%s%s=%s%s%s=%s' % (
             cfg.algorithm_name_framework, str(self.algorithm_name),
             cfg.new_line, cfg.input_normalization_framework,
-            str(self.input_normalization))
+            str(self.input_normalization), cfg.new_line,
+            cfg.additional_algorithm_framework,
+            str(self.additional_algorithm_name), cfg.new_line,
+            cfg.model_path_framework,
+            str(self.pretrained_model_path))
         read_write_files.write_file(
             data=classification_parameters, output_path=file_path
         )
@@ -313,7 +490,9 @@ class Classifier(object):
     def load_classifier(
             cls, algorithm_name=None, spectral_signatures=None,
             covariance_matrices=None, model_classifier=None,
-            input_normalization=None, normalization_values=None
+            input_normalization=None, normalization_values=None,
+            additional_algorithm_name=None, pretrained_model_path=None,
+            pretrained_model_replace=None, n_processes=None, num_classes=None
     ):
         """Loads a classifier.
 
@@ -330,7 +509,15 @@ class Classifier(object):
             normalization_values: list of normalization parameters defined for each variable
                 [normalization expressions, mean values, 
                 standard deviation values, minimum values, maximum values].
-
+            additional_algorithm_name: additional algorithm name useful for 
+                pretrained models, using parameters of the named algorithm;
+                after executing the pretrained model, the additional 
+                algorithm is executed on the embeddings.
+            pretrained_model_path: path to pretrained model
+            pretrained_model_replace: pretrained model replace keys
+            num_classes: number of classes for pretrained model
+            n_processes: number of processes
+                
         Returns:
             :func:`Classifier` object.
 
@@ -341,6 +528,11 @@ class Classifier(object):
                 >>> covariance_matrices=covariance_matrices, model_classifier=model_classifier,
                 >>> input_normalization=input_normalization, normalization_values=normalization_values)
         """  # noqa: E501
+        # check pretrained_model_path
+        if pretrained_model_path is not None:
+            pretrained_model_path = check_pretrained_model_path(
+                algorithm_name, pretrained_model_path
+            )
         # return classifier
         return cls(
             algorithm_name=algorithm_name,
@@ -348,13 +540,19 @@ class Classifier(object):
             covariance_matrices=covariance_matrices,
             model_classifier=model_classifier,
             input_normalization=input_normalization,
-            normalization_values=normalization_values
+            normalization_values=normalization_values,
+            additional_algorithm_name=additional_algorithm_name,
+            pretrained_model_path=pretrained_model_path,
+            pretrained_model_replace = pretrained_model_replace,
+            num_classes=num_classes,
+            n_processes=n_processes
         )
 
     # noinspection PyTypeChecker
     @classmethod
     def train(
             cls, spectral_signatures=None, algorithm_name=None,
+            additional_algorithm_name=None,
             covariance_matrices=None, svc_classification_confidence=None,
             n_processes: int = None, available_ram: int = None,
             cross_validation=True, x_matrix=None,
@@ -368,8 +566,10 @@ class Classifier(object):
             mlp_learning_rate_init=None, mlp_max_iter=None,
             mlp_batch_size=None, mlp_activation=None,
             pytorch_optimization_n_iter_no_change=None,
-            pytorch_optimization_tol=None, pytorch_device=None, min_progress=1,
-            max_progress=100
+            pytorch_optimization_tol=None, pytorch_device=None,
+            pretrained_model_path=None, pretrained_model_replace=None,
+            num_classes=None,
+            min_progress=1, max_progress=100
     ):
         """Trains a classifier.
 
@@ -380,6 +580,10 @@ class Classifier(object):
                 containing spectral signatures.
             algorithm_name: algorithm name selected from :py:attr:`cfg.classification_algorithms`; 
                 if None, minimum distance is used.
+            additional_algorithm_name: additional algorithm name useful for 
+                pretrained models, using parameters of the named algorithm;
+                after executing the pretrained model, the additional 
+                algorithm is executed on the embeddings.
             n_processes: number of parallel processes.
             available_ram: number of megabytes of RAM available to processes.
             cross_validation: if True, perform cross validation for algorithms
@@ -387,27 +591,33 @@ class Classifier(object):
                 :py:attr:`support_vector_machine`, :py:attr:`multi_layer_perceptron`).
             x_matrix: optional previously saved x matrix.
             y: optional previously saved y matrix.
-            covariance_matrices: dictionary of previously calculated covariance matrices 
-                (used in maximum likelihood only).
+            covariance_matrices: dictionary of previously calculated 
+                covariance matrices (used in maximum likelihood only).
             svc_classification_confidence: if True, write also additional
-                classification confidence rasters as output; required information for support_vector_machine.
-            input_normalization: perform input normalization; options are :py:attr:`z_score` or :py:attr:`linear_scaling`.
+                classification confidence rasters as output; required 
+                information for support_vector_machine.
+            input_normalization: perform input normalization; options 
+                are :py:attr:`z_score` or :py:attr:`linear_scaling`.
             normalization_values: list of normalization paramters defined for 
                 each variable [normalization expressions, mean values, 
                 standar deviation values, minimum values, maximum values].
             class_weight: specific for random forest and support vector machine, 
-                if None each class has equal weight 1, if :py:attr:`balanced` weight is 
-                computed inversely proportional to class frequency.
+                if None each class has equal weight 1, if :py:attr:`balanced` 
+                weight is computed inversely proportional to class frequency.
             find_best_estimator: specific for scikit classifiers, if True,
                 find automatically the best parameters and fit the model, if
-                integer the greater the value the more are the tested combinations.
+                integer the greater the value the more are the tested 
+                combinations.
             rf_max_features: specific for random forest, if None all features
-                are considered in node splitting, available options are :py:attr:`sqrt` as
+                are considered in node splitting, available options 
+                are :py:attr:`sqrt` as
                 square root of all the features, an integer number, or
                 a float number for a fraction of all the features.
-            rf_number_trees: specific for random forest, number of trees in the forest.
+            rf_number_trees: specific for random forest, number of trees in 
+                the forest.
             rf_min_samples_split: specific for random forest through scikit, 
-                sets the minimum number of samples required to split an internal node; default = 2.
+                sets the minimum number of samples required to split an0
+                internal node; default = 2.
             svm_c: specific for support_vector_machine through scikit,
                 sets the regularization parameter C; default = 1.
             svm_gamma: specific for support_vector_machine through scikit, 
@@ -419,18 +629,22 @@ class Classifier(object):
                 the proportion of data to be used as training (default = 0.9) 
                 and the remaining part as test (default = 0.1).
             mlp_hidden_layer_sizes: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
-                list of values where each value defines the number of neurons in a hidden layer 
-                (e.g., :py:attr:`[200, 100]` for two hidden layers of 200 and 100 neurons respectively); default = :py:attr:`[100]`.
+                list of values where each value defines the number of neurons 
+                in a hidden layer 
+                (e.g., :py:attr:`[200, 100]` for two hidden layers of 200 and 
+                100 neurons respectively); default = :py:attr:`[100]`.
             mlp_alpha: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
                 weight decay (also L2 regularization term) for Adam optimizer (default = 0.0001).
             mlp_learning_rate_init: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
                 sets initial learning rate (default = 0.001).
             mlp_max_iter: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
                 sets the maximum number of iterations (default = 200).
-            mlp_batch_size: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
+            mlp_batch_size: specific for :py:attr:`multi_layer_perceptron` 
+                and :py:attr:`pytorch_multi_layer_perceptron`,
                 sets the number of samples per batch for optimizer; if :py:attr:`auto`, the batch is the 
                 minimum value between 200 and the number of samples (default = :py:attr:`auto`).
-            mlp_activation: specific for :py:attr:`multi_layer_perceptron` and :py:attr:`pytorch_multi_layer_perceptron`,
+            mlp_activation: specific for :py:attr:`multi_layer_perceptron` 
+                and :py:attr:`pytorch_multi_layer_perceptron`,
                 sets the activation function (default = :py:attr:`relu`).
             pytorch_model: specific for :py:attr:`pytorch_multi_layer_perceptron`,
                 custom pytorch :py:attr:`nn.Module`.
@@ -439,12 +653,17 @@ class Classifier(object):
             pytorch_loss_function: specific for :py:attr:`pytorch_multi_layer_perceptron`,
                 sets a custom loss function (default = :py:attr:`CrossEntropyLoss`).
             pytorch_optimization_n_iter_no_change: specific for :py:attr:`pytorch_multi_layer_perceptron`,
-                sets the maximum number of epochs where the loss is not improving by 
-                at least the value :py:attr:`pytorch_optimization_tol` (default = 5).
+                sets the maximum number of epochs where the loss is not 
+                improving by at least the 
+                value :py:attr:`pytorch_optimization_tol` (default = 5).
             pytorch_optimization_tol: specific for :py:attr:`pytorch_multi_layer_perceptron`,
                 sets the tolerance of optimization (default = 0.0001).
             pytorch_device: specific for :py:attr:`pytorch_multi_layer_perceptron`,
-                processing device :py:attr:`cpu` (default) or :py:attr:`cuda` if available.
+                processing device :py:attr:`cpu` (default) 
+                or :py:attr:`cuda` if available.
+            pretrained_model_path: path to pretrained model
+            pretrained_model_replace: pretrained model replace keys
+            num_classes: number of classes for pretrained model
             min_progress: minimum progress value for :func:`~remotior_sensus.core.progress.Progress`.
             max_progress: maximum progress value for :func:`~remotior_sensus.core.progress.Progress`.
 
@@ -467,9 +686,15 @@ class Classifier(object):
             n_processes = cfg.n_processes
         if available_ram is None:
             available_ram = cfg.available_ram
+        # replace algorithm with additional algorithm
+        if additional_algorithm_name is None:
+            algorithm = algorithm_name
+        else:
+            algorithm = additional_algorithm_name
+
         # random forest scikit
-        if (algorithm_name == cfg.random_forest
-                or algorithm_name == cfg.random_forest_a):
+        if (algorithm == cfg.random_forest
+                or algorithm == cfg.random_forest_a):
             if (find_best_estimator is not None
                     and find_best_estimator is not False):
                 if type(find_best_estimator) is int:
@@ -528,7 +753,12 @@ class Classifier(object):
                         covariance_matrices=None,
                         model_classifier=None,
                         input_normalization=None,
-                        normalization_values=None
+                        normalization_values=None,
+                        additional_algorithm_name=None,
+                        pretrained_model_path=None,
+                        pretrained_model_replace=None,
+                        num_classes=None,
+                        n_processes=None
                     )
                 results = cfg.multiprocess.output
                 # fit classifiers
@@ -554,8 +784,8 @@ class Classifier(object):
                     'best parameters: %s; feature importance: %s; '
                     'accuracy score: %s' % (
                         str(model_classifier.get_params()), str(
-                            model_classifier.feature_importances_
-                        ), str(model_classifier.oob_score_))
+                        model_classifier.feature_importances_
+                    ), str(model_classifier.oob_score_))
                 )
             else:
                 if rf_min_samples_split is None:
@@ -584,7 +814,12 @@ class Classifier(object):
                         covariance_matrices=None,
                         model_classifier=None,
                         input_normalization=None,
-                        normalization_values=None
+                        normalization_values=None,
+                        additional_algorithm_name=None,
+                        pretrained_model_path=None,
+                        pretrained_model_replace=None,
+                        num_classes=None,
+                        n_processes=None
                     )
                 # perform cross validation if cross_validation is True
                 _perform_cross_validation_scikit(
@@ -604,8 +839,8 @@ class Classifier(object):
                         str(model_classifier.oob_score_))
                 )
         # random forest ovr scikit
-        elif (algorithm_name == cfg.random_forest_ovr
-              or algorithm_name == cfg.random_forest_ovr_a):
+        elif (algorithm == cfg.random_forest_ovr
+              or algorithm == cfg.random_forest_ovr_a):
             if (
                     find_best_estimator is not None and find_best_estimator
                     is not False):
@@ -668,7 +903,12 @@ class Classifier(object):
                         covariance_matrices=None,
                         model_classifier=None,
                         input_normalization=None,
-                        normalization_values=None
+                        normalization_values=None,
+                        additional_algorithm_name=None,
+                        pretrained_model_path=None,
+                        pretrained_model_replace=None,
+                        num_classes=None,
+                        n_processes=None
                     )
                 results = cfg.multiprocess.output
                 # fit classifiers
@@ -721,8 +961,8 @@ class Classifier(object):
                     'OneVsRestClassifier: RandomForestClassifier'
                 )
         # support vector machine scikit
-        elif (algorithm_name == cfg.support_vector_machine
-              or algorithm_name == cfg.support_vector_machine_a):
+        elif (algorithm == cfg.support_vector_machine
+              or algorithm == cfg.support_vector_machine_a):
             if svc_classification_confidence is None:
                 svc_classification_confidence = False
             if (
@@ -775,7 +1015,12 @@ class Classifier(object):
                         covariance_matrices=None,
                         model_classifier=None,
                         input_normalization=None,
-                        normalization_values=None
+                        normalization_values=None,
+                        additional_algorithm_name=None,
+                        pretrained_model_path=None,
+                        pretrained_model_replace=None,
+                        num_classes=None,
+                        n_processes=None
                     )
                 results = cfg.multiprocess.output
                 # fit classifier
@@ -828,8 +1073,8 @@ class Classifier(object):
                 cfg.progress.update(message='fitting')
                 model_classifier.fit(x_matrix, y)
         # multilayer perceptron scikit
-        elif (algorithm_name == cfg.multi_layer_perceptron
-              or algorithm_name == cfg.multi_layer_perceptron_a):
+        elif (algorithm == cfg.multi_layer_perceptron
+              or algorithm == cfg.multi_layer_perceptron_a):
             if mlp_training_portion is None:
                 mlp_training_portion = 0.9
             elif mlp_training_portion > 1:
@@ -915,7 +1160,12 @@ class Classifier(object):
                         covariance_matrices=None,
                         model_classifier=None,
                         input_normalization=None,
-                        normalization_values=None
+                        normalization_values=None,
+                        additional_algorithm_name=None,
+                        pretrained_model_path=None,
+                        pretrained_model_replace=None,
+                        num_classes=None,
+                        n_processes=None
                     )
                 results = cfg.multiprocess.output
                 # fit classifier
@@ -982,8 +1232,8 @@ class Classifier(object):
                 cfg.progress.update(message='fitting')
                 model_classifier.fit(x_matrix, y)
         # multilayer perceptron pytorch
-        elif (algorithm_name == cfg.pytorch_multi_layer_perceptron
-              or algorithm_name == cfg.pytorch_multi_layer_perceptron_a):
+        elif (algorithm == cfg.pytorch_multi_layer_perceptron
+              or algorithm == cfg.pytorch_multi_layer_perceptron_a):
             if mlp_training_portion is None:
                 mlp_training_portion = 0.9
             elif mlp_training_portion > 1:
@@ -1026,7 +1276,12 @@ class Classifier(object):
             covariance_matrices=covariance_matrices,
             model_classifier=model_classifier,
             input_normalization=input_normalization,
-            normalization_values=normalization_values
+            normalization_values=normalization_values,
+            additional_algorithm_name=additional_algorithm_name,
+            pretrained_model_path=pretrained_model_path,
+            pretrained_model_replace=pretrained_model_replace,
+            num_classes=num_classes,
+            n_processes=n_processes
         )
 
     def run_prediction(
@@ -1087,6 +1342,9 @@ class Classifier(object):
             )
         if n_processes is None:
             n_processes = cfg.n_processes
+        # limit number of processes to reduce raster pieces
+        if self.n_processes:
+            n_processes = self.n_processes
         # dummy bands for memory calculation
         dummy_bands = 5
         if self.classification_function is not None:
@@ -1171,6 +1429,8 @@ def band_classification(
             Union[None, int]] = None,
         pytorch_optimization_tol: Optional[Union[None, int]] = None,
         pytorch_device: Optional[Union[None, str]] = None,
+        pretrained_model_path: Optional[str] = None,
+        additional_algorithm_name: Optional[str] = None,
         progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Performs band classification.
@@ -1267,6 +1527,12 @@ def band_classification(
             sets the tolerance of optimization (default = 0.0001).
         pytorch_device: specific for :py:attr:`pytorch_multi_layer_perceptron`,
             processing device :py:attr:`cpu` (default) or :py:attr:`cuda` if available.
+        pretrained_model_path: specific for pretrained models such as :py:attr:`pytorch_pretrained_s2_swin_v2_base`,
+            the path to the pth file of the pretrained model.
+        additional_algorithm_name: additional algorithm name useful for 
+            pretrained models, using parameters of the named algorithm;
+            after executing the pretrained model, the additional 
+            algorithm is executed on the embeddings.
         progress_message: if True then start progress message, if False does 
             not start the progress message (useful if launched from other tools).
 
@@ -1290,6 +1556,119 @@ def band_classification(
         cfg.messages.error('unknown algorithm name')
         cfg.progress.update(failed=True)
         return OutputManager(check=False)
+    fit_classifiers = True
+    ravel = True
+    buffer = 0
+    model_path_list = pretrained_model_replace = num_classes= None
+    if algorithm_name in cfg.class_framework_dict[cfg.pretrained_framework]:
+        model_variant = None
+        input_normalization = None
+        # no need to ravel
+        ravel = False
+        buffer = 4
+        # limit number of processes to reduce raster pieces
+        n_processes = 1
+        if (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base or
+                algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_a or
+                algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base or
+                algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base_a
+        ):
+            model_variant = cfg.variant_base
+        elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny or
+              algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny_a
+        ):
+            model_variant = cfg.variant_tiny
+        if additional_algorithm_name not in cfg.classification_algorithms:
+            cfg.logger.log.error('unknown additional algorithm name')
+            cfg.messages.error('unknown additional algorithm name')
+            cfg.progress.update(failed=True)
+            return OutputManager(check=False)
+        else:
+            cfg.logger.log.debug('additional_algorithm_name: %s'
+                                 % str(additional_algorithm_name))
+        # check pretrained model path, and download if needed
+        pretrained_model_path = check_pretrained_model_path(
+            algorithm_name, pretrained_model_path
+        )
+        cfg.logger.log.debug('pretrained_model_path: %s'
+                             % str(pretrained_model_path))
+        cfg.logger.log.debug('pretrained_pytorch_model_swin2: %s'
+                             % str(pretrained_pytorch_model_swin2))
+        # check pretrained model path
+        if (pretrained_model_path is not None and
+                pretrained_pytorch_model_swin2 is not None):
+            if model_variant == cfg.variant_base_seg:
+                model_path_list = [
+                    segmentation_pytorch_model_swin2.__name__,
+                    pretrained_model_path, model_variant
+                ]
+            else:
+                model_path_list = [
+                    pretrained_pytorch_model_swin2.__name__,
+                    pretrained_model_path, model_variant
+                ]
+        else:
+            cfg.logger.log.error('unable to access pretrained model')
+            cfg.messages.error('unable to access pretrained model')
+            cfg.progress.update(failed=True)
+            return OutputManager(check=False)
+    elif (algorithm_name in
+          cfg.class_framework_dict[cfg.segmentation_framework]):
+        model_variant = None
+        input_normalization = None
+        # limit number of processes to reduce raster pieces
+        n_processes = 1
+        cfg.logger.log.debug('segmentation_pytorch_model_swin2: %s'
+                             % str(segmentation_pytorch_model_swin2))
+        if (
+                algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg
+                or algorithm_name ==
+                cfg.pytorch_pretrained_s2_swin_v2_base_seg_a
+                or algorithm_name ==
+                cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg
+                or algorithm_name ==
+                cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg_a
+        ):
+            model_variant = cfg.variant_base_seg
+            fit_classifiers = False
+            # check pretrained model path, and download if needed
+        pretrained_model_path = check_pretrained_model_path(
+            algorithm_name, pretrained_model_path
+        )
+        cfg.logger.log.debug('pretrained_model_path: %s'
+                             % str(pretrained_model_path))
+        cfg.logger.log.debug('pretrained_pytorch_model_swin2: %s'
+                             % str(pretrained_pytorch_model_swin2))
+        # check pretrained model path
+        if (pretrained_model_path is not None and
+                pretrained_pytorch_model_swin2 is not None):
+            # no need to ravel
+            ravel = False
+            buffer = 4
+
+            if (
+                    algorithm_name ==
+                    cfg.pytorch_pretrained_s2_swin_v2_base_seg
+                    or algorithm_name ==
+                    cfg.pytorch_pretrained_s2_swin_v2_base_seg_a
+            ):
+                pretrained_model_replace = cfg.pretrained_model_replace_dict[
+                    cfg.pytorch_pretrained_s2_swin_v2_base_seg]
+                num_classes = len(cfg.segmentation_model_class_dict[
+                    cfg.pytorch_pretrained_s2_swin_v2_base_seg])
+            elif (
+                    algorithm_name ==
+                    cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg
+                    or algorithm_name ==
+                    cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg_a
+            ):
+                pretrained_model_replace = cfg.pretrained_model_replace_dict[
+                    cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg]
+                num_classes = len(cfg.segmentation_model_class_dict[
+                    cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg])
+            if model_variant == cfg.variant_base_seg:
+                model_path_list = [segmentation_pytorch_model_swin2.__name__,
+                                   pretrained_model_path, model_variant]
     cfg.progress.update(message='starting the classifier', step=1)
     cfg.logger.log.debug('algorithm_name: %s' % str(algorithm_name))
     # prepare process files
@@ -1313,63 +1692,85 @@ def band_classification(
             cfg.progress.update(failed=True)
             return OutputManager(check=False)
     else:
-        # get spectral signature file
-        if type(spectral_signatures) is str:
-            if type(input_bands) is BandSet:
-                bandset_signature = input_bands
-            else:
-                bandset_signature = None
-            signature_catalog = SpectralSignaturesCatalog(
-                bandset=bandset_signature
+        if fit_classifiers:
+            # get spectral signature file
+            if type(spectral_signatures) is str:
+                if type(input_bands) is BandSet:
+                    bandset_signature = input_bands
+                else:
+                    bandset_signature = None
+                signature_catalog = SpectralSignaturesCatalog(
+                    bandset=bandset_signature
+                )
+                signature_catalog.load(file_path=spectral_signatures)
+                spectral_signatures = signature_catalog
+            # collect x and y matrices
+            x_y_matrices = _collect_x_y_matrices(
+                x_matrix=x_input, y=y_input,
+                covariance_matrices=covariance_matrices,
+                input_raster_list=input_raster_list,
+                spectral_signatures=spectral_signatures,
+                input_normalization=input_normalization, macroclass=macroclass,
+                n_processes=n_processes, available_ram=available_ram,
+                min_progress=1, max_progress=5, algorithm_name=algorithm_name,
+                same_geotransformation=same_geotransformation,
+                ravel=ravel, buffer=buffer, model_path_list=model_path_list,
+                pytorch_device=pytorch_device
             )
-            signature_catalog.load(file_path=spectral_signatures)
-            spectral_signatures = signature_catalog
-        # collect x and y matrices
-        x_y_matrices = _collect_x_y_matrices(
-            x_matrix=x_input, y=y_input,
-            covariance_matrices=covariance_matrices,
-            input_raster_list=input_raster_list,
-            spectral_signatures=spectral_signatures,
-            input_normalization=input_normalization, macroclass=macroclass,
-            n_processes=n_processes, available_ram=available_ram,
-            min_progress=1, max_progress=5, algorithm_name=algorithm_name,
-            same_geotransformation=same_geotransformation
-        )
-        if x_y_matrices.check is False:
-            cfg.logger.log.error('error collecting matrices')
-            cfg.messages.error('error collecting matrices')
-            cfg.progress.update(failed=True)
-            return OutputManager(check=False)
-        x_matrix = x_y_matrices.extra['x']
-        y = x_y_matrices.extra['y']
-        covariance_matrices_dict = x_y_matrices.extra['covariance_matrices']
-        normalization = x_y_matrices.extra['normalization_values']
-        # fit classifier
-        classifier = Classifier.train(
-            spectral_signatures=spectral_signatures,
-            algorithm_name=algorithm_name,
-            covariance_matrices=covariance_matrices_dict,
-            svc_classification_confidence=classification_confidence,
-            n_processes=n_processes, available_ram=available_ram,
-            cross_validation=cross_validation, x_matrix=x_matrix, y=y,
-            class_weight=class_weight, input_normalization=input_normalization,
-            normalization_values=normalization,
-            find_best_estimator=find_best_estimator,
-            rf_max_features=rf_max_features, rf_number_trees=rf_number_trees,
-            rf_min_samples_split=rf_min_samples_split, svm_c=svm_c,
-            svm_gamma=svm_gamma, svm_kernel=svm_kernel,
-            pytorch_model=pytorch_model, pytorch_optimizer=pytorch_optimizer,
-            mlp_training_portion=mlp_training_portion,
-            pytorch_loss_function=pytorch_loss_function,
-            mlp_hidden_layer_sizes=mlp_hidden_layer_sizes, mlp_alpha=mlp_alpha,
-            mlp_learning_rate_init=mlp_learning_rate_init,
-            mlp_max_iter=mlp_max_iter, mlp_batch_size=mlp_batch_size,
-            mlp_activation=mlp_activation,
-            pytorch_optimization_n_iter_no_change=(
-                pytorch_optimization_n_iter_no_change),
-            pytorch_optimization_tol=pytorch_optimization_tol,
-            pytorch_device=pytorch_device, min_progress=5, max_progress=40
-        )
+            if not x_y_matrices.check:
+                cfg.logger.log.error('error collecting matrices')
+                cfg.messages.error('error collecting matrices')
+                cfg.progress.update(failed=True)
+                return OutputManager(check=False)
+            x_matrix = x_y_matrices.extra['x']
+            y = x_y_matrices.extra['y']
+            covariance_matrices_dict = x_y_matrices.extra['covariance_matrices']
+            normalization = x_y_matrices.extra['normalization_values']
+            # fit classifier
+            classifier = Classifier.train(
+                spectral_signatures=spectral_signatures,
+                algorithm_name=algorithm_name,
+                additional_algorithm_name=additional_algorithm_name,
+                pretrained_model_path=pretrained_model_path,
+                covariance_matrices=covariance_matrices_dict,
+                svc_classification_confidence=classification_confidence,
+                n_processes=n_processes, available_ram=available_ram,
+                cross_validation=cross_validation, x_matrix=x_matrix, y=y,
+                class_weight=class_weight,
+                input_normalization=input_normalization,
+                normalization_values=normalization,
+                find_best_estimator=find_best_estimator,
+                rf_max_features=rf_max_features,
+                rf_number_trees=rf_number_trees,
+                rf_min_samples_split=rf_min_samples_split, svm_c=svm_c,
+                svm_gamma=svm_gamma, svm_kernel=svm_kernel,
+                pytorch_model=pytorch_model,
+                pytorch_optimizer=pytorch_optimizer,
+                mlp_training_portion=mlp_training_portion,
+                pytorch_loss_function=pytorch_loss_function,
+                mlp_hidden_layer_sizes=mlp_hidden_layer_sizes,
+                mlp_alpha=mlp_alpha,
+                mlp_learning_rate_init=mlp_learning_rate_init,
+                mlp_max_iter=mlp_max_iter, mlp_batch_size=mlp_batch_size,
+                mlp_activation=mlp_activation,
+                pytorch_optimization_n_iter_no_change=(
+                    pytorch_optimization_n_iter_no_change),
+                pytorch_optimization_tol=pytorch_optimization_tol,
+                pytorch_device=pytorch_device, min_progress=5, max_progress=40
+            )
+        else:
+            classifier = Classifier(
+                algorithm_name=algorithm_name,
+                spectral_signatures=None,
+                covariance_matrices=covariance_matrices,
+                model_classifier=None,
+                input_normalization=input_normalization,
+                normalization_values=None,
+                additional_algorithm_name=additional_algorithm_name,
+                pretrained_model_path=pretrained_model_path,
+                pretrained_model_replace=pretrained_model_replace,
+                n_processes=n_processes, num_classes=num_classes
+            )
     # save model
     if not save_classifier:
         output_model = None
@@ -1429,10 +1830,10 @@ def _perform_cross_validation_scikit(
     """Performs cross validation with scikit."""
     if cross_validation and cross_validation is not None:
         # calculate score by cross-validation with stratification
-        classifier_list, train_arg_dict_list, test_arg_dict_list = \
-            _create_stratified_k_fold_scikit(
-                classifier=classifier, x_matrix=x_matrix, y=y
-            )
+        classifier_list, train_arg_dict_list, test_arg_dict_list = (
+            _create_stratified_k_fold_scikit(classifier=classifier,
+                                             x_matrix=x_matrix, y=y)
+        )
         # fit training
         cfg.multiprocess.run_scikit(
             function=fit_classifier, classifier_list=classifier_list,
@@ -1464,13 +1865,16 @@ def _perform_cross_validation_scikit(
             '%s' % (str(scores.mean()), str(scores.std()))
         )
         return scores
+    return None
 
 
+# noinspection PyUnreachableCode
 def _get_x_y_arrays_from_rois(
         raster_paths, roi_path, spectral_signatures, macroclass=True,
         n_processes: int = None, available_ram: int = None,
         algorithm_name=None, input_normalization=None,
-        min_progress=None, max_progress=None, same_geotransformation=None
+        min_progress=None, max_progress=None, same_geotransformation=None,
+        ravel=None, buffer=None, model_path_list=None, pytorch_device=None
 ):
     """Gets x y arrays from rois."""
     cfg.logger.log.debug('raster_paths: %s' % str(raster_paths))
@@ -1480,7 +1884,6 @@ def _get_x_y_arrays_from_rois(
         virtual_path_list = raster_paths
     else:
         virtual_path_list = []
-        # TODO check
         for p in raster_paths:
             temp_path = cfg.temp.temporary_file_path(
                 name_suffix=cfg.vrt_suffix)
@@ -1516,9 +1919,8 @@ def _get_x_y_arrays_from_rois(
         for sig_index, signature_i in enumerate(signature_ids_index_list):
             # signature ids
             signature_id_list = signature_ids[
-                                signature_ids_index_list[sig_index - 1]:
-                                signature_i
-                                ]
+                signature_ids_index_list[sig_index - 1]: signature_i
+            ]
             argument_list.append(
                 {
                     'signature_id_list': signature_id_list,
@@ -1526,7 +1928,10 @@ def _get_x_y_arrays_from_rois(
                     'virtual_path_list': virtual_path_list,
                     'available_ram': available_ram,
                     # optional calc_data_type
-                    'calc_data_type': None
+                    'calc_data_type': None,
+                    'ravel': ravel, 'buffer': buffer,
+                    'function': model_path_list,
+                    'pytorch_device': pytorch_device
                 }
             )
             function_list.append(get_band_arrays)
@@ -1644,7 +2049,8 @@ def _collect_x_y_matrices(
         input_raster_list=None, spectral_signatures=None,
         input_normalization=None, macroclass=None, n_processes: int = None,
         available_ram: int = None, same_geotransformation=None,
-        min_progress=0, max_progress=100, algorithm_name=None
+        min_progress=0, max_progress=100, algorithm_name=None,
+        ravel=None, buffer=None, model_path_list=None, pytorch_device=None
 ):
     """Collects x and y matrices."""
     normalization_values = None
@@ -1660,9 +2066,11 @@ def _collect_x_y_matrices(
             algorithm_name=algorithm_name,
             input_normalization=input_normalization, min_progress=min_progress,
             max_progress=max_progress,
-            same_geotransformation=same_geotransformation
+            same_geotransformation=same_geotransformation,
+            ravel=ravel, buffer=buffer,
+            model_path_list=model_path_list, pytorch_device=pytorch_device
         )
-        if x_y_arrays.check is False:
+        if not x_y_arrays.check:
             return OutputManager(check=False)
         x_matrix = x_y_arrays.extra['x']
         y = x_y_arrays.extra['y']
@@ -1727,9 +2135,10 @@ def _load_model(model_path):
     cfg.logger.log.debug('model_path: %s' % str(model_path))
     temp_dir = cfg.temp.create_temporary_directory()
     file_list = files_directories.unzip_file(model_path, temp_dir)
-    algorithm_name = framework_name = spectral_signatures = \
-        covariance_matrices = model_classifier = None
-    input_normalization = normalization_values = None
+    algorithm_name = framework_name = spectral_signatures = None
+    covariance_matrices = model_classifier = input_normalization = None
+    normalization_values = additional_algorithm_name = None
+    pretrained_model_path = None
     # open classification framework
     for f in file_list:
         f_name = files_directories.file_name(f)
@@ -1742,25 +2151,34 @@ def _load_model(model_path):
                     algorithm_name = variable[1]
                 elif variable[0] == cfg.input_normalization_framework:
                     input_normalization = variable[1]
+                elif variable[0] == cfg.model_path_framework:
+                    pretrained_model_path = variable[1]
+                elif variable[0] == cfg.additional_algorithm_framework:
+                    additional_algorithm_name = variable[1]
             if (input_normalization is not None
                     and input_normalization.lower() == 'none'):
                 input_normalization = None
-            # scikit framework
-            if (
-                    algorithm_name == cfg.random_forest
-                    or algorithm_name == cfg.random_forest_a
-                    or algorithm_name == cfg.random_forest_ovr
-                    or algorithm_name == cfg.random_forest_ovr_a
-                    or algorithm_name == cfg.support_vector_machine
-                    or algorithm_name == cfg.support_vector_machine_a
-                    or algorithm_name == cfg.multi_layer_perceptron
-                    or algorithm_name == cfg.multi_layer_perceptron_a
-            ):
-                framework_name = cfg.scikit_framework
-            # pytorch framework
-            elif (algorithm_name == cfg.pytorch_multi_layer_perceptron
-                  or algorithm_name == cfg.pytorch_multi_layer_perceptron_a):
-                framework_name = cfg.pytorch_framework
+            if (additional_algorithm_name is not None
+                    and additional_algorithm_name.lower() == 'none'):
+                additional_algorithm_name = None
+            if additional_algorithm_name is None:
+                # scikit framework
+                if (algorithm_name
+                        in cfg.class_framework_dict[cfg.scikit_framework]):
+                    framework_name = cfg.scikit_framework
+                # pytorch framework
+                elif (algorithm_name in
+                      cfg.class_framework_dict[cfg.pytorch_framework]):
+                    framework_name = cfg.pytorch_framework
+            else:
+                # scikit framework
+                if (additional_algorithm_name
+                        in cfg.class_framework_dict[cfg.scikit_framework]):
+                    framework_name = cfg.scikit_framework
+                # pytorch framework
+                elif (additional_algorithm_name in
+                      cfg.class_framework_dict[cfg.pytorch_framework]):
+                    framework_name = cfg.pytorch_framework
         elif f_name == cfg.spectral_signatures_framework:
             spectral_signatures = pickle.load(open(f, 'rb'))
         elif f_name == cfg.normalization_values_framework:
@@ -1776,12 +2194,68 @@ def _load_model(model_path):
             elif framework_name == cfg.pytorch_framework:
                 if torch is not None:
                     # noinspection PyUnresolvedReferences
-                    model_classifier = torch.load(f)
+                    model_classifier = torch.load(f, weights_only=False)
     classifier = Classifier.load_classifier(
         algorithm_name=algorithm_name, spectral_signatures=spectral_signatures,
         covariance_matrices=covariance_matrices,
         model_classifier=model_classifier,
         input_normalization=input_normalization,
-        normalization_values=normalization_values
+        normalization_values=normalization_values,
+        additional_algorithm_name=additional_algorithm_name,
+        pretrained_model_path=pretrained_model_path
     )
     return OutputManager(extra={'classifier': classifier})
+
+
+# check pretrained model path
+def check_pretrained_model_path(algorithm_name, pretrained_model_path=None):
+    cfg.logger.log.debug(
+        '_check_pretrained_model_path %s %s' %
+        (str(algorithm_name), str(pretrained_model_path))
+    )
+    if (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base or
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_a
+    ):
+        model_url = cfg.pretrained_model_url_dict[
+            cfg.pytorch_pretrained_s2_swin_v2_base]
+    elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny or
+          algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny_a
+    ):
+        model_url = cfg.pretrained_model_url_dict[
+            cfg.pytorch_pretrained_s2_swin_v2_tiny]
+    elif (algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base or
+          algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base_a
+    ):
+        model_url = cfg.pretrained_model_url_dict[
+            cfg.pytorch_pretrained_l89_swin_v2_base]
+    elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg or
+          algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg_a
+    ):
+        model_url = cfg.pretrained_model_url_dict[
+            cfg.pytorch_pretrained_s2_swin_v2_base_seg]
+    elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg or
+          algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg_a
+    ):
+        model_url = cfg.pretrained_model_url_dict[
+            cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg]
+    else:
+        return None
+    if files_directories.is_file(pretrained_model_path):
+        return pretrained_model_path
+    else:
+        # download of model
+        if pretrained_model_path is None:
+            pretrained_model_path = cfg.temp.temporary_file_path(
+                name_suffix='.pth')
+        check = cfg.multiprocess.multi_download_file(
+            url_list=[model_url],
+            output_path_list=[pretrained_model_path],
+            message='downloading model', progress=True, timeout=60,
+            ignore_errors=False
+        )
+        if check:
+            return pretrained_model_path
+        else:
+            cfg.logger.log.error('unable to access pretrained model')
+            cfg.messages.error('unable to access pretrained model')
+            return None

@@ -70,7 +70,14 @@ class TestTableManager(TestCase):
         )
         self.assertGreater(len(joined_test_right.id), 0)
         self.assertGreater(len(rs.table_manager.columns(joined_test_right)), 0)
-        cfg.logger.log.debug('>>> test pivot_60')
+        joined_test_right_2 = rs.table_manager.join_tables(
+            table1=matrix_file1, table2=matrix_file2, field1_name='id',
+            field2_name='id', join_type='right', use_pandas=False
+        )
+        self.assertGreater(len(joined_test_right_2.id), 0)
+        self.assertGreater(len(rs.table_manager.columns(joined_test_right_2)),
+                           0)
+        cfg.logger.log.debug('>>> test pivot')
         pivot1 = rs.table_manager.pivot_matrix(
             joined_table, row_field='value',
             column_function_list=[['field3_m1', 'sum']]
@@ -103,7 +110,7 @@ class TestTableManager(TestCase):
             nodata_value_output='nodata', separator=';', decimal_separator=','
         )
         self.assertTrue(rs.files_directories.is_file(output))
-        cfg.logger.log.debug('>>> test pivot_60')
+        cfg.logger.log.debug('>>> test pivot')
         pivot2 = rs.table_manager.pivot_matrix(
             joined_table, row_field='name_m1',
             column_function_list=[['field3_m2', 'sum']]
@@ -119,7 +126,7 @@ class TestTableManager(TestCase):
             conditional_string='field.field3_m2_sum >100'
         )
         self.assertGreater(len(values2), 0)
-        cfg.logger.log.debug('>>> test pivot_60')
+        cfg.logger.log.debug('>>> test pivot')
         fields = rs.table_manager.pivot_matrix(
             joined_table, row_field='name_m1',
             secondary_row_field_list=['name_m2'],
@@ -134,6 +141,13 @@ class TestTableManager(TestCase):
             filter_string='matrix["field3_m1"] <= 1000'
         )
         self.assertGreater(len(pivot3.name_m1), 0)
+        pivot4 = rs.table_manager.pivot_matrix(
+            joined_table, row_field='name_m1',
+            secondary_row_field_list=['name_m2'],
+            column_function_list=[['field3_m1', 'sum'], ['field3_m2', 'sum']],
+            filter_string='matrix["field3_m1"] <= 1000', use_pandas=False
+        )
+        self.assertGreater(len(pivot4.name_m1), 0)
         cfg.logger.log.debug('>>> test redefine')
         redefined = rs.table_manager.redefine_matrix_columns(
             matrix=joined_table,

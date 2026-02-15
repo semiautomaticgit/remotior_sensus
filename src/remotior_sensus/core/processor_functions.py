@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -25,34 +25,49 @@ from remotior_sensus.core import configurations as cfg
 from remotior_sensus.util import raster_vector
 
 try:
+    # noinspection PyPackageRequirements
     from sklearn.model_selection import cross_val_score, StratifiedKFold
 except Exception as error:
     str(error)
 try:
+    # noinspection PyPackageRequirements
     import scipy.stats.distributions as statdistr
 except Exception as error:
     str(error)
 try:
+    # noinspection PyPackageRequirements
     from scipy import signal
+    # noinspection PyPackageRequirements
     from scipy.stats import mode as scipy_mode
+    # noinspection PyPackageRequirements
     from scipy.ndimage import label
 except Exception as error:
     str(error)
 
 try:
+    # noinspection PyPackageRequirements
     from scipy.ndimage import maximum_filter
+    # noinspection PyPackageRequirements
     from scipy.ndimage import minimum_filter
+    # noinspection PyPackageRequirements
     from scipy.ndimage import percentile_filter
+    # noinspection PyPackageRequirements
     from scipy.ndimage import generic_filter
+    # noinspection PyPackageRequirements
     from scipy.ndimage import median_filter
 except Exception as error:
     str(error)
     # for backward compatibility
     try:
+        # noinspection PyPackageRequirements
         from scipy.ndimage.filters import maximum_filter
+        # noinspection PyPackageRequirements
         from scipy.ndimage.filters import minimum_filter
+        # noinspection PyPackageRequirements
         from scipy.ndimage.filters import percentile_filter
+        # noinspection PyPackageRequirements
         from scipy.ndimage.filters import generic_filter
+        # noinspection PyPackageRequirements
         from scipy.ndimage.filters import median_filter
     except Exception as error:
         str(error)
@@ -60,7 +75,8 @@ except Exception as error:
 try:
     import torch
     from remotior_sensus.util.pytorch_tools import (
-        train_pytorch_model
+        train_pytorch_model, pretrained_pytorch_model_swin2,
+        segmentation_pytorch_model_swin2
     )
 except Exception as error:
     str(error)
@@ -94,26 +110,6 @@ def percentile_calc_pytorch(array, percentile=90, dim=0):
 # band calculation
 # noinspection PyShadowingBuiltins,PyUnusedLocal
 def band_calculation(*argv):
-    # expose numpy functions
-    log = np.ma.log
-    log10 = np.ma.log10
-    sqrt = np.ma.sqrt
-    cos = np.ma.cos
-    arccos = np.ma.arccos
-    sin = np.ma.sin
-    arcsin = np.ma.arcsin
-    tan = np.ma.tan
-    arctan = np.ma.arctan
-    exp = np.ma.exp
-    min = np.ma.min
-    max = np.ma.max
-    sum = np.ma.sum
-    percentile = percentile_calc
-    median = np.ma.median
-    mean = np.ma.mean
-    std = np.ma.std
-    where = np.ma.where
-    nan = np.nan
     # array variable name as defined in cfg.array_function_placeholder
     output_no_data = argv[0][2]
     _array = argv[1][0]
@@ -121,6 +117,17 @@ def band_calculation(*argv):
     _array_function_placeholder = np.ma.array(_array, mask=_array_mask)
     nodata_mask = argv[2]
     function_argument = argv[7]
+    # expose numpy functions
+    namespace = {
+        '_array_function_placeholder': _array_function_placeholder,
+        'np': np, 'ma': np.ma, 'log': np.ma.log, 'log10': np.ma.log10,
+        'sqrt': np.ma.sqrt, 'cos': np.ma.cos, 'arccos': np.ma.arccos,
+        'sin': np.ma.sin, 'arcsin': np.ma.arcsin, 'tan': np.ma.tan,
+        'arctan': np.ma.arctan, 'exp': np.ma.exp, 'min': np.ma.min,
+        'max': np.ma.max, 'sum': np.ma.sum, 'percentile': percentile_calc,
+        'median': np.ma.median, 'mean': np.ma.mean, 'std': np.ma.std,
+        'where': np.ma.where, 'nan': np.nan,
+    }
     cfg.logger.log.debug('function_argument: %s' % str(function_argument))
     cfg.logger.log.debug(
         '_array_function_placeholder.shape: %s; type: %s'
@@ -129,11 +136,13 @@ def band_calculation(*argv):
     )
     # perform operation
     try:
-        _o: np.ma.core.MaskedArray = eval(function_argument)
+        _o: np.ma.core.MaskedArray = eval(function_argument,
+                                          {'__builtins__': None}, namespace)
     except Exception as err:
         cfg.logger.log.error(str(err))
         return False
     # if not array
+    # noinspection PyUnreachableCode
     if (not isinstance(_o, np.ma.core.MaskedArray)
             and not isinstance(_o, np.ndarray)):
         cfg.logger.log.error('not array ' + str(type(_o)))
@@ -146,33 +155,13 @@ def band_calculation(*argv):
     if _o.dtype == bool:
         _o = _o.astype(int)
     # replace nodata
-    _o[::, ::].data[_o.mask] = output_no_data
+    _o[nodata_mask == 1] = output_no_data
     return [[_o.data, _o.mask], None]
 
 
 # band calculation pytorch
 # noinspection PyShadowingBuiltins,PyUnusedLocal
 def band_calculation_pytorch(*argv):
-    # expose numpy functions
-    log = torch.log
-    log10 = torch.log10
-    sqrt = torch.sqrt
-    cos = torch.cos
-    arccos = torch.arccos
-    sin = torch.sin
-    arcsin = torch.arcsin
-    tan = torch.tan
-    arctan = torch.arctan
-    exp = torch.exp
-    min = torch.min
-    max = torch.max
-    sum = torch.sum
-    percentile = percentile_calc_pytorch
-    median = torch.median
-    mean = torch.mean
-    std = torch.std
-    where = torch.where
-    nan = float('nan')
     # array variable name as defined in cfg.array_function_placeholder
     output_no_data = argv[0][2]
     _array = argv[1][0]
@@ -198,10 +187,22 @@ def band_calculation_pytorch(*argv):
     nan_array = torch.full(_array_function_placeholder.shape, float('nan'),
                            dtype=torch.float64).to(device)
     _array_function_placeholder[_array_mask] = nan_array[_array_mask]
+    # expose numpy functions
+    namespace = {
+        '_array_function_placeholder': _array_function_placeholder,
+        'torch': torch, 'log': torch.log, 'log10': torch.log10,
+        'sqrt': torch.sqrt, 'cos': torch.cos, 'arccos': torch.arccos,
+        'sin': torch.sin, 'arcsin': torch.arcsin, 'tan': torch.tan,
+        'arctan': torch.arctan, 'exp': torch.exp, 'min': torch.min,
+        'max': torch.max, 'sum': torch.sum,
+        'percentile': percentile_calc_pytorch, 'median': torch.median,
+        'mean': torch.mean, 'std': torch.std, 'where': torch.where,
+        'nan': float('nan'),
+    }
     # perform operation
     try:
         function_argument.replace('axis=', 'dim=').replace('axis =', 'dim=')
-        _o = eval(function_argument)
+        _o = eval(function_argument, {'__builtins__': None}, namespace)
         if device == 'cuda':
             _o = _o.cpu().numpy()
             device_properties = torch.cuda.get_device_properties(device)
@@ -232,7 +233,7 @@ def band_calculation_pytorch(*argv):
     if _o.dtype == bool:
         _o = _o.astype(int)
     # replace nodata
-    _o[::, ::][nodata_mask == 1] = output_no_data
+    _o[nodata_mask == 1] = output_no_data
     return [[_o, None], None]
 
 
@@ -298,37 +299,34 @@ def classification_maximum_likelihood(*argv):
                 p = class_threshold / 100
                 chi = statdistr.chi2.isf(p, cov_matrix.shape[0])
                 chi_threshold = -2 * chi - log_det
-                distance_array[::, ::][
-                    distance_array < chi_threshold] = cfg.nodata_val
+                distance_array[distance_array < chi_threshold] = cfg.nodata_val
             elif threshold is not False and threshold is not None:
                 p = threshold / 100
                 chi = statdistr.chi2.isf(p, cov_matrix.shape[0])
                 chi_threshold = -2 * chi - log_det
-                distance_array[::, ::][
-                    distance_array < chi_threshold] = cfg.nodata_val
+                distance_array[distance_array < chi_threshold] = cfg.nodata_val
             if previous_array is None:
                 previous_array = distance_array
                 classification_array = np.ones(
                     (_array_function_placeholder.shape[0],
                      _array_function_placeholder.shape[1])
                 ) * class_id
-                classification_array[::, ::][
+                classification_array[
                     distance_array == cfg.nodata_val] = output_no_data
             else:
                 maximum_array = np.maximum(distance_array, previous_array)
-                maximum_array[::, ::][
+                maximum_array[
                     maximum_array == cfg.nodata_val] = previous_array[
                     maximum_array == cfg.nodata_val]
                 classification_array[
                     maximum_array != previous_array] = class_id
-                classification_array[::, ::][
+                classification_array[
                     maximum_array == cfg.nodata_val] = output_no_data
                 previous_array = maximum_array
             if len(output_signature_raster) > 0:
-                distance_array[::, ::][
-                    distance_array == cfg.nodata_val] = output_no_data
-                distance_array[::, ::][
-                    nodata_mask == 1] = output_no_data
+                distance_array[
+                    (distance_array == cfg.nodata_val) | (nodata_mask == 1)
+                ] = output_no_data
                 write_sig = raster_vector.write_raster(
                     output_signature_raster[s], x - ro_x, y - ro_y,
                     distance_array, output_no_data, scale, offset
@@ -338,10 +336,9 @@ def classification_maximum_likelihood(*argv):
             cfg.logger.log.error(str(err))
     if classification_array is not None:
         # write classification
-        classification_array[::, ::][
-            classification_array == cfg.nodata_val] = output_no_data
-        classification_array[::, ::][
-            nodata_mask == 1] = output_no_data
+        classification_array[
+            (classification_array == cfg.nodata_val) | (nodata_mask == 1)
+        ] = output_no_data
         write_class = raster_vector.write_raster(
             out_class, x - ro_x, y - ro_y, classification_array,
             output_no_data, scale, offset
@@ -349,10 +346,9 @@ def classification_maximum_likelihood(*argv):
         cfg.logger.log.debug('write_class: %s' % str(write_class))
         # write the algorithm raster
         if out_alg is not None:
-            previous_array[::, ::][
-                classification_array == cfg.nodata_val] = output_no_data
-            previous_array[::, ::][
-                nodata_mask == 1] = output_no_data
+            previous_array[
+                (classification_array == cfg.nodata_val) | (nodata_mask == 1)
+            ] = output_no_data
             write_alg = raster_vector.write_raster(
                 out_alg, x - ro_x, y - ro_y, previous_array, output_no_data,
                 scale, offset
@@ -418,10 +414,10 @@ def classification_minimum_distance(*argv):
         if threshold is True:
             class_threshold = signatures_table[
                 signatures_table.signature_id == s].min_dist_thr
-            distance_array[::, ::][
+            distance_array[
                 distance_array < class_threshold] = cfg.nodata_val_Int32
         elif threshold is not False and threshold is not None:
-            distance_array[::, ::][
+            distance_array[
                 distance_array < threshold] = cfg.nodata_val_Int32
         if previous_array is None:
             previous_array = distance_array
@@ -433,21 +429,21 @@ def classification_minimum_distance(*argv):
             minimum_array = np.minimum(distance_array, previous_array)
             classification_array[minimum_array != previous_array] = class_id
             previous_array = minimum_array
-        classification_array[::, ::][
+        classification_array[
             distance_array == cfg.nodata_val_Int32] = output_no_data
         if len(output_signature_raster) > 0:
-            distance_array[::, ::][
-                distance_array == cfg.nodata_val_Int32] = output_no_data
-            distance_array[::, ::][nodata_mask == 1] = output_no_data
+            distance_array[
+                (distance_array == cfg.nodata_val_Int32) | (nodata_mask == 1)
+            ] = output_no_data
             write_sig = raster_vector.write_raster(
                 output_signature_raster[s], x - ro_x, y - ro_y, distance_array,
                 output_no_data, scale, offset
             )
             cfg.logger.log.debug('write_sig: %s' % str(write_sig))
     # write classification
-    classification_array[::, ::][
-        classification_array == cfg.nodata_val_Int32] = output_no_data
-    classification_array[::, ::][nodata_mask == 1] = output_no_data
+    classification_array[
+        (classification_array == cfg.nodata_val_Int32) | (nodata_mask == 1)
+    ] = output_no_data
     write_class = raster_vector.write_raster(
         out_class, x - ro_x, y - ro_y, classification_array, output_no_data,
         scale, offset
@@ -455,9 +451,9 @@ def classification_minimum_distance(*argv):
     cfg.logger.log.debug('write_class: %s' % str(write_class))
     # write the algorithm raster
     if out_alg is not None:
-        previous_array[::, ::][
-            classification_array == cfg.nodata_val_Int32] = output_no_data
-        previous_array[::, ::][nodata_mask == 1] = output_no_data
+        previous_array[
+            (classification_array == cfg.nodata_val_Int32) | (nodata_mask == 1)
+        ] = output_no_data
         write_alg = raster_vector.write_raster(
             out_alg, x - ro_x, y - ro_y, previous_array, output_no_data, scale,
             offset
@@ -524,10 +520,10 @@ def classification_spectral_angle_mapping(*argv):
         if threshold is True:
             class_threshold = signatures_table[
                 signatures_table.signature_id == s].min_dist_thr
-            distance_array[::, ::][
+            distance_array[
                 distance_array < class_threshold] = cfg.nodata_val_Int32
         elif threshold is not False and threshold is not None:
-            distance_array[::, ::][
+            distance_array[
                 distance_array < threshold] = cfg.nodata_val_Int32
         if previous_array is None:
             previous_array = distance_array
@@ -539,21 +535,21 @@ def classification_spectral_angle_mapping(*argv):
             minimum_array = np.minimum(distance_array, previous_array)
             classification_array[minimum_array != previous_array] = class_id
             previous_array = minimum_array
-        classification_array[::, ::][
+        classification_array[
             distance_array == cfg.nodata_val_Int32] = output_no_data
         if len(output_signature_raster) > 0:
-            distance_array[::, ::][
-                distance_array == cfg.nodata_val_Int32] = output_no_data
-            distance_array[::, ::][nodata_mask == 1] = output_no_data
+            distance_array[
+                (distance_array == cfg.nodata_val_Int32) | (nodata_mask == 1)
+            ] = output_no_data
             write_sig = raster_vector.write_raster(
                 output_signature_raster[s], x - ro_x, y - ro_y, distance_array,
                 output_no_data, scale, offset
             )
             cfg.logger.log.debug('write_sig: %s' % str(write_sig))
     # write classification
-    classification_array[::, ::][
-        classification_array == cfg.nodata_val_Int32] = output_no_data
-    classification_array[::, ::][nodata_mask == 1] = output_no_data
+    classification_array[
+        (classification_array == cfg.nodata_val_Int32) | (nodata_mask == 1)
+    ] = output_no_data
     write_class = raster_vector.write_raster(
         out_class, x - ro_x, y - ro_y, classification_array, output_no_data,
         scale, offset
@@ -561,9 +557,9 @@ def classification_spectral_angle_mapping(*argv):
     cfg.logger.log.debug('write_class: %s' % str(write_class))
     # write the algorithm raster
     if out_alg is not None:
-        previous_array[::, ::][
-            classification_array == cfg.nodata_val_Int32] = output_no_data
-        previous_array[::, ::][nodata_mask == 1] = output_no_data
+        previous_array[
+            (classification_array == cfg.nodata_val_Int32) | (nodata_mask == 1)
+        ] = output_no_data
         write_alg = raster_vector.write_raster(
             out_alg, x - ro_x, y - ro_y, previous_array, output_no_data, scale,
             offset
@@ -608,7 +604,7 @@ def spectral_distance(*argv):
         '_o: %s; nodata_mask: %s' % (str(_o.shape), str(nodata_mask.shape))
     )
     if nodata_mask is not None:
-        _o[::, ::][nodata_mask == 1] = output_no_data
+        _o[nodata_mask == 1] = output_no_data
     return [[_o, None], None]
 
 
@@ -654,7 +650,7 @@ def classification_scikit(*argv):
         )
         _prediction = None
         # write classification
-        classification_array[::, ::][nodata_mask == 1] = output_no_data
+        classification_array[nodata_mask == 1] = output_no_data
         try:
             write_class = raster_vector.write_raster(
                 out_class, x - x_min_piece, y - y_min_piece,
@@ -692,9 +688,9 @@ def classification_scikit(*argv):
                     classification_argmax == c, class_c, classification_array
                 )
             if threshold is not False:
-                classification_array[::, ::][
-                    prediction_proba_array < threshold] = output_no_data
-            prediction_proba_array[::, ::][nodata_mask == 1] = output_no_data
+                classification_array[
+                    (prediction_proba_array < threshold) | (nodata_mask == 1)
+                ] = output_no_data
             write_alg = raster_vector.write_raster(
                 out_alg, x - x_min_piece, y - y_min_piece,
                 prediction_proba_array, output_no_data, scale, offset
@@ -708,10 +704,8 @@ def classification_scikit(*argv):
                 _array_function_placeholder.shape[1]
             )
             _prediction = None
-            # write classification
-            classification_array[::, ::][nodata_mask == 1] = output_no_data
         # write classification
-        classification_array[::, ::][nodata_mask == 1] = output_no_data
+        classification_array[nodata_mask == 1] = output_no_data
         write_class = raster_vector.write_raster(
             out_class, x - x_min_piece, y - y_min_piece, classification_array,
             output_no_data, scale, offset
@@ -768,7 +762,7 @@ def classification_pytorch(*argv):
         )
         _prediction = None
         # write classification
-        classification_array[::, ::][nodata_mask == 1] = output_no_data
+        classification_array[nodata_mask == 1] = output_no_data
         try:
             write_class = raster_vector.write_raster(
                 out_class, x - x_min_piece, y - y_min_piece,
@@ -806,9 +800,9 @@ def classification_pytorch(*argv):
                 _array_function_placeholder.shape[1]
             )
             if threshold is not False:
-                classification_array[::, ::][
+                classification_array[
                     prediction_proba_array < threshold] = output_no_data
-            prediction_proba_array[::, ::][nodata_mask == 1] = output_no_data
+            prediction_proba_array[nodata_mask == 1] = output_no_data
             write_alg = raster_vector.write_raster(
                 out_alg, x - x_min_piece, y - y_min_piece,
                 prediction_proba_array, output_no_data, scale, offset
@@ -821,10 +815,8 @@ def classification_pytorch(*argv):
                 _array_function_placeholder.shape[0],
                 _array_function_placeholder.shape[1]
             )
-            # write classification
-            classification_array[::, ::][nodata_mask == 1] = output_no_data
         # write classification
-        classification_array[::, ::][nodata_mask == 1] = output_no_data
+        classification_array[nodata_mask == 1] = output_no_data
         write_class = raster_vector.write_raster(
             out_class, x - x_min_piece, y - y_min_piece, classification_array,
             output_no_data, scale, offset
@@ -833,6 +825,79 @@ def classification_pytorch(*argv):
             'write_class: %s; classification_array.shape: %s'
             % (str(write_class), str(classification_array.shape))
         )
+    return [True, out_class]
+
+
+# classification through pytorch pretrained model
+def classification_pytorch_pretrained(*argv):
+    _array_function_placeholder = argv[1][0]
+    model_path = argv[7][cfg.model_path_framework]
+    algorithm_name = argv[7][cfg.algorithm_name_framework]
+    if (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base or
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_a
+    ):
+        model_variant = cfg.variant_base
+    elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny or
+          algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny_a
+    ):
+        model_variant = cfg.variant_tiny
+    else:
+        model_variant = None
+    classification_algorithm = argv[7][cfg.additional_algorithm_framework]
+    embeddings = pretrained_pytorch_model_swin2(
+        array_dic={0: _array_function_placeholder}, weights_path=model_path,
+        variant=model_variant,
+        band_number=_array_function_placeholder.shape[2], stack=False)
+    new_args = list(argv)
+    new_args[1][0] = embeddings[0]
+    return classification_algorithm(*new_args)
+
+
+# segmentation through pytorch pretrained model
+def segmentation_pytorch_pretrained(*argv):
+    scale = argv[0][0]
+    offset = argv[0][1]
+    output_no_data = argv[0][2]
+    _array_function_placeholder = argv[1][0]
+    nodata_mask = argv[2]
+    x = argv[4]
+    y = argv[5]
+    model_path = argv[7][cfg.model_path_framework]
+    algorithm_name = argv[7][cfg.algorithm_name_framework]
+    pretrained_model_replace = argv[7][cfg.model_reclass_framework]
+    num_classes = argv[7][cfg.num_classes_framework]
+    n_processes = argv[7][cfg.n_processes_framework]
+    x_min_piece, y_min_piece = argv[10]
+    out_class = argv[12]
+    if (
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg
+            or
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg_a
+            or
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg
+            or
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg_a
+    ):
+        model_variant = cfg.variant_base
+    else:
+        model_variant = None
+    segmentation = segmentation_pytorch_model_swin2(
+        array_dic={0: _array_function_placeholder}, weights_path=model_path,
+        variant=model_variant, num_classes=num_classes,
+        band_number=_array_function_placeholder.shape[2], stack=False,
+        replace_keys=pretrained_model_replace, n_processes=n_processes
+    )
+    # write classification
+    classification_array = segmentation[0]
+    classification_array[nodata_mask == 1] = output_no_data
+    write_class = raster_vector.write_raster(
+        out_class, x - x_min_piece, y - y_min_piece, classification_array,
+        output_no_data, scale, offset
+    )
+    cfg.logger.log.debug(
+        'write_class: %s; classification_array.shape: %s'
+        % (str(write_class), str(classification_array.shape))
+    )
     return [True, out_class]
 
 
@@ -859,7 +924,7 @@ def calculate_pca(*argv):
         '_o: %s; nodata_mask: %s' % (str(_o.shape), str(nodata_mask.shape))
     )
     if nodata_mask is not None:
-        _o[::, ::][nodata_mask == 1] = output_no_data
+        _o[nodata_mask == 1] = output_no_data
     # update masked array
     _o_mask = np.zeros_like(_o, dtype=bool)
     # TODO output mask
@@ -878,43 +943,54 @@ def reclassify_raster(*argv):
     cfg.logger.log.debug('start')
     _o = None
     replace_nodata = True
+    _x = raster_array_band[:, :, 0]
     try:
         old = function_argument['old_value']
         new = function_argument['new_value']
         assert old.astype(int).all()
-        _raster = raster_array_band[:, :, 0]
         _raster_mask = raster_mask_array_band[:, :, 0]
         # if all integer values
-        if np.all(_raster.astype(int) == _raster):
-            # create empty reclass array of length equal to maximum value
-            reclass = np.zeros(
-                max(
-                    old.astype(int).max(), raster_array_band.astype(int).max()
-                ) + 1
-            ) * np.nan
-            # fill array with new values at index corresponding to old value
-            reclass[old.astype(int)] = new
-            # perform reclassification
-            _o = reclass[_raster.astype(int)]
-            _o[::, ::][np.isnan(_o)] = _raster[::, ::][np.isnan(_o)]
+        if np.all(_x.astype(int) == _x):
+            # check raster memory
+            max_idx = int(max(old.astype(int).max(), _x.max()))
+            reclass_memory = (max_idx + 1) * 8
+            raster_memory = _x.size * _x.dtype.itemsize
+            # if reclassification requires too much memory use sorted
+            if reclass_memory > raster_memory:
+                cfg.logger.log.debug('reclassification sorted')
+                order = np.argsort(old)
+                old_sorted = old[order]
+                new_sorted = new[order]
+                id_x = np.searchsorted(old_sorted, _x, side='left')
+                valid = id_x < len(old_sorted)
+                _o = _x.copy()
+                _o[valid] = new_sorted[id_x[valid]]
+            else:
+                cfg.logger.log.debug('reclassification array')
+                # create empty reclass array of length equal to maximum value
+                reclass = np.full(max_idx + 1, np.nan, dtype=float)
+                # fill with new values at index corresponding to old value
+                reclass[old.astype(int)] = new
+                # perform reclassification
+                _o = reclass[_x.astype(int)]
+            _o[np.isnan(_o)] = _x[np.isnan(_o)]
             _o_mask = _raster_mask
         else:
             # raise exception to try expressions
             raise Exception
     except Exception as err:
         str(err)
-        _raster = None
+        cfg.logger.log.debug('reclassification function')
         # raster array
-        _o = np.copy(raster_array_band[:, :, 0])
+        _o = np.copy(_x)
         _o_mask = np.copy(raster_mask_array_band[:, :, 0])
-        _x = raster_array_band[:, :, 0]
         for i in range(function_argument.shape[0]):
             cfg.logger.log.debug(str(function_argument[i]))
             # if reclassify from nodata to new value
             if 'nan' in function_argument[i][cfg.old_value]:
                 try:
                     # replace nodata
-                    _o[::, ::][_o_mask] = np.array(
+                    _o[_o_mask] = np.array(
                         float(function_argument[i][cfg.new_value])
                     )
                     _o_mask[_o_mask] = 0
@@ -962,7 +1038,7 @@ def reclassify_raster(*argv):
     if replace_nodata:
         try:
             # replace nodata
-            _o[::, ::][_o_mask] = output_no_data
+            _o[_o_mask] = output_no_data
             _o_mask = np.zeros_like(_o, dtype=bool)
         except Exception as err:
             str(err)
@@ -1070,19 +1146,8 @@ def raster_unique_values(*argv):
     cfg.logger.log.debug('start')
     raster_array_band = argv[1][0]
     nodata_mask = argv[2]
-    # stack arrays
-    try:
-        arr = raster_array_band[:, :, 0][nodata_mask != 1].ravel()
-        for i in range(1, raster_array_band.shape[2]):
-            arr = np.vstack(
-                (arr, raster_array_band[:, :, i][nodata_mask != 1].ravel())
-            )
-    except Exception as err:
-        str(err)
-        arr = raster_array_band[:, :, 0].ravel()
-        for i in range(1, raster_array_band.shape[2]):
-            arr = np.vstack((arr, raster_array_band[:, :, i].ravel()))
-    arr = arr.T
+    mask = nodata_mask != 1
+    arr = raster_array_band[mask].reshape(-1, raster_array_band.shape[2])
     arr = arr[~np.isnan(arr).any(axis=1)]
     # adapted from Jaime answer at
     # https://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy-array
@@ -1126,7 +1191,7 @@ def raster_dilation(*argv):
         cfg.logger.log.error(str(err))
     # replace nodata
     o_mask = nodata_mask == 1
-    o[::, ::][o_mask] = output_no_data
+    o[o_mask] = output_no_data
     cfg.logger.log.debug('end')
     return [[o, o_mask], None]
 
@@ -1200,6 +1265,7 @@ def raster_erosion(*argv):
 
 
 # calculate raster resample
+# noinspection PyTypeChecker
 def raster_resample(*argv):
     cfg.logger.log.debug('start')
     output_no_data = argv[0][2]
@@ -1240,6 +1306,7 @@ def raster_resample(*argv):
 
 
 # calculate raster neighbor
+# noinspection PyUnresolvedReferences
 def raster_neighbor(*argv):
     cfg.logger.log.debug('start')
     raster_array_band = argv[1][0]
@@ -1271,7 +1338,7 @@ def raster_neighbor(*argv):
                     mode='same'
                 ), 6
             )
-        o[::, ::][np.isnan(raster_array_band[:, :, 0])] = np.nan
+        o[np.isnan(raster_array_band[:, :, 0])] = np.nan
     elif 'nanmean' in function_variable_list[0]:
         try:
             o = np.round(
@@ -1301,7 +1368,7 @@ def raster_neighbor(*argv):
                     )
                 ), 6
             )
-        o[::, ::][np.isnan(raster_array_band[:, :, 0])] = np.nan
+        o[np.isnan(raster_array_band[:, :, 0])] = np.nan
     elif 'nanmax' in function_variable_list[0]:
         o = maximum_filter(
             raster_array_band[:, :, 0], footprint=structure, mode='constant',
@@ -1334,7 +1401,7 @@ def raster_neighbor(*argv):
                     mode='same'
                 ), 6
             )
-        o[::, ::][np.isnan(raster_array_band[:, :, 0])] = np.nan
+        o[np.isnan(raster_array_band[:, :, 0])] = np.nan
     elif 'std' in function_variable_list[0]:
         o = generic_filter(
             raster_array_band[:, :, 0], np.std, footprint=structure,
@@ -1361,36 +1428,38 @@ def cross_rasters(*argv):
     output_list = argv[6]
     function_argument = argv[7]
     function_variable = argv[8]
-    _a = eval(
-        function_variable.replace(
-            cfg.array_function_placeholder, 'array_function_placeholder'
+    mask = nodata_mask != 1
+    # exclude nodata values
+    if nodata_mask is not None:
+        # noinspection PyUnresolvedReferences
+        array_function_placeholder = (array_function_placeholder
+                                      * mask[:, :, None])
+    try:
+        _a = eval(
+            function_variable.replace(
+                cfg.array_function_placeholder, 'array_function_placeholder'
+            )
         )
-    )
+    except Exception as err:
+        cfg.logger.log.error(str(err))
+        return [None, None]
     o = np.searchsorted(function_argument, _a.ravel(), side='right').reshape(
         array_function_placeholder.shape[0],
         array_function_placeholder.shape[1]
     )
     _a = None
     if nodata_mask is not None:
-        np.copyto(o, output_no_data, where=nodata_mask[::, ::] != 0,
-                  casting='unsafe'
-                  )
+        np.copyto(o, output_no_data, where=nodata_mask != 0, casting='unsafe')
         stats = np.array(
-            np.unique(o[nodata_mask[::, ::] == 0], return_counts=True)
+            np.unique(o[nodata_mask == 0], return_counts=True)
         )
     else:
         try:
-            o[np.isnan(array_function_placeholder[:, :, 0])] = np.nan
-            stats = np.array(np.unique(o[~np.isnan(o)], return_counts=True))
+            nan_mask = np.isnan(array_function_placeholder[:, :, 0])
+            stats = np.unique(o[~(nan_mask != 0)], return_counts=True)
         except Exception as err:
-            str(err)
-            try:
-                stats = np.array(
-                    np.unique(o[~np.isnan(o)], return_counts=True)
-                )
-            except Exception as err:
-                cfg.logger.log.error(str(err))
-                stats = None
+            cfg.logger.log.error(str(err))
+            stats = None
     cfg.logger.log.debug('end')
     if output_list is None:
         return [None, stats]
@@ -1450,7 +1519,7 @@ def spectral_signature(*argv):
         reference_raster_path=function_variable, extent=True
     )
     _a = raster_vector.read_raster(temp)
-    _a[::, ::][nodata_mask == 1] = np.nan
+    _a[nodata_mask == 1] = np.nan
     array_roi = array_function_placeholder[_a == 1]
     mean = np.nanmean(array_roi)
     std = np.nanstd(array_roi)
@@ -1474,7 +1543,7 @@ def get_values_for_scatter_plot(*argv):
         reference_raster_path=function_variable, extent=True
     )
     _a = raster_vector.read_raster(temp)
-    _a[::, ::][nodata_mask == 1] = np.nan
+    _a[nodata_mask == 1] = np.nan
     array_roi = array_function_placeholder[_a == 1]
     cfg.logger.log.debug('end')
     return [None, array_roi.ravel()]
@@ -1488,7 +1557,7 @@ def region_growing(*argv):
     # roi parameters
     function_variable = argv[8]
     array_roi = array_function_placeholder
-    array_roi[::, ::][nodata_mask == 1] = np.nan
+    array_roi[nodata_mask == 1] = np.nan
     seed_x = function_variable[0]
     seed_y = function_variable[1]
     max_spectral_distance = function_variable[2]
@@ -1549,13 +1618,15 @@ def get_band_arrays(
             for s in d['signature_id_list']:
                 r_arr_v_arr_list = []
                 nd_bool_list = []
+                ravel_list = []
                 # iterate rasters
                 for v in d['virtual_path_list']:
                     extract = raster_vector.extract_vector_to_raster(
                         vector_path=d['roi_path'],
                         reference_raster_path=v, calc_data_type=calc_data_type,
                         available_ram=d['available_ram'],
-                        attribute_filter="%s = '%s'" % (field_name, str(s))
+                        attribute_filter="%s = '%s'" % (field_name, str(s)),
+                        ravel=d['ravel'], buffer=d['buffer']
                     )
                     if extract is False:
                         return [None, 'error extract', str(process)]
@@ -1564,6 +1635,7 @@ def get_band_arrays(
                         r_arr_v_arr_list.append([extract[0], extract[1]])
                         # get raster nodata array
                         nd_bool_list.append(extract[2])
+                        ravel_list.append(d['ravel'])
                 # create nodata array for all rasters
                 nd_array = None
                 for nd_bool in nd_bool_list:
@@ -1573,17 +1645,32 @@ def get_band_arrays(
                         nd_array = nd_array * nd_bool
                 # create array list
                 array_list = []
-                for i in r_arr_v_arr_list:
-                    _a = i[0][nd_array]
-                    _b = i[1][nd_array]
-                    array_list.append(_a[_b == 1])
+                _vector_raster = None
+                for r, i in enumerate(r_arr_v_arr_list):
+                    if ravel_list[r]:
+                        _a = i[0][nd_array]
+                        _b = i[1][nd_array]
+                        array_list.append(_a[_b == 1])
+                    else:
+                        _a = i[0] * nd_array
+                        _vector_raster = i[1] * nd_array
+                        array_list.append(_a)
                 # calculate numpy functions
-                if 'numpy_functions' in d:
+                if d.get('numpy_functions') is not None:
                     result_dict = {}
                     for f in d['numpy_functions']:
                         for _ in array_list:
                             result_dict[f] = eval(d['numpy_functions'][f])
                     array_dict[s] = result_dict
+                # functions such as pretrained_pytorch_model_swin2
+                elif d.get('function') is not None:
+                    fun = eval(d['function'][0])
+                    weights_path = d['function'][1]
+                    model_variant = d['function'][2]
+                    pytorch_device = d['pytorch_device']
+                    array_dict[s] = fun({0: array_list}, weights_path,
+                                        len(array_list), model_variant,
+                                        {0: _vector_raster}, pytorch_device)
                 else:
                     array_dict[s] = array_list
             results.append(array_dict)
@@ -1683,6 +1770,7 @@ def clip_raster(
                     cfg.gdal_path = path
                 except Exception as err:
                     str(err)
+        # noinspection PyPackageRequirements
         from osgeo import gdal, ogr, osr
         # GDAL config
         try:
@@ -1691,6 +1779,7 @@ def clip_raster(
             gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
             gdal.DontUseExceptions()
         except Exception as err:
             str(err)
@@ -1784,6 +1873,7 @@ def vector_to_raster_iter(
                     cfg.gdal_path = path
                 except Exception as err:
                     str(err)
+        # noinspection PyPackageRequirements
         from osgeo import gdal, ogr, osr
         # GDAL config
         try:
@@ -1792,6 +1882,7 @@ def vector_to_raster_iter(
             gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
             gdal.DontUseExceptions()
         except Exception as err:
             str(err)
@@ -1888,6 +1979,11 @@ def vector_to_raster_iter(
                 'grid_columns, grid_rows: %s,%s' % (grid_columns, grid_rows)
             )
             if grid_columns > 0 and grid_rows > 0:
+                # create memory layer
+                memory_driver = gdal.GetDriverByName('MEM')
+                # for backward compatibility
+                if memory_driver is None:
+                    memory_driver = gdal.GetDriverByName('memory')
                 # create raster _grid
                 _grid = memory_driver.Create(
                     '', grid_columns, grid_rows, 1, gdal.GDT_Float32
@@ -2010,6 +2106,7 @@ def create_warped_vrt_iter(
                     cfg.gdal_path = path
                 except Exception as err:
                     str(err)
+        # noinspection PyPackageRequirements
         from osgeo import gdal
         # GDAL config
         try:
@@ -2018,6 +2115,7 @@ def create_warped_vrt_iter(
             gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
             gdal.DontUseExceptions()
         except Exception as err:
             str(err)
@@ -2146,6 +2244,7 @@ def create_vrt_iter(
                     cfg.gdal_path = path
                 except Exception as err:
                     str(err)
+        # noinspection PyPackageRequirements
         from osgeo import gdal
         # GDAL config
         try:
@@ -2154,6 +2253,7 @@ def create_vrt_iter(
             gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
             gdal.DontUseExceptions()
         except Exception as err:
             str(err)
@@ -2212,6 +2312,7 @@ def raster_reclass(
                     cfg.gdal_path = path
                 except Exception as err:
                     str(err)
+        # noinspection PyPackageRequirements
         from osgeo import gdal
         # GDAL config
         try:
@@ -2220,6 +2321,7 @@ def raster_reclass(
             gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
             gdal.DontUseExceptions()
         except Exception as err:
             str(err)
@@ -2274,6 +2376,7 @@ def edit_raster(
                     cfg.gdal_path = path
                 except Exception as err:
                     str(err)
+        # noinspection PyPackageRequirements
         from osgeo import gdal
         # GDAL config
         try:
@@ -2282,6 +2385,7 @@ def edit_raster(
             gdal.SetConfigOption('GDAL_CACHEMAX', str(memory))
             gdal.SetConfigOption('VSI_CACHE', 'FALSE')
             gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+            gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
             gdal.DontUseExceptions()
         except Exception as err:
             str(err)
@@ -2384,45 +2488,19 @@ def edit_raster(
                 # expression
                 if expression is not None:
                     # expose numpy functions
-                    log = np.log
-                    _log = log
-                    log10 = np.log10
-                    _log10 = log10
-                    sqrt = np.sqrt
-                    _sqrt = sqrt
-                    cos = np.cos
-                    _cos = cos
-                    arccos = np.arccos
-                    _arccos = arccos
-                    sin = np.sin
-                    _sin = sin
-                    arcsin = np.arcsin
-                    _arcsin = arcsin
-                    tan = np.tan
-                    _tan = tan
-                    arctan = np.arctan
-                    _arctan = arctan
-                    exp = np.exp
-                    _exp = exp
-                    min = np.nanmin
-                    _min = min
-                    max = np.nanmax
-                    _max = max
-                    sum = np.nansum
-                    _sum = sum
-                    percentile = np.nanpercentile
-                    _percentile = percentile
-                    median = np.nanmedian
-                    _median = median
-                    mean = np.nanmean
-                    _mean = mean
-                    std = np.nanstd
-                    _std = std
-                    where = np.where
-                    _where = where
-                    nan = np.nan
-                    _nan = nan
-                    data_array = eval(expression)
+                    namespace = {
+                        'raster': raster, 'vector': vector,
+                        'np': np, 'log': np.log, 'log10': np.log10,
+                        'sqrt': np.sqrt, 'cos': np.cos, 'arccos': np.arccos,
+                        'sin': np.sin, 'arcsin': np.arcsin, 'tan': np.tan,
+                        'arctan': np.arctan, 'exp': np.exp, 'min': np.nanmin,
+                        'max': np.nanmax, 'sum': np.nansum,
+                        'percentile': np.nanpercentile, 'median': np.nanmedian,
+                        'mean': np.nanmean, 'std': np.nanstd,
+                        'where': np.where, 'nan': np.nan
+                    }
+                    data_array = eval(expression, {'__builtins__': None},
+                                      namespace)
                 else:
                     data_array = np.where(
                         vector > 0, constant_value, raster

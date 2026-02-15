@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -32,12 +32,16 @@ try:
 except Exception as error:
     cfg.logger.log.error(str(error))
 try:
+    # noinspection PyPackageRequirements
     from osgeo import ogr
+    # noinspection PyPackageRequirements
     from osgeo import osr
+    # noinspection PyPackageRequirements
     from osgeo import gdal_array
 except Exception as error:
     cfg.logger.log.error(str(error))
 try:
+    # noinspection PyPackageRequirements
     from osgeo import gdal
 
     gdal.DontUseExceptions()
@@ -317,6 +321,10 @@ def create_raster_from_reference(
         gdal_format = gdal.GDT_Float64
     elif gdal_format == 'Float32':
         gdal_format = gdal.GDT_Float32
+    elif gdal_format == 'Int64':
+        gdal_format = gdal.GDT_Int64
+    elif gdal_format == 'UInt64':
+        gdal_format = gdal.GDT_UInt64
     elif gdal_format == 'Int32':
         gdal_format = gdal.GDT_Int32
     elif gdal_format == 'UInt32':
@@ -411,6 +419,10 @@ def create_raster_from_grid(
         gdal_format = gdal.GDT_Float64
     elif gdal_format == 'Float32':
         gdal_format = gdal.GDT_Float32
+    elif gdal_format == 'Int64':
+        gdal_format = gdal.GDT_Int64
+    elif gdal_format == 'UInt64':
+        gdal_format = gdal.GDT_UInt64
     elif gdal_format == 'Int32':
         gdal_format = gdal.GDT_Int32
     elif gdal_format == 'UInt32':
@@ -1217,6 +1229,7 @@ def create_virtual_raster(
                         input_raster_i, True
                     )
                 else:
+                    # noinspection HttpUrlsUsage
                     source_path = input_raster_i.replace(
                         '//', '/'
                     ).replace('https:/', 'https://').replace(
@@ -1310,6 +1323,7 @@ def create_virtual_raster(
 
 
 # simplified virtual raster creation for mosaic
+# noinspection PySimplifyBooleanCheck
 def create_virtual_raster_2_mosaic(
         input_raster_list, output, band_number_list=None, src_nodata=None,
         dst_nodata=False, relative_to_vrt=0, data_type=None,
@@ -1883,6 +1897,7 @@ def get_layer_extent(layer_path):
 
 
 # convert reference layer to raster based on the resolution of a raster
+# noinspection PySimplifyBooleanCheck
 def vector_to_raster(
         vector_path=None, output_path=None, field_name=None,
         reference_raster_path=None, all_touched=False,
@@ -1902,6 +1917,7 @@ def vector_to_raster(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(available_ram)
                                                   * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
     except Exception as err:
         str(err)
     if vector_path is not None:
@@ -2046,11 +2062,12 @@ def vector_to_raster(
 
 
 # extract reference vector to raster values
+# noinspection PySimplifyBooleanCheck
 def extract_vector_to_raster(
         vector_path=None, reference_raster_path=None, all_touched=False,
         output_format='MEM', burn_values=1, calc_data_type=None,
         attribute_filter=None, nodata_value=0, background_value=0,
-        vector_layer=None, available_ram=None
+        vector_layer=None, available_ram=None, ravel=True, buffer=0
 ):
     if cfg.logger is not None:
         cfg.logger.log.debug('start')
@@ -2062,6 +2079,7 @@ def extract_vector_to_raster(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(available_ram)
                                                   * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
     except Exception as err:
         str(err)
     if vector_path is not None:
@@ -2079,6 +2097,10 @@ def extract_vector_to_raster(
         gdal_format = gdal.GDT_Float64
     elif data_type == cfg.float32_dt:
         gdal_format = gdal.GDT_Float32
+    elif data_type == 'Int64':
+        gdal_format = gdal.GDT_Int64
+    elif data_type == 'UInt64':
+        gdal_format = gdal.GDT_UInt64
     elif data_type == cfg.int32_dt:
         gdal_format = gdal.GDT_Int32
     elif data_type == cfg.uint32_dt:
@@ -2144,6 +2166,10 @@ def extract_vector_to_raster(
         if cfg.logger is not None:
             cfg.logger.log.error('attribute filter')
         return False
+    if ravel is None:
+        ravel = True
+    if buffer is None:
+        buffer = 0
     # attribute filter
     v_layer.SetAttributeFilter(attribute_filter)
     d = ogr.GetDriverByName('MEM')
@@ -2162,14 +2188,21 @@ def extract_vector_to_raster(
         v_max_x = v_min_x + x_size
     if abs(v_max_y - v_min_y) < abs(y_size):
         v_max_y = v_min_y + abs(y_size)
-    orig_x = gt[0] + x_size * int(round((v_min_x - gt[0]) / x_size))
-    orig_y = gt[3] + y_size * int(round((v_max_y - gt[3]) / y_size))
+    orig_x = gt[0] + x_size * int(round((v_min_x - gt[0]) / x_size)) - buffer
+    orig_y = gt[3] + y_size * int(round((v_max_y - gt[3]) / y_size)) - buffer
     # increase size by 1
     # TODO check
-    grid_columns = abs(int(round((v_max_x - v_min_x) / x_size))) + 1
-    grid_rows = abs(int(round((v_max_y - v_min_y) / y_size))) + 1
+    grid_columns = (abs(int(round((v_max_x - v_min_x) / x_size))) + 1
+                    + 2 * buffer)
+    grid_rows = abs(int(round((v_max_y - v_min_y) / y_size))) + 1 + 2 * buffer
     pixel_start_column = abs(int(round((gt[0] - orig_x) / x_size)))
+    if pixel_start_column < 0:
+        grid_columns = grid_columns + pixel_start_column * x_size
+        pixel_start_column = 0
     pixel_start_row = abs(int(round((orig_y - gt[3]) / y_size)))
+    if pixel_start_row < 0:
+        grid_rows = grid_rows + pixel_start_row * abs(y_size)
+        pixel_start_row = 0
     driver = gdal.GetDriverByName(output_format)
     # create raster _grid
     _grid = driver.Create('', grid_columns, grid_rows, 1, gdal_format)
@@ -2201,6 +2234,7 @@ def extract_vector_to_raster(
         )
     _r_d = gdal.Open(reference_raster_path, gdal.GA_ReadOnly)
     r_b = _r_d.GetRasterBand(1)
+    # raster band array
     _a = read_array_block(
         gdal_band=r_b, pixel_start_column=pixel_start_column,
         pixel_start_row=pixel_start_row,
@@ -2208,6 +2242,7 @@ def extract_vector_to_raster(
         calc_data_type=calc_data_type
     )
     _band = _grid.GetRasterBand(1)
+    # vector array
     _b = read_array_block(
         gdal_band=_band, pixel_start_column=0,
         pixel_start_row=0, block_columns=grid_columns, block_row=grid_rows
@@ -2217,7 +2252,10 @@ def extract_vector_to_raster(
         cfg.logger.log.debug('extract vector')
     if _a is None:
         return None, None, None
-    return _a.ravel(), _b.ravel(), _a.ravel() != nd
+    if ravel:
+        return _a.ravel(), _b.ravel(), _a.ravel() != nd
+    else:
+        return _a, _b, _a != nd
 
 
 # get pixel value
@@ -2235,6 +2273,7 @@ def get_pixel_value(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(available_ram)
                                                   * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
     except Exception as err:
         str(err)
     (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
@@ -2982,6 +3021,7 @@ def gdal_warping(
                                                   * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
     except Exception as err:
         str(err)
     try:
@@ -2998,6 +3038,7 @@ def gdal_warping(
     except Exception as err:
         cfg.logger.log.error(str(err))
     cfg.logger.log.debug('end; output: %s' % output)
+    return True
 
 
 # create jpg image with gdal
@@ -3015,6 +3056,7 @@ def jpg_gdal(
                                                   * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
     except Exception as err:
         str(err)
     try:

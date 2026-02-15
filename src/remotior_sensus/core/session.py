@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -452,6 +452,7 @@ class Session(object):
         return JupyterInterface(self)
 
 
+# noinspection PyPackageRequirements
 def _check_dependencies(configuration_module: configurations) -> bool:
     """Checks the dependencies.
 
@@ -489,6 +490,11 @@ def _check_dependencies(configuration_module: configurations) -> bool:
         except Exception as err:
             configuration_module.logger.log.warning(str(err))
             configuration_module.messages.warning('dependency error: pytorch')
+        try:
+            import pandas
+        except Exception as err:
+            configuration_module.logger.log.warning(str(err))
+            configuration_module.messages.warning('dependency error: pandas')
         try:
             from sklearn import svm
         except Exception as err:

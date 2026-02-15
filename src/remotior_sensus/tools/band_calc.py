@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -748,8 +748,8 @@ def _check_expression(
                                             cfg.logger.log.error(str(err))
                                     # output variable path in temporary
                                     # directory
-                                    elif cfg.variable_output_temporary == \
-                                            output_path.lower():
+                                    elif (cfg.variable_output_temporary ==
+                                          output_path.lower()):
                                         output_path = cfg.temp.dir
                                 # output output_name after first
                                 # variable_output_separator
@@ -861,9 +861,12 @@ def _check_expression(
                                 # forbandsinbandset iteration
                                 if (cfg.variable_band in calculation
                                         and forbandsinbandset):
+                                    # main calculation structure
+                                    calculation_m = calculation
                                     for band_x in range(
                                             1, bs_x.get_band_count() + 1
                                     ):
+                                        calculation = calculation_m
                                         if not cfg.action:
                                             return (
                                                 exp_list, all_out_name_list,
@@ -872,14 +875,15 @@ def _check_expression(
                                         if (output_bandset_number is not None
                                                 and output_path is not None
                                                 and output_name is not None):
-                                            calculation += \
-                                                ' %s%s%s%s%s%s%s' % (
+                                            calculation += (
+                                                    ' %s%s%s%s%s%s%s' % (
                                                     at, output_path,
                                                     at, str(band_x),
                                                     output_name, per,
                                                     output_bandset_number.
                                                     replace(cb, str(bandset_x))
                                                 )
+                                            )
                                         elif (output_path is not None
                                               and output_name is not None):
                                             calculation += ' %s%s%s%s%s' % (
@@ -1304,6 +1308,8 @@ def _bandsets_iterator(expression, bandset_catalog):
             % (str(bandset_filter), str(bandsets_arg), str(bandset_list))
         )
         return list(set(bandset_list)), output_message
+    else:
+        return [None, '1']
 
 
 def _expression_to_function(expression, raster_variables: dict):
@@ -1699,26 +1705,6 @@ def _check_numpy_operators(expression, layer_number: int):
 
     :param expression: expression string
     """
-    # expose numpy functions
-    log = np.ma.log
-    log10 = np.ma.log10
-    sqrt = np.ma.sqrt
-    cos = np.ma.cos
-    arccos = np.ma.arccos
-    sin = np.ma.sin
-    arcsin = np.ma.arcsin
-    tan = np.ma.tan
-    arctan = np.ma.arctan
-    exp = np.ma.exp
-    min = np.ma.min
-    max = np.ma.max
-    sum = np.ma.sum
-    percentile = percentile_calc
-    median = np.ma.median
-    mean = np.ma.mean
-    std = np.ma.std
-    where = np.ma.where
-    nan = np.nan
     # check expression
     expression = expression.replace(
         cfg.array_function_placeholder, '_array_function_placeholder'
@@ -1728,7 +1714,18 @@ def _check_numpy_operators(expression, layer_number: int):
     _array_function_placeholder = np.ma.arange(size).reshape(
         (5, 5, layer_number)
     )
-    eval(expression)
+    # expose numpy functions
+    namespace = {
+        '_array_function_placeholder': _array_function_placeholder,
+        'np': np, 'ma': np.ma, 'log': np.ma.log, 'log10': np.ma.log10,
+        'sqrt': np.ma.sqrt, 'cos': np.ma.cos, 'arccos': np.ma.arccos,
+        'sin': np.ma.sin, 'arcsin': np.ma.arcsin, 'tan': np.ma.tan,
+        'arctan': np.ma.arctan, 'exp': np.ma.exp, 'min': np.ma.min,
+        'max': np.ma.max, 'sum': np.ma.sum, 'percentile': percentile_calc,
+        'median': np.ma.median, 'mean': np.ma.mean, 'std': np.ma.std,
+        'where': np.ma.where, 'nan': np.nan,
+    }
+    eval(expression, {'__builtins__': None}, namespace)
 
 
 def _calculate_bandset(
@@ -1901,6 +1898,7 @@ def _bandset_names_alias(bandset: BandSet) -> dict:
     return band_names
 
 
+# noinspection PyUnreachableCode
 def _check_expression_bandset(
         expression_string, raster_variables_dict, bandset: BandSet
 ):

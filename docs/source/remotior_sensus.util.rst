@@ -10,6 +10,7 @@ Submodules
    remotior_sensus.util.dates_times
    remotior_sensus.util.download_tools
    remotior_sensus.util.files_directories
+   remotior_sensus.util.model_implementation
    remotior_sensus.util.plot_tools
    remotior_sensus.util.pytorch_tools
    remotior_sensus.util.raster_vector

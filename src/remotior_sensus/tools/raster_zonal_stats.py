@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -260,7 +260,8 @@ def raster_zonal_stats(
                         'virtual_path_list': virtual_path_list,
                         'available_ram': available_ram,
                         # optional calc_data_type
-                        'calc_data_type': None
+                        'calc_data_type': None,
+                        'ravel': None, 'buffer': None, 'function': None
                     }
                 )
                 function_list.append(get_band_arrays)
@@ -305,7 +306,7 @@ def _zonal_stats_table(stats_dict, field_name, field_type):
     if field_type is str:
         dtype_list = [(field_name, 'U1024')]
     elif field_type is int:
-        dtype_list = [(field_name, 'int16')]
+        dtype_list = [(field_name, 'int64')]
     else:
         dtype_list = [(field_name, 'float64')]
     output_field_names = [field_name]

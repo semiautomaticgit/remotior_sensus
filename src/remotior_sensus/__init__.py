@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -18,6 +18,6 @@
 from remotior_sensus.core.session import Session
 from remotior_sensus.core import configurations
 
-__version__ = '0.5.2'
+__version__ = '0.6.0'
 
 configurations.version = __version__

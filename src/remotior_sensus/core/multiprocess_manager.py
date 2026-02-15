@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -20,6 +20,8 @@ import multiprocessing
 import os
 import time
 from typing import Union
+from collections import OrderedDict
+import traceback
 
 import numpy as np
 from numpy.lib import recfunctions as rfn
@@ -52,7 +54,7 @@ class Multiprocess(object):
             self.manager = multiprocess_module.Manager()
         self.multiprocess_module = multiprocess_module
         self.n_processes = n_processes
-        self.output = False
+        self.output: Union[dict, list, bool] = False
 
     # start multiprocess
     def start(self, n_processes, multiprocess_module=None):
@@ -186,12 +188,11 @@ class Multiprocess(object):
         if n_processes is None:
             n_processes = self.n_processes
         elif n_processes != self.n_processes:
-            self.start(self.n_processes, self.multiprocess_module)
+            self.start(n_processes, self.multiprocess_module)
         if compress is None:
             compress = cfg.raster_compression
         if compress_format is None:
             compress_format = cfg.raster_compression_format
-
         if min_progress is None:
             min_progress = 0
         if max_progress is None:
@@ -280,7 +281,7 @@ class Multiprocess(object):
                 cfg.logger.log.info('cancel')
                 return
         refresh_time = cfg.refresh_time
-        prev_count_progress = 0
+        progress_array = np.zeros(len(results), dtype=int)
         while True:
             if cfg.action:
                 # update progress
@@ -290,8 +291,11 @@ class Multiprocess(object):
                 # progress message
                 try:
                     p_m_qp = p_mq.get(False)
-                    count_progress = int(p_m_qp[0])
-                    if count_progress > prev_count_progress:
+                    process_id = int(p_m_qp[2])
+                    prev_progress_array = progress_array.copy()
+                    progress_array[process_id] = int(p_m_qp[0])
+                    if (progress_array[process_id]
+                            > prev_progress_array[process_id]):
                         refresh_time *= 0.5
                         if refresh_time < 0.01:
                             refresh_time = 0.01
@@ -300,7 +304,8 @@ class Multiprocess(object):
                         if refresh_time > cfg.refresh_time:
                             refresh_time = cfg.refresh_time
                     length = int(p_m_qp[1])
-                    progress = int(100 * count_progress / length)
+                    count_progress = np.mean(progress_array)
+                    progress = int(100 * int(count_progress) / length)
                     cfg.progress.update(
                         message=progress_message, step=count_progress,
                         steps=length, minimum=min_progress,
@@ -319,7 +324,9 @@ class Multiprocess(object):
             try:
                 res = r[0].get()
             except Exception as err:
-                cfg.logger.log.error('multiprocess: %s' % str(err))
+                tb = traceback.format_exc()
+                cfg.logger.log.error('multiprocess: %s'
+                                     % str(tb.replace('\n', '')))
                 cfg.messages.error('multiprocess: %s' % str(err))
                 gc.collect()
                 return
@@ -599,35 +606,30 @@ class Multiprocess(object):
             skip_output=False
     ):
         cfg.logger.log.debug('start')
-        multiprocess_dictionary = {}
+        # get parallel dictionary result
+        multiprocess_dictionary = OrderedDict()
+        for key in sorted(process_result):
+            if key in multiprocess_dictionary:
+                multiprocess_dictionary[key].extend(process_result[key])
+            else:
+                multiprocess_dictionary[key] = process_result[key].copy()
         # temporary raster output
         tmp_rast_list = []
-        p = None
-        # get parallel dictionary result
-        for p in sorted(process_result):
-            try:
-                # following iteration
-                multiprocess_dictionary[p].extend(process_result[p])
-            except Exception as err:
-                str(err)
-                # first iteration
-                multiprocess_dictionary[p] = process_result[p]
         # output files
         if (output_raster_path is not None and output_raster_path is not False
                 and skip_output is False):
             try:
-                len(process_output_files[p]) * len(process_output_files)
+                (len(process_output_files[
+                        list(process_output_files.keys())[-1]])
+                 * len(process_output_files))
             except Exception as err:
                 cfg.logger.log.error(str(err))
                 gc.collect()
                 cfg.messages.error(str(err))
                 return False
-            # collect temporary raster paths
-            for r in process_output_files:
-                for op in process_output_files[r]:
-                    tmp_rast_list.append(op[0])
             # get unique rasters and sort by process name
-            tmp_rast_list = sorted(list(set(tmp_rast_list)))
+            tmp_rast_list = sorted(
+                {op[0] for ops in process_output_files.values() for op in ops})
             cfg.logger.log.debug('tmp_rast_list: %s' % str(tmp_rast_list))
             if scale is not None:
                 scl = scale
@@ -646,18 +648,14 @@ class Multiprocess(object):
             if virtual_raster:
                 tmp_list = []
                 dir_path = files_directories.parent_directory(
-                    output_raster_path
-                )
-                file_count = 1
+                    output_raster_path)
                 f_name = files_directories.file_name(output_raster_path, False)
                 # move temporary files
-                for tR in tmp_rast_list:
-                    out_r = '%s/%s_%02d%s' % (
-                        dir_path, f_name, file_count, cfg.tif_suffix)
+                for r_id, t_raster in enumerate(tmp_rast_list, start=1):
+                    out_r = f'{dir_path}/{f_name}_{r_id:02d}{cfg.tif_suffix}'
                     files_directories.create_parent_directory(out_r)
-                    file_count += 1
                     tmp_list.append(out_r)
-                    files_directories.move_file(tR, out_r)
+                    files_directories.move_file(t_raster, out_r)
                 # create virtual raster
                 raster_vector.create_virtual_raster_2_mosaic(
                     input_raster_list=tmp_list, output=output_raster_path,
@@ -779,8 +777,12 @@ class Multiprocess(object):
         # output files
         if output_raster_path is not None:
             signatures = function_argument[cfg.spectral_signatures_framework]
-            # get selected signatures
-            signatures_table = signatures.table[signatures.table.selected == 1]
+            if signatures is None:
+                signatures_table = None
+            else:
+                # get selected signatures
+                signatures_table = signatures.table[
+                    signatures.table.selected == 1]
             if scale is not None:
                 scl = scale
             else:
@@ -852,14 +854,12 @@ class Multiprocess(object):
                             f_name, str(
                                 signatures_table[
                                     signatures_table.signature_id ==
-                                    s].macroclass_id[
-                                    0]
+                                    s].macroclass_id[0]
                             ),
                             str(
                                 signatures_table[
                                     signatures_table.signature_id ==
-                                    s].class_id[
-                                    0]
+                                    s].class_id[0]
                             ))
                         # move temporary files
                         for r in signature_raster_list[s]:
@@ -1143,7 +1143,7 @@ class Multiprocess(object):
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
-                return
+                return False
         for r in results:
             res = r[0].get()
             cfg.logger.log.debug('res[3]: %s' % str(res[3]))
@@ -1308,78 +1308,44 @@ class Multiprocess(object):
         if max_progress is None:
             max_progress = 100
         if progress_message is None:
-            progress_message = 'processing'
-        # output field names
-        output_names = list(table1.dtype.names)
-        # output field dtypes
-        output_dtypes = []
-        # fields table 1
-        for name in table1.dtype.names:
-            output_dtypes.append(table1[name].dtype)
-        # table 1 field names
+            progress_message = 'processing join'
         table1_names = list(table1.dtype.names)
-        # table 1 field dtypes
-        table1_dtypes = []
-        for name in table1.dtype.names:
-            table1_dtypes.append(table1[name].dtype)
-        # table 2 field names and dtypes
-        table2_dtypes = []
-        table2_names = []
-        table2_output_names = []
-        for name in table2.dtype.names:
-            if field2_name != str(name):
-                table2_names.append(str(name))
-                # rename duplicate field names
-                if str(name) not in table1.dtype.names:
-                    output_names.append(str(name))
-                    table2_output_names.append(str(name))
-                else:
-                    output_names.append('%s%s' % (str(name), postfix))
-                    table2_output_names.append('%s%s' % (str(name), postfix))
-                output_dtypes.append(table2[name].dtype)
-                table2_dtypes.append(table2[name].dtype)
-        # identify table features
-        table1_features = table1_features_index = table2_features_index = None
-        features_table_2_outer = None
-        if join_type == 'left':
-            # unique features
-            table1_features = list(np.unique(table1[field1_name]))
-            table_2_unique = np.unique(table2[field2_name], return_index=True)
-            table2_features = table_2_unique[0]
-            table2_features_index = table_2_unique[1]
-            # main features
-            features = table1_features
-        elif join_type == 'right':
-            # unique features
-            table_1_unique = np.unique(table1[field1_name], return_index=True)
-            table1_features = table_1_unique[0]
-            table1_features_index = table_1_unique[1]
-            table2_features = list(np.unique(table2[field2_name]))
-            # main features
-            features = table2_features
-        elif join_type == 'inner':
-            # find common features
-            table1_unique = np.unique(table1[field1_name])
-            table_2_unique = np.unique(table2[field2_name], return_index=True)
-            table2_features = table_2_unique[0]
-            table2_features_index = table_2_unique[1]
-            features = list(np.intersect1d(table1_unique, table2_features))
-        elif join_type == 'outer':
-            # find all unique features
-            table1_features = list(np.unique(table1[field1_name]))
-            table_2_unique = np.unique(table2[field2_name], return_index=True)
-            table2_features = table_2_unique[0]
-            table2_features_index = table_2_unique[1]
-            # main features as left join
-            features = table1_features
-            # features from table 2 not in table 1
-            features_table_2_outer = list(
-                np.setdiff1d(table2_features, table1_features)
-            )
-        else:
+        table1_dtypes = [table1[name].dtype for name in table1_names]
+        table2_names = [str(name) for name in table2.dtype.names if
+                        name != field2_name]
+        output_names = table1_names.copy()
+        output_dtypes = table1_dtypes.copy()
+        table2_output_names, table2_dtypes = [], []
+        for name in table2_names:
+            out_name = name if name not in table1_names else f'{name}{postfix}'
+            output_names.append(out_name)
+            table2_output_names.append(out_name)
+            dtype = table2[name].dtype
+            output_dtypes.append(dtype)
+            table2_dtypes.append(dtype)
+        join_type = (join_type or '').lower()
+        if join_type not in ('left', 'right', 'inner', 'outer'):
             self.output = False
             cfg.logger.log.error('join type not found')
             return
+        # identify table unique features
+        table1_features, table1_features_index = np.unique(table1[field1_name],
+                                                           return_index=True)
+        table2_features, table2_features_index = np.unique(table2[field2_name],
+                                                           return_index=True)
+        features_table_2_outer = None
+        if join_type == 'left':
+            features = table1_features
+        elif join_type == 'right':
+            features = table2_features
+        elif join_type == 'inner':
+            features = list(np.intersect1d(table1_features, table2_features))
+        # outer
+        else:
+            # main features as left join
+            features = table1_features
+            features_table_2_outer = list(
+                np.setdiff1d(table2_features, table1_features))
         features_count = len(features)
         # calculate process ranges
         if features_count < n_processes:
@@ -1693,29 +1659,39 @@ class Multiprocess(object):
         if not multiprocess_dictionary:
             cfg.logger.log.error('unable to process')
             return
-        # calculate unique values and sum
-        values = np.array([])
-        sum_val = np.array([])
-        for x in sorted(multiprocess_dictionary):
-            for arr_x in multiprocess_dictionary[x]:
-                try:
-                    values = np.append(values, arr_x[1][0, ::].ravel())
-                    sum_val = np.append(sum_val, arr_x[1][1, ::].ravel())
-                except Exception as err:
-                    cfg.logger.log.error(str(err))
-                    return
-        unique = list(np.unique(values, return_counts=False))
-        val_sum = []
-        for v in unique:
-            if v != nodata:
-                val_sum.append([v, sum_val[values == v].sum()])
-        # dictionary of values and sum
-        dtype_list = [('new_val', 'int64'), ('sum', 'int64')]
-        unique_val = np.rec.fromarrays(np.asarray(val_sum).T, dtype=dtype_list)
-        cfg.logger.log.debug(
-            'end; unique_val.shape: %s' % str(unique_val.shape)
-        )
-        self.output = unique_val
+        # value array
+        values_list = []
+        # sum array
+        sums_list = []
+        try:
+            for x in sorted(multiprocess_dictionary):
+                for arr_x in multiprocess_dictionary[x]:
+                    arr = arr_x[1]
+                    values_list.append(arr[0].ravel())
+                    sums_list.append(arr[1].ravel())
+            # value array
+            values = np.concatenate(values_list)
+            # sum array
+            sum_val = np.concatenate(sums_list)
+            # mask nodata
+            mask = values != nodata
+            values = values[mask]
+            sum_val = sum_val[mask]
+            # unique values
+            unique_vals, inverse_idx = np.unique(values, return_inverse=True)
+            # sum for each unique value
+            sums = np.bincount(inverse_idx, weights=sum_val)
+            dtype_list = [('new_val', 'int64'), ('sum', 'int64')]
+            # output array
+            unique_val = np.rec.fromarrays([unique_vals, sums.astype('int64')],
+                                           dtype=dtype_list)
+            cfg.logger.log.debug(
+                'end; unique_val.shape: %s' % str(unique_val.shape)
+            )
+            self.output = unique_val
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+            return
 
     # get the pixel value of multiprocess
     def multiprocess_pixel_value(self):
@@ -2190,7 +2166,7 @@ class Multiprocess(object):
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
-                return
+                return False
         for r in results:
             res = r[0].get()
             # log
@@ -2254,7 +2230,7 @@ class Multiprocess(object):
                 gc.collect()
                 self.stop()
                 self.start(self.n_processes, self.multiprocess_module)
-                return
+                return False
         for r in results:
             res = r[0].get()
             # log
@@ -2269,6 +2245,7 @@ class Multiprocess(object):
         return output_file
 
     # download file
+    # noinspection PySimplifyBooleanCheck
     def multi_download_file(
             self, url_list, output_path_list, authentication_uri=None,
             user=None, password=None, proxy_host=None, proxy_port=None,

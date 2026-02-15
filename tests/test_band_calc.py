@@ -545,6 +545,14 @@ class TestBandCalc(TestCase):
         )
         self.assertTrue(output.check)
         self.assertTrue(rs.files_directories.is_file(output.paths[0]))
+        expression = ('forbandsinbandset[1]\nnp.clip(("#BAND#" -4000)/16320 , '
+                      '0, 1) @#BAND#')
+        output = rs.band_calc(
+            output_path=cfg.temp.dir, expression_string=expression,
+            extent_intersection=False, bandset_catalog=catalog
+        )
+        self.assertTrue(output.check)
+        self.assertTrue(rs.files_directories.is_file(output.paths[0]))
 
         # clear temporary directory
         rs.close()

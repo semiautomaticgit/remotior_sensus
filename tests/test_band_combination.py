@@ -45,6 +45,7 @@ class TestBandCombination(TestCase):
             table, cfg.tab_delimiter
         )
         self.assertGreater(len(table_f), 0)
+
         cfg.logger.log.debug('>>> test band combination input multiband')
         catalog.create_bandset(
             file_list, wavelengths=['Sentinel-2'], date=date, bandset_number=1,

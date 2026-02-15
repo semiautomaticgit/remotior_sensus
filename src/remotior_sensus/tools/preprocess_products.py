@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -91,7 +91,8 @@ def preprocess(
         metadata_file_path: optional metadata file path.
         dos1_correction: if True, perform DOS1 correction.
         add_bandset: if True, create a new bandset and add output bands to it; 
-            if False, add output bands to current bandset.
+            if False, add output bands to current bandset; 
+            if None, output bands are no added to any bandset.
         product: product name.
         nodata_value: nodata value.
         sensor: sensor name.
@@ -135,7 +136,8 @@ def perform_preprocess(
         output_path: string of output path directory.
         dos1_correction: if True, perform DOS1 correction.
         add_bandset: if True, create a new bandset and add output bands to it; 
-            if False, add output bands to current bandset.
+            if False, add output bands to current bandset; 
+            if None, output bands are no added to any bandset.
         output_prefix: optional string for output name prefix.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
@@ -164,6 +166,7 @@ def perform_preprocess(
     output_nodata = []
     output_datatype = []
     output_raster_path_list = []
+    bandset_raster_path_list = []
     expressions = []
     dos1_expressions = []
     # create process string list
@@ -247,6 +250,16 @@ def perform_preprocess(
             output_nodata.extend(
                 [cfg.nodata_val_UInt16] * len(sentinel_product_2a)
             )
+            # filter output
+            for n, o in enumerate(output_raster_path_list):
+                if 'scl'in o[-10:].lower():
+                    nodata_list.extend(sentinel_product.nodata.tolist())
+                    expressions[n] = f'{cfg.array_function_placeholder} * 1'
+                    calculation_datatype[n] = np.byte
+                    output_datatype[n] = cfg.byte_dt
+                    scale_list[n] = 1
+                    offset_list[n] = 0
+                    output_nodata[n] = cfg.nodata_val_Byte
         else:
             # calculate reflectance = (DN + offset) / quantificationValue =
             # = DN * scale + offset
@@ -277,6 +290,16 @@ def perform_preprocess(
             output_nodata.extend(
                 [cfg.nodata_val_UInt16] * len(sentinel_product)
             )
+            # filter output
+            for n, o in enumerate(output_raster_path_list):
+                if 'scl'in o[-10:].lower():
+                    nodata_list.extend(sentinel_product.nodata.tolist())
+                    expressions[n] = f'{cfg.array_function_placeholder} * 1'
+                    calculation_datatype[n] = np.uint8
+                    output_datatype[n] = cfg.byte_dt
+                    scale_list[n] = 1
+                    offset_list[n] = 0
+                    output_nodata[n] = cfg.nodata_val_Byte
     # Landsat
     if len(landsat_product) > 0:
         # temperature
@@ -611,19 +634,24 @@ def perform_preprocess(
             product = cfg.satLandsat8
         elif product == cfg.sentinel2_hls:
             product = cfg.satSentinel2
+        # filter output for bandset
+        bandset_raster_path_list += [
+            o for o in output_raster_path_list
+            if not any(x in o[-10:].lower() for x in ('scl',))
+        ]
         if add_bandset is True:
             bandset_number = bandset_catalog.get_bandset_count() + 1
             # create bandset
             bandset_catalog.create_bandset(
-                paths=output_raster_path_list,
+                paths=bandset_raster_path_list,
                 insert=True, date=str(product_table.date[0]),
                 bandset_number=bandset_number
             )
             bandset_catalog.set_satellite_wavelength(
                 satellite_name=product, bandset_number=bandset_number
             )
-        else:
-            for path in output_raster_path_list:
+        elif add_bandset is False:
+            for path in bandset_raster_path_list:
                 # add to current bandset
                 try:
                     bandset_catalog.add_band_to_bandset(
@@ -811,17 +839,29 @@ def create_product_table(
                 band_names.append(files_directories.file_name(f))
                 product_path_list.append(f)
                 band_number_list.append(f[-6:-4].lower())
+            elif 'scl' in f[-7:-4].lower():
+                band_names.append(files_directories.file_name(f))
+                product_path_list.append(f)
+                band_number_list.append('scl')
         product_name_list = [product_name] * len(band_names)
         spacecraft_list = [product_name] * len(band_names)
-        scale_value_list = [scale_value] * len(band_names)
+        scale_value_list = []
+        for n in band_number_list:
+            if n == 'scl':
+                scale_value_list.append(1)
+            else:
+                scale_value_list.append(scale_value)
         if len(offset_value_list) == 0:
             offset_value_list = [0] * len(band_names)
         else:
             new_offset_value_list = []
             for n in band_number_list:
-                new_offset_value_list.append(
-                    offset_value_list[sentinel2_bands.index(n.lower())]
-                )
+                if n == 'scl':
+                    new_offset_value_list.append(0)
+                else:
+                    new_offset_value_list.append(
+                        offset_value_list[sentinel2_bands.index(n.lower())]
+                    )
             offset_value_list = new_offset_value_list
     elif product_name == cfg.landsat:
         cfg.logger.log.debug(cfg.landsat)

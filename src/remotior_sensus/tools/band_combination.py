@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -61,6 +61,7 @@ def band_combination(
         extent_list: Optional[list] = None,
         column_name_list: Optional[list] = None,
         output_table: Optional[bool] = True,
+        separator: Optional[str] = None,
         progress_message: Optional[bool] = True
 ) -> OutputManager:
     """Calculation of band combination.
@@ -90,6 +91,7 @@ def band_combination(
             extracted for input band names.
         output_table: if True then calculate output table; 
             if False then calculate only array of combinations and sum.
+        separator: separator of fields of output table (default tab)
         progress_message: if True then start progress message, if False does 
             not start the progress message (useful if launched from other tools).
 
@@ -129,6 +131,7 @@ def band_combination(
         process=__name__.split('.')[-1].replace('_', ' '),
         message='starting', start=progress_message
     )
+    separator = separator or cfg.tab_delimiter
     # prepare process files
     prepared = shared_tools.prepare_process_files(
         input_bands=input_bands, output_path=output_path, overwrite=overwrite,
@@ -142,55 +145,50 @@ def band_combination(
     vrt_path = prepared['temporary_virtual_raster']
     n_processes = prepared['n_processes']
     raster_info = prepared['raster_info']
-    type_list = []
-    for info in raster_info:
-        type_list.append(info[8])
-    if cfg.float64_dt in type_list:
-        calc_data_type = np.int64
-        output_data_type = cfg.float64_dt
-        calc_nodata = cfg.nodata_val_Int64
-    elif cfg.float32_dt in type_list:
-        calc_data_type = np.int64
-        output_data_type = cfg.float64_dt
-        calc_nodata = cfg.nodata_val_Int64
-    elif cfg.int32_dt in type_list and cfg.uint32_dt in type_list:
-        calc_data_type = np.int64
-        output_data_type = cfg.float64_dt
-        calc_nodata = cfg.nodata_val_Int64
-    elif cfg.int32_dt in type_list:
-        calc_data_type = np.int64
-        output_data_type = cfg.int32_dt
-        calc_nodata = cfg.nodata_val_Int64
-    elif cfg.uint32_dt in type_list:
-        calc_data_type = np.int64
-        output_data_type = cfg.uint32_dt
-        calc_nodata = cfg.nodata_val_UInt32
-    elif cfg.int16_dt in type_list and cfg.uint16_dt in type_list:
-        calc_data_type = np.int32
-        output_data_type = cfg.int32_dt
-        calc_nodata = cfg.nodata_val_Int32
-    elif cfg.int16_dt in type_list:
-        calc_data_type = np.int32
-        output_data_type = cfg.int32_dt
-        calc_nodata = cfg.nodata_val_Int32
-    elif cfg.uint16_dt in type_list:
-        calc_data_type = np.uint32
-        output_data_type = cfg.uint32_dt
-        calc_nodata = cfg.nodata_val_UInt32
-    elif cfg.byte_dt in type_list:
-        calc_data_type = np.uint32
-        output_data_type = cfg.uint32_dt
-        calc_nodata = cfg.nodata_val_UInt32
+    d_types_list = []
+    numpy_type_list = []
+    for i, info in enumerate(raster_info):
+        if cfg.int64_dt in info[8]:
+            numpy_data_type = np.int64
+        elif cfg.uint64_dt in info[8]:
+            numpy_data_type = np.uint64
+        elif cfg.float64_dt in info[8]:
+            numpy_data_type = np.float64
+        elif cfg.int32_dt in info[8]:
+            numpy_data_type = np.int32
+        elif cfg.uint32_dt in info[8]:
+            numpy_data_type = np.uint32
+        elif cfg.float32_dt in info[8]:
+            numpy_data_type = np.float32
+        elif cfg.int16_dt in info[8]:
+            numpy_data_type = np.int16
+        elif cfg.uint16_dt in info[8]:
+            numpy_data_type = np.uint16
+        elif cfg.byte_dt in info[8]:
+            numpy_data_type = np.int8
+        else:
+            numpy_data_type = np.uint64
+        d_types_list.append(numpy_data_type)
+        numpy_type_list.append((f'f{i}', numpy_data_type))
+    same_type = all(d == d_types_list[0] for d in d_types_list)
+    # calculation data type for unique values
+    if same_type:
+        calculation_datatype = d_types_list[0]
     else:
-        calc_data_type = np.float32
-        output_data_type = cfg.float32_dt
-        calc_nodata = cfg.nodata_val_Float32
+        if (cfg.int64_dt in d_types_list or cfg.uint64_dt in d_types_list
+                or cfg.float64_dt in d_types_list
+                or cfg.int32_dt in d_types_list
+                or cfg.uint32_dt in d_types_list
+                or cfg.float32_dt in d_types_list):
+            calculation_datatype = np.int64
+        else:
+            calculation_datatype = np.int32
     # dummy bands for memory calculation as the number of input raster
     dummy_bands = round(len(input_raster_list) * 0.5)
     cfg.multiprocess.run(
         raster_path=vrt_path, function=raster_unique_values,
         keep_output_argument=True, n_processes=n_processes,
-        calculation_datatype=calc_data_type,
+        calculation_datatype=calculation_datatype,
         available_ram=available_ram, dummy_bands=dummy_bands,
         progress_message='unique values', min_progress=2, max_progress=50
     )
@@ -205,96 +203,146 @@ def band_combination(
     # random variable list
     rnd_var_list = None
     # array of combinations
-    dtype_list = [(f'f{i}', calc_data_type)
-                  for i in range(len(input_raster_list))]
-    cmb_arr = np.rec.fromarrays(np.asarray(cmb).T, dtype=dtype_list)
-    cmb_arr_ravel = np.asarray(cmb).ravel()
-    max_v = np.nanmax(cmb_arr_ravel)
-    if np.sum(cmb_arr_ravel <= 0) < 1:
-        add_c = 1
-    else:
-        add_c = 1 - np.nanmin(cmb_arr_ravel)
+    cmb = np.asarray(cmb).T
+    cmb_arr = np.rec.fromarrays(cmb, dtype=numpy_type_list)
+    cmb_arr_size = cmb_arr.size
     # expression builder
-    max_dig = 10 - len(str(np.sum(max_v)))
-    if max_dig < 0:
-        max_dig = 2
-    rec_combinations_array = None
-    reclassification_list = None
+    max_dig = max(len(str(cmb_arr_size)) - 2, 1)
+    rec_combinations_array = reclassification_list = None
+    # maximum value during calculation
+    calc_max_32 = 2 ** 32 // 2 - 1
+    calc_max_64 = 2 ** 64 // 2 - 1
     t = 0
-    method = 1
-    while t < 5000:
+    maximum_value_type = np.int64
+    max_v = np.nanmax(cmb, axis=0)
+    min_v = np.nanmin(cmb, axis=0)
+    while t < max_dig * 100:
         if cfg.action:
             t += 1
             rnd_var_list = []
             expression_comb = []
+            maximum_value = np.array(0)
+            max_digit = max(max_dig, t // 10 + 1)
+            calc_max = calc_max_32
+            # first deterministic variable list
+            first_var_list = [1] * len(input_raster_list)
             for y in range(len(input_raster_list)):
-                if cfg.action:
-                    if method == 1:
-                        exp_r = int(np.random.random() * 10) + 1
-                        if exp_r > max_dig:
-                            exp_r = max_dig
-                        const_v = int(10 ** exp_r)
-                        method += 1
-                    elif method == 2:
-                        const_v = int(10 ** max_dig)
-                        method += 1
+                if t == 1:
+                    if y + 1 < len(input_raster_list):
+                        first_var_list[y + 1] = (
+                                (first_var_list[y] * (max_v[y + 1] + 1))
+                                % calc_max
+                        )
+                    if min_v[y] < 0:
+                        add_c = -1 * min_v[y] + 1
                     else:
-                        exp_r = int(np.random.random() * 10) + 1
-                        if exp_r > 8:
-                            exp_r = 8
-                        const_v = int(10 ** exp_r)
-                        method = 1
-                    if const_v < 1:
-                        const_v = 3
-                    rnd_var = int(const_v * np.random.random())
-
-                    if rnd_var == 0:
-                        rnd_var = 1
-                    # avoid too large numbers
-                    if add_c < calc_nodata and t < 4999:
-                        while np.sum(
-                                rnd_var * (np.array(
-                                    max_v, dtype=calc_data_type
-                                ) + add_c)
-                        ) > calc_nodata:
-                            rnd_var = int(rnd_var / 2)
-                    rnd_var_list.append(rnd_var)
+                        add_c = 0
                     # expression combination
-                    expression_comb.append(f'("f{y}" + {add_c}) * {rnd_var}')
+                    expression_comb.append(
+                        f'("f{y}".astype("datatype") + {add_c}) * {
+                            first_var_list[y]}'
+                    )
                     expression_comb.append(' + ')
+                    maximum_value += np.array((first_var_list[y] + add_c)
+                                              * max_v[y])
+                    rnd_var_list.append([first_var_list[y], add_c])
+                elif t == 2:
+                    calc_max = calc_max_64
+                    if y + 1 < len(input_raster_list):
+                        first_var_list[y + 1] = (
+                                (first_var_list[y] * (max_v[y + 1] + 1))
+                                % calc_max
+                        )
+                    if min_v[y] < 0:
+                        add_c = -1 * min_v[y] + 1
+                    else:
+                        add_c = 0
+                    # expression combination
+                    expression_comb.append(
+                        f'("f{y}".astype("datatype") + {add_c}) * {
+                            first_var_list[y]}'
+                    )
+                    expression_comb.append(' + ')
+                    maximum_value += np.array((first_var_list[y] + add_c)
+                                              * max_v[y])
+                    rnd_var_list.append([first_var_list[y], add_c])
+                else:
+                    if t > 10:
+                        calc_max = calc_max_64
+                    rnd_var = np.random.randint(10 ** max_digit)
+                    if min_v[y] < 0:
+                        add_c = -1 * min_v[y] + 1
+                        if t > 10:
+                            digit_len = np.random.randint(1, max_digit + 1)
+                            add_c += np.random.randint(10 ** (digit_len - 1),
+                                                       10 ** digit_len)
+                    else:
+                        add_c = 0
+                        if t > 10:
+                            digit_len = np.random.randint(1, max_digit + 1)
+                            add_c = np.random.randint(10 ** (digit_len - 1),
+                                                      10 ** digit_len)
+                    # avoid too large numbers
+                    while (rnd_var * (np.array(max_v[y]) + add_c)
+                           > calc_max):
+                        rnd_var = rnd_var // 2
+                    rnd_var_list.append([rnd_var, add_c])
+                    # expression combination
+                    expression_comb.append(
+                        f'("f{y}".astype("datatype") + {add_c}) * {rnd_var}'
+                    )
+                    expression_comb.append(' + ')
+                    maximum_value += rnd_var * (np.array(max_v[y]) + add_c)
             expression_comb.pop(-1)
-            joined_expression_comb = ''.join(expression_comb)
-            rec_combinations_array = tm.calculate(
-                matrix=cmb_arr, expression_string=joined_expression_comb,
-                output_field_name='id', progress_message=False
-            )
-            new_val = list(range(1, rec_combinations_array.shape[0] + 1))
-            rec_combinations_array = tm.sort_table_by_field(
-                rec_combinations_array, 'id'
-            )
-            rec_combinations_array = tm.append_field(
-                rec_combinations_array, 'new_val', new_val, 'int64'
-            )
-            # check if unique new values are the same number as combinations
-            uni = np.unique(rec_combinations_array.id)
-            if uni.shape == cmb_arr.shape:
-                reclassification_list = sorted(list(uni))
-                break
+            if maximum_value < calc_max:
+                # noinspection PyUnresolvedReferences
+                maximum_value_type = maximum_value.dtype
+                joined_expression_comb = ''.join(expression_comb).replace(
+                    'datatype', str(maximum_value_type))
+                rec_combinations_array = tm.calculate(
+                    matrix=cmb_arr,
+                    expression_string=joined_expression_comb,
+                    output_field_name='id', progress_message=False,
+                    calculation_type='int64'
+                )
+                # check if unique new values are as many as combinations
+                uni = np.unique(rec_combinations_array.id)
+                if uni.size == cmb_arr_size:
+                    new_val = np.arange(1, rec_combinations_array.shape[0] + 1,
+                                        dtype=np.int64)
+                    rec_combinations_array = tm.sort_table_by_field(
+                        rec_combinations_array, 'id'
+                    )
+                    rec_combinations_array = tm.append_field(
+                        rec_combinations_array, 'new_val', new_val, 'int64'
+                    )
+                    reclassification_list = uni
+                    break
         else:
             cfg.logger.log.error('cancel')
             cfg.progress.update(failed=True)
             return OutputManager(check=False)
+    if (maximum_value_type == np.int64 or maximum_value_type == np.uint64
+            or maximum_value_type == np.float64):
+        output_nodata = cfg.nodata_val_Int64
+        output_data_type = cfg.int64_dt
+        calc_data_type = np.int64
+    else:
+        output_nodata = cfg.nodata_val_Int32
+        output_data_type = cfg.int32_dt
+        calc_data_type = np.int32
     expression = []
     for r, val in enumerate(rnd_var_list):
         if cfg.action:
             expression.append(
-                f'({cfg.array_function_placeholder}[::, ::, {r}] + {add_c}) * {val}'
+                f'({cfg.array_function_placeholder}[::, ::, {r}] + {val[1]}) '
+                f'* {val[0]}'
             )
             expression.append(' + ')
     expression.pop(-1)
     joined_expression = ''.join(expression)
     cfg.logger.log.debug('joined_expression: %s' % joined_expression)
-    if no_raster_output is True:
+    if no_raster_output:
         output_raster_path = False
     else:
         output_raster_path = out_path
@@ -304,10 +352,11 @@ def band_combination(
     cfg.multiprocess.run(
         raster_path=vrt_path, function=cross_rasters,
         function_argument=reclassification_list,
-        function_variable=joined_expression, dummy_bands=dummy_bands,
-        calculation_datatype=calc_data_type, use_value_as_nodata=nodata_value,
+        function_variable=joined_expression,
+        dummy_bands=dummy_bands, calculation_datatype=calc_data_type,
+        use_value_as_nodata=nodata_value,
         any_nodata_mask=True, output_raster_path=output_raster_path,
-        output_data_type=output_data_type, output_nodata_value=calc_nodata,
+        output_data_type=output_data_type, output_nodata_value=output_nodata,
         compress=cfg.raster_compression, n_processes=n_processes,
         available_ram=available_ram, keep_output_argument=True,
         virtual_raster=vrt_r, progress_message='cross rasters',
@@ -341,7 +390,7 @@ def band_combination(
         joined_table = tm.join_tables(
             table1=rec_combinations_array, table2=sum_val,
             field1_name='new_val', field2_name='new_val',
-            nodata_value=cfg.nodata_val_Int64, join_type='left',
+            nodata_value=cfg.nodata_val_UInt64, join_type='left',
             progress_message=False, min_progress=90, max_progress=100
         )
         # name of combination field in output table
@@ -359,8 +408,8 @@ def band_combination(
                 p += 1
         # create table
         table = _combination_table(
-            joined_table[joined_table['sum'] != cfg.nodata_val_Int64],
-            combination_name_list, un, p_x, p_y
+            joined_table[joined_table['sum'] != cfg.nodata_val_UInt64],
+            combination_name_list, un, p_x, p_y, separator
         )
         # save combination to table
         tbl_out = shared_tools.join_path(
@@ -384,8 +433,8 @@ def band_combination(
 
 
 def _combination_table(
-        table: np.array, combination_names: list, crs_unit: str,
-        pixel_size_x: int, pixel_size_y: int
+        table: np.ndarray, combination_names: list, crs_unit: str,
+        pixel_size_x: int, pixel_size_y: int, separator: str
 ) -> str:
     """Creation of combination table.
 
@@ -399,23 +448,19 @@ def _combination_table(
         crs_unit: unit of crs used for area calculation.
         pixel_size_x: pixel size along x.
         pixel_size_y: pixel size along y.
+        separator: separator for csv file.
 
     Returns:
         The text of the combination table.
     """
-    text = []
-    cv = cfg.comma_delimiter
-    nl = cfg.new_line
+    separator = separator or cfg.comma_delimiter
+    output_field_names = ['RasterValue', *combination_names, 'PixelSum']
+    input_field_names = [
+        'new_val', *(f'f{c}' for c in range(len(combination_names))), 'sum'
+    ]
     # table
     if 'degree' not in crs_unit:
-        output_field_names = ['RasterValue']
-        input_field_names = ['new_val']
-        for c, combination_c in enumerate(combination_names):
-            output_field_names.append(combination_c)
-            input_field_names.append('f%s' % str(c))
-        output_field_names.append('PixelSum')
         output_field_names.append('Area [%s^2]' % crs_unit)
-        input_field_names.append('sum')
         input_field_names.append('area')
         cross_class = tm.calculate(
             matrix=table, expression_string='"sum" * %s * %s' % (
@@ -423,13 +468,6 @@ def _combination_table(
             output_field_name='area', progress_message=False
         )
     else:
-        output_field_names = ['RasterValue']
-        input_field_names = ['new_val']
-        for c, combination_c in enumerate(combination_names):
-            output_field_names.append(combination_c)
-            input_field_names.append('f%s' % str(c))
-        output_field_names.append('PixelSum')
-        input_field_names.append('sum')
         cross_class = table
     redefined = tm.redefine_matrix_columns(
         matrix=cross_class, input_field_names=input_field_names,
@@ -437,14 +475,7 @@ def _combination_table(
     )
     # create stream handler
     stream1 = io.StringIO()
-    np.savetxt(stream1, redefined, delimiter=cv, fmt='%1.2f')
-    matrix_value = stream1.getvalue()
-    for c in output_field_names:
-        text.append(c)
-        text.append(cv)
-    text.pop(-1)
-    text.append(nl)
-    text.append(matrix_value.replace('.00', ''))
-    text.append(nl)
-    joined_text = ''.join(text)
-    return joined_text
+    np.savetxt(stream1, redefined, delimiter=separator, fmt='%1.2f')
+    matrix_value = stream1.getvalue().replace('.00', '')
+    header = separator.join(output_field_names)
+    return f'{header}{cfg.new_line}{matrix_value}{cfg.new_line}'

@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -41,11 +41,14 @@ try:
 except Exception as error:
     cfg.logger.log.error(str(error))
 try:
+    # noinspection PyPackageRequirements
     from osgeo import ogr
+    # noinspection PyPackageRequirements
     from osgeo import osr
 except Exception as error:
     cfg.logger.log.error(str(error))
 try:
+    # noinspection PyPackageRequirements
     from osgeo import gdal
 
     gdal.DontUseExceptions()
@@ -237,7 +240,7 @@ class SpectralSignaturesCatalog(object):
                 x_values=value_list[0], y_values=value_list[1],
                 decimal_round=decimal_round
             )
-            if plot is True:
+            if plot:
                 ax = plot_tools.prepare_scatter_plot()
                 plots = plot_tools.add_values_to_scatter_plot(
                     histogram=histogram, ax=ax
@@ -305,6 +308,7 @@ class SpectralSignaturesCatalog(object):
                 attribute_value=signature_id
             )
         cfg.logger.log.debug('end')
+        return True
 
     # merge spectral signatures and geometry from Spectral Signatures Catalog
     def merge_signatures_by_id(
@@ -400,7 +404,7 @@ class SpectralSignaturesCatalog(object):
         if color_string is None:
             color_string = shared_tools.random_color()
         # merge geometries if geometry == 1 for whole signature_id_list
-        if geometry_check is True:
+        if geometry_check:
             temp_path = cfg.temp.temporary_file_path(
                 name_suffix=cfg.gpkg_suffix
             )
@@ -688,9 +692,11 @@ class SpectralSignaturesCatalog(object):
         # import table
         if table is not None:
             for sig_id in signature_ids:
+                # noinspection PyUnresolvedReferences
                 table['signature_id'][
                     table['signature_id'] == sig_id] = signature_ids[sig_id]
             for sig_id in geometry_ids:
+                # noinspection PyUnresolvedReferences
                 table['signature_id'][
                     table['signature_id'] == sig_id] = geometry_ids[sig_id]
             if self.table is None:
@@ -848,9 +854,11 @@ class SpectralSignaturesCatalog(object):
             i_vector.Destroy()
             catalog_vector.Destroy()
             cfg.logger.log.debug('end; imported: %s' % file_path)
+            return True
         else:
             cfg.logger.log.error('file not found: %s' % file_path)
             cfg.messages.error('file not found: %s' % file_path)
+            return False
 
     # calculate spectral signatures
     def calculate_signature(self, roi_path, n_processes: int = None):
@@ -980,9 +988,8 @@ class SpectralSignaturesCatalog(object):
         if signature_id_list is None:
             macroclass_list = []
         else:
-            # noinspection PyUnresolvedReferences
             macroclass_list = self.table[
-                np.in1d(self.table['signature_id'], signature_id_list)
+                np.isin(self.table['signature_id'], signature_id_list)
             ].macroclass_id.tolist()
         if self.macroclasses is not None:
             for macroclass in self.macroclasses:
@@ -1013,9 +1020,8 @@ class SpectralSignaturesCatalog(object):
             if signature_id_list is None:
                 self.table.tofile(file='%s/table' % temp_dir)
             else:
-                # noinspection PyUnresolvedReferences
                 self.table[
-                    np.in1d(self.table['signature_id'], signature_id_list)
+                    np.isin(self.table['signature_id'], signature_id_list)
                 ].tofile(file='%s/table' % temp_dir)
             file_list.append('%s/table' % temp_dir)
         # zip files
@@ -1392,7 +1398,7 @@ class SpectralSignaturePlotCatalog(object):
         for signature in self.catalog:
             if not cfg.action:
                 break
-            if selected is True:
+            if selected:
                 if self.catalog[signature].selected == 1:
                     property_list.append(
                         '%s#%s %s#%s' % (
@@ -1424,7 +1430,7 @@ class SpectralSignaturePlotCatalog(object):
         for signature in self.catalog:
             if not cfg.action:
                 break
-            if selected is True:
+            if selected:
                 if self.catalog[signature].selected == 1:
                     property_list.append(
                         self.catalog[signature].value
@@ -1446,7 +1452,7 @@ class SpectralSignaturePlotCatalog(object):
         for signature in self.catalog:
             if not cfg.action:
                 break
-            if selected is True:
+            if selected:
                 if self.catalog[signature].selected == 1:
                     property_list.append(
                         self.catalog[signature].wavelength
@@ -1468,7 +1474,7 @@ class SpectralSignaturePlotCatalog(object):
         for signature in self.catalog:
             if not cfg.action:
                 break
-            if selected is True:
+            if selected:
                 if self.catalog[signature].selected == 1:
                     property_list.append(
                         self.catalog[signature].standard_deviation
@@ -1492,7 +1498,7 @@ class SpectralSignaturePlotCatalog(object):
         for signature in self.catalog:
             if not cfg.action:
                 break
-            if selected is True:
+            if selected:
                 if self.catalog[signature].selected == 1:
                     property_list.append(
                         self.catalog[signature].color
@@ -1516,7 +1522,7 @@ class SpectralSignaturePlotCatalog(object):
         for signature in self.catalog:
             if not cfg.action:
                 break
-            if selected is True:
+            if selected:
                 if self.catalog[signature].selected == 1:
                     property_list.append(
                         self.catalog[signature].attributes

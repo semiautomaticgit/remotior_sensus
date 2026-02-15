@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -638,7 +638,6 @@ class JupyterInterface(object):
         def download_function(input_files):
             global downloaded, browser_selector_val, selected_file_paths
             browser_selector_val.value = 1
-            # TODO implement password
             # TODO implement password
             copernicus_user = copernicus_password = None
             selected_file_paths.value = str(input_files).replace(

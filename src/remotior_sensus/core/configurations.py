@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -78,11 +78,11 @@ raster_compression = True
 raster_compression_format = 'LZW'
 # nodata values for data types
 nodata_val = -32768
-nodata_val_UInt16 = 65535
-nodata_val_Int32 = 2147483647
-nodata_val_Int64 = -9223372036854775808
+nodata_val_UInt16 = 2 ** 16 - 1
+nodata_val_Int32 = 2 ** 32 // 2 - 1
+nodata_val_Int64 = -2 ** 64 // 2
 nodata_val_Float32 = -340282346638528859811704183484516925440
-nodata_val_UInt32 = 4294967295
+nodata_val_UInt32 = 2 ** 32 - 1
 nodata_val_UInt64 = 2 ** 64 - 1
 nodata_val_Byte = 255
 # predefined suffixes
@@ -106,7 +106,7 @@ sentinel2 = 'Sentinel-2'
 # NASA CMR Search
 # https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html
 landsat_hls = 'Landsat_HLS'
-landsat_hls_collection = 'C2021957657-LPCLOUD'
+landsat_hls_collection = 'C2021957657-CLOUD'
 sentinel2_hls = 'Sentinel-2_HLS'
 sentinel2_hls_collection = 'C2021957295-LPCLOUD'
 landsat = 'Landsat'
@@ -129,34 +129,29 @@ cop_dem_glo_30_mpc = 'Copernicus_DEM_30_MPC'
 cop_dem_glo_30_mpc_collection = 'cop-dem-glo-30'
 product_description = {
     sentinel2: 'Copernicus Sentinel-2 '
-               'https://dataspace.copernicus.eu/explore-data/data-collections/sentinel-data/sentinel-2',
-    # noqa: E501
+               'https://dataspace.copernicus.eu/explore-data/data-collections/sentinel-data/sentinel-2',  # noqa: E501
     landsat_mpc: 'Landsat Collection from Microsoft Planetary Computer '
-                 'https://planetarycomputer.microsoft.com/dataset/group/landsat',
-    # noqa: E501
+                 'https://planetarycomputer.microsoft.com/dataset/group/landsat',  # noqa: E501
     sentinel2_mpc: 'Sentinel-2 Level-2A from Microsoft Planetary Computer '
-                   'https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a',
-    # noqa: E501
+                   'https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a',  # noqa: E501
     landsat_hls: 'Landsat from Harmonized Landsat and Sentinel-2 by NASA '
                  'https://hls.gsfc.nasa.gov',
     sentinel2_hls: 'Sentinel-2 from Harmonized Landsat and Sentinel-2 by NASA '
                    'https://hls.gsfc.nasa.gov',
     modis_09q1_mpc: 'MODIS Surface Reflectance 8-Day (250m) from Microsoft '
-                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-09Q1-061',
-    # noqa: E501
+                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-09Q1-061',  # noqa: E501
     modis_11a2_mpc: 'MODIS Land Surface Temperature 8-Day from Microsoft '
-                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-11A2-061',
-    # noqa: E501
+                    'Planetary Computer https://planetarycomputer.microsoft.com/dataset/modis-11A2-061',  # noqa: E501
     aster_l1t_mpc: 'ASTER L1T from Microsoft Planetary Computer '
                    'https://planetarycomputer.microsoft.com/dataset/aster-l1t',
     cop_dem_glo_30_mpc: 'Copernicus DEM GLO-30 from Microsoft Planetary '
-                        'Computer https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-30'
-    # noqa: E501
+                        'Computer https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-30'  # noqa: E501
 }
 # satellites bands for center wavelength definition
 no_satellite = 'Band order'
 satGeoEye1 = 'GeoEye-1 [bands 1, 2, 3, 4]'
 satGOES = 'GOES [bands 1, 2, 3, 4, 5, 6]'
+satLandsat89 = 'Landsat 8/9 raw [bands 1, 2, 3, 4, 5, 6, 7, 8, 9 , 10, 11]'
 satLandsat9 = 'Landsat 9 OLI [bands 1, 2, 3, 4, 5, 6, 7]'
 satLandsat8 = 'Landsat 8 OLI [bands 1, 2, 3, 4, 5, 6, 7]'
 satLandsat7 = 'Landsat 7 ETM+ [bands 1, 2, 3, 4, 5, 7]'
@@ -180,7 +175,8 @@ satQuickBird = 'QuickBird [bands 1, 2, 3, 4]'
 satWorldView23 = 'WorldView-2 -3 Multispectral [bands 1, 2, 3, 4, 5, 6, 7, 8]'
 # satellite list used in BandSet class
 sat_band_list = [
-    no_satellite, satASTER, satGeoEye1, satGOES, satLandsat9, satLandsat8,
+    no_satellite, satASTER, satGeoEye1, satGOES, satLandsat89,
+    satLandsat9, satLandsat8,
     satLandsat7, satLandsat45, satLandsat13, satMODIS, satMODIS2, satPleiades,
     satQuickBird, satRapidEye, satSentinel2, satSentinel3, satSPOT4, satSPOT5,
     satSPOT6, satWorldView23
@@ -220,6 +216,10 @@ satellites = {
          '11', '12', '13', '14']],
     # Landsat center wavelength calculated from
     # https://www.usgs.gov/faqs/what-are-band-designations-landsat-satellites
+    satLandsat89: [[0.44, 0.48, 0.56, 0.59, 0.655, 0.865, 1.37, 1.61, 2.2,
+                    10.895, 12.005],
+                  wl_micro, ['1', '2', '3', '8', '4', '5', '9', '6', '7', '10',
+                             '11']],
     satLandsat9: [[0.44, 0.48, 0.56, 0.655, 0.865, 1.61, 2.2],
                   wl_micro, ['1', '2', '3', '4', '5', '6', '7']],
     satLandsat8: [[0.44, 0.48, 0.56, 0.655, 0.865, 1.61, 2.2],
@@ -335,13 +335,15 @@ statistics_list = [
 # calculation data types used in calculations
 float64_dt = 'Float64'
 float32_dt = 'Float32'
+int64_dt = 'Int64'
+uint64_dt = 'UInt64'
 int32_dt = 'Int32'
 uint32_dt = 'UInt32'
 int16_dt = 'Int16'
 uint16_dt = 'UInt16'
 byte_dt = 'Byte'
-datatype_list = [float64_dt, float32_dt, int32_dt, uint32_dt, int16_dt,
-                 uint16_dt, byte_dt]
+datatype_list = [float64_dt, float32_dt, int64_dt, uint64_dt, int32_dt,
+                 uint32_dt, int16_dt, uint16_dt, byte_dt]
 # spectral catalog table dtype
 spectral_dtype_list = [('signature_id', 'U64'), ('macroclass_id', 'int16'),
                        ('class_id', 'int16'), ('class_name', 'U512'),
@@ -369,18 +371,27 @@ macroclass_field_name = 'macroclass_id'
 class_field_name = 'class_id'
 macroclass_default = 'macroclass'
 class_default = 'class'
+
+# clustering options
+random_pixel = 'random pixel'
+band_mean = 'band mean'
+# name used in raster conversion to vector for area field
+area_field_name = 'area'
+not_available = 'n/a'
+
 # input normalization for classification
 z_score = 'z score'
 linear_scaling = 'linear scaling'
-# classification frameworks
-classification_framework = 'classification_framework'
-scikit_framework = 'scikit'
-pytorch_framework = 'pytorch'
 spectral_signatures_framework = 'spectral_signatures'
 model_classifier_framework = 'model_classifier'
 normalization_values_framework = 'normalization_values'
 covariance_matrices_framework = 'covariance_matrices'
 algorithm_name_framework = 'algorithm_name'
+additional_algorithm_framework = 'additional_algorithm'
+model_path_framework = 'model_path'
+model_reclass_framework = 'model_reclass'
+n_processes_framework = 'n_processes'
+num_classes_framework = 'num_classes'
 input_normalization_framework = 'input_normalization'
 # classification algorithm names
 minimum_distance = 'minimum distance'
@@ -399,18 +410,213 @@ multi_layer_perceptron = 'multi-layer perceptron'
 multi_layer_perceptron_a = 'mlp'
 pytorch_multi_layer_perceptron = 'pytorch multi-layer perceptron'
 pytorch_multi_layer_perceptron_a = 'pytorch_mlp'
-classification_algorithms = [
-    minimum_distance, minimum_distance_a,
-    maximum_likelihood, maximum_likelihood_a,
-    spectral_angle_mapping, spectral_angle_mapping_a,
-    random_forest, random_forest_a, random_forest_ovr, random_forest_ovr_a,
-    support_vector_machine, support_vector_machine_a,
-    multi_layer_perceptron, multi_layer_perceptron_a,
-    pytorch_multi_layer_perceptron, pytorch_multi_layer_perceptron_a
-]
-# clustering options
-random_pixel = 'random pixel'
-band_mean = 'band mean'
-# name used in raster conversion to vector for area field
-area_field_name = 'area'
-not_available = 'n/a'
+pytorch_pretrained_s2_swin_v2_base = 'pytorch sentinel-2 swin v2 base'
+pytorch_pretrained_s2_swin_v2_base_a = 'pytorch_s2_swin2b'
+pytorch_pretrained_s2_swin_v2_tiny = 'pytorch sentinel-2 swin v2 tiny'
+pytorch_pretrained_s2_swin_v2_tiny_a = 'pytorch_s2_swin2t'
+pytorch_pretrained_l89_swin_v2_base = 'pytorch Landsat8-9 swin v2 base'
+pytorch_pretrained_l89_swin_v2_base_a = 'pytorch_l89_swin2b'
+pytorch_pretrained_s2_swin_v2_base_seg = 'pytorch sentinel-2 swin v2 base seg'
+pytorch_pretrained_s2_swin_v2_base_seg_a = 'pytorch_s2_swin2b_seg'
+pytorch_pretrained_s2_swin_v2_base_rgb_seg = 'pytorch sentinel-2 swin v2 base rgb seg'
+pytorch_pretrained_s2_swin_v2_base_rgb_seg_a = 'pytorch_s2_swin2b_rgb_seg'
+
+# classification frameworks
+classification_framework = 'classification_framework'
+core_framework = 'core'
+scikit_framework = 'scikit'
+pytorch_framework = 'pytorch'
+pretrained_framework = 'pretrained'
+segmentation_framework = 'segmentation'
+# classification framework dict
+class_framework_dict = {
+    core_framework: [minimum_distance, minimum_distance_a,
+                     spectral_angle_mapping, spectral_angle_mapping_a,
+                     maximum_likelihood, maximum_likelihood_a],
+    scikit_framework: [random_forest, random_forest_a,
+                       random_forest_ovr, random_forest_ovr_a,
+                       support_vector_machine, support_vector_machine_a,
+                       multi_layer_perceptron, multi_layer_perceptron_a],
+    pytorch_framework: [pytorch_multi_layer_perceptron,
+                        pytorch_multi_layer_perceptron_a],
+    pretrained_framework: [pytorch_pretrained_s2_swin_v2_base,
+                           pytorch_pretrained_s2_swin_v2_base_a,
+                           pytorch_pretrained_s2_swin_v2_tiny,
+                           pytorch_pretrained_s2_swin_v2_tiny_a,
+                           pytorch_pretrained_l89_swin_v2_base,
+                           pytorch_pretrained_l89_swin_v2_base_a],
+    segmentation_framework: [pytorch_pretrained_s2_swin_v2_base_seg,
+                             pytorch_pretrained_s2_swin_v2_base_seg_a,
+                             pytorch_pretrained_s2_swin_v2_base_rgb_seg,
+                             pytorch_pretrained_s2_swin_v2_base_rgb_seg_a],
+}
+classification_algorithms = [alg for alg_list in class_framework_dict.values()
+                             for alg in alg_list]
+
+# pretrained variants
+variant_base = 'base'
+variant_tiny = 'tiny'
+variant_base_seg = 'base_seg'
+# pretrained models
+pretrained_model_dict = {
+    ' ': '',
+    # Sentinel-2 bands B04, B03, B02, B05, B06, B07, B08, B11, B12 from https://github.com/allenai/satlas/blob/main/Normalization.md
+    pytorch_pretrained_s2_swin_v2_base:
+        f'Swin-v2-Base model for Sentinel-2 single image.\n'
+        f'Requirements: Sentinel-2 bandset '
+        f'(TCI RGB (B04, B03, B02), TOA bands B05, B06, B07, B08, B11, B12).\n'
+        f'Normalization: TCI RGB bands divided by 255; B05, B06, B07, B08, '
+        f'B11, B12 divided by 8160 and clipped to 0-1.\n'
+        f'Framework: PyTorch.\n'
+        f'Source: Sentinel2_SwinB_SI_MS, '
+        f'pretrained by the Allen Institute for Artificial Intelligence '
+        f'(SatlasPretrain: https://satlas-pretrain.allen.ai).\n'
+        f'The model weights are released under the Open Data Commons '
+        f'Attribution License (ODC-BY). '
+        f'The repository code is licensed under the Apache License 2.0 '
+        f'(https://huggingface.co/allenai/satlas-pretrain).\n'
+        f'This tool downloads the official SatlasPretrain weights '
+        f'(Bastani et al., "SatlasPretrain: A Large-Scale Dataset for Remote '
+        f'Sensing Image Understanding", ICCV 2023, arXiv:2211.15660, '
+        f'https://doi.org/10.48550/arXiv.2211.15660).\n'
+        f'All model weights remain the property of their respective authors.',
+    pytorch_pretrained_s2_swin_v2_tiny:
+        f'Swin-v2-Tiny model for Sentinel-2 single image.\n'
+        f'Requirements: Sentinel-2 bandset '
+        f'(TCI RGB (B04, B03, B02), TOA bands B05, B06, B07, B08, B11, B12).\n'
+        f'Normalization: TCI RGB bands divided by 255; B05, B06, B07, B08, '
+        f'B11, B12 divided by 8160 and clipped to 0-1.\n'
+        f'Framework: PyTorch.\n'
+        f'Source: Sentinel2_SwinT_SI_MS, '
+        f'pretrained by the Allen Institute for Artificial Intelligence '
+        f'(SatlasPretrain: https://satlas-pretrain.allen.ai).\n'
+        f'The model weights are released under the Open Data Commons '
+        f'Attribution License (ODC-BY). '
+        f'The repository code is licensed under the Apache License 2.0 '
+        f'(https://huggingface.co/allenai/satlas-pretrain).\n'
+        f'This tool downloads the official SatlasPretrain weights '
+        f'(Bastani et al., "SatlasPretrain: A Large-Scale Dataset for Remote '
+        f'Sensing Image Understanding", ICCV 2023, arXiv:2211.15660, '
+        f'https://doi.org/10.48550/arXiv.2211.15660).\n'
+        f'All model weights remain the property of their respective authors.',
+    # Landsat bands B1-B11 in order from https://github.com/allenai/satlas/blob/main/Normalization.md
+    pytorch_pretrained_l89_swin_v2_base:
+        f'Swin-v2-Base model for Landsat 8 or Landsat 9 single image.\n'
+        f'Requirements: Landsat 8 or Landsat 9 bandset (Collection 2 Level-1 '
+        f'bands B01, B02, B03, B04, B05, B06, B07, B08, B09, B10, B11).\n'
+        f'Normalization: (band - 4000)/16320 and clipped to 0-1.\n'
+        f'Framework: PyTorch.\n'
+        f'Source: Landsat_SwinB_SI, '
+        f'pretrained by the Allen Institute for Artificial Intelligence '
+        f'(SatlasPretrain: https://satlas-pretrain.allen.ai).\n'
+        f'The model weights are released under the Open Data Commons '
+        f'Attribution License (ODC-BY). '
+        f'The repository code is licensed under the Apache License 2.0 '
+        f'(https://huggingface.co/allenai/satlas-pretrain).\n'
+        f'This tool downloads the official SatlasPretrain weights '
+        f'(Bastani et al., "SatlasPretrain: A Large-Scale Dataset for Remote '
+        f'Sensing Image Understanding", ICCV 2023, arXiv:2211.15660, '
+        f'https://doi.org/10.48550/arXiv.2211.15660).\n'
+        f'All model weights remain the property of their respective authors.',
+}
+
+segmentation_model_dict = {
+    ' ': '',
+    # Sentinel-2 bands B04, B03, B02, B08
+    pytorch_pretrained_s2_swin_v2_base_seg:
+        f'Swin-v2-Base segmentation for Sentinel-2 single image (4 bands).\n'
+        f'Requirements: Sentinel-2 bandset '
+        f'(TCI RGB (B04, B03, B02), TOA bands B08).\n'
+        f'Normalization: TCI RGB bands divided by 255; B08 '
+        f'divided by 8160 and clipped to 0-1.\n'
+        f'Framework: PyTorch.\n'
+        f'Output classes: background, water, developed, tree, shrub, grass, '
+        f'crop, bare, snow, wetland, mangroves, moss.\n'
+        f'Source: Satlas_MS_tci-b08_epoch150, '
+        f'pretrained by DPR Team as part of the DPR Zoo Segmentation Hub '
+        f'framework (https://github.com/DPR25/dpr-zoo-segmentation-hub) '
+        f'based on SatlasPretrain models. '
+        f'The repository code is licensed under the MIT License '
+        f'(https://huggingface.co/martinkorelic/dpr-zoo-models). '
+        f'This tool downloads the model weights (DPR Team, 2025. Made as part '
+        f'of Arnes Hackathon 2025).'
+        f'All model weights remain the property of their respective authors. ',
+    # Sentinel-2 bands B04, B03, B02
+    pytorch_pretrained_s2_swin_v2_base_rgb_seg:
+        f'Swin-v2-Base segmentation for Sentinel-2 single image (3 bands).\n'
+        f'Requirements: Sentinel-2 bandset '
+        f'(TCI RGB (B04, B03, B02)).\n'
+        f'Normalization: TCI RGB bands divided by 255.\n'
+        f'Framework: PyTorch.\n'
+        f'Output classes: background, water, developed, tree, shrub, grass, '
+        f'crop, bare, snow, wetland, mangroves, moss.\n'
+        f'Source: Satlas_RGB1_epoch70, '
+        f'pretrained by DPR Team as part of the DPR Zoo Segmentation Hub '
+        f'framework (https://github.com/DPR25/dpr-zoo-segmentation-hub) '
+        f'based on SatlasPretrain models. '
+        f'The repository code is licensed under the MIT License '
+        f'(https://huggingface.co/martinkorelic/dpr-zoo-models). '
+        f'This tool downloads the model weights (DPR Team, 2025. Made as part '
+        f'of Arnes Hackathon 2025).'
+        f'All model weights remain the property of their respective authors. ',
+}
+
+segmentation_model_class_dict = {
+    ' ': '',
+    # Sentinel-2 bands B04, B03, B02, B08
+    pytorch_pretrained_s2_swin_v2_base_seg:
+        ['background', 'water', 'developed', 'tree', 'shrub', 'grass', 'crop',
+         'bare', 'snow', 'wetland', 'mangroves', 'moss'],
+    # Sentinel-2 bands B04, B03, B02
+    pytorch_pretrained_s2_swin_v2_base_rgb_seg:
+        ['background', 'water', 'developed', 'tree', 'shrub', 'grass', 'crop',
+         'bare', 'snow', 'wetland', 'mangroves', 'moss'],
+}
+
+segmentation_model_color_dict = {
+    ' ': '',
+    # Sentinel-2 bands B04, B03, B02, B08
+    pytorch_pretrained_s2_swin_v2_base_seg:
+        ['#000000', '#0000ff', '#ff0000', '#225500', '#338000', '#b3ff80',
+         '#ffccaa', '#a05a2c', '#00ffe3', '#d3d0ff', '#a69200', '#b6ffd3'],
+    # Sentinel-2 bands B04, B03, B02
+    pytorch_pretrained_s2_swin_v2_base_rgb_seg:
+        ['#000000', '#0000ff', '#ff0000', '#225500', '#338000', '#b3ff80',
+         '#ffccaa', '#a05a2c', '#00ffe3', '#d3d0ff', '#a69200', '#b6ffd3'],
+}
+
+pretrained_model_url_dict = {
+    # Models pretrained by the Allen Institute for Artificial Intelligence
+    # (SatlasPretrain: https://satlas-pretrain.allen.ai).
+    # The model weights are released under the Open Data Commons 'Attribution
+    # License (ODC-BY). The repository code is licensed under the Apache License 2.0
+    # (https://huggingface.co/allenai/satlas-pretrain). This tool downloads the
+    # official SatlasPretrain weights (Bastani et al., "SatlasPretrain: A
+    # Large-Scale Dataset for Remote Sensing Image Understanding", ICCV 2023,
+    # arXiv:2211.15660, https://doi.org/10.48550/arXiv.2211.15660). All model
+    # weights remain the property of their respective authors.
+    pytorch_pretrained_s2_swin_v2_base:
+        'https://huggingface.co/allenai/satlas-pretrain/resolve/main/sentinel2_swinb_si_ms.pth?download=true',  # noqa: E501
+    pytorch_pretrained_s2_swin_v2_tiny:
+        'https://huggingface.co/allenai/satlas-pretrain/resolve/main/sentinel2_swint_si_ms.pth?download=true',  # noqa: E501
+    pytorch_pretrained_l89_swin_v2_base:
+        'https://huggingface.co/allenai/satlas-pretrain/resolve/main/landsat_swinb_si.pth?download=true',  # noqa: E501
+    # Models for Sentinel-2 developed as part of the DPR Zoo Segmentation Hub
+    # framework (https://github.com/DPR25/dpr-zoo-segmentation-hub) based on
+    # SatlasPretrain models.
+    # The repository code is licensed under the MIT License
+    # (https://huggingface.co/martinkorelic/dpr-zoo-models).
+    # All model weights remain the property of their respective authors.
+    pytorch_pretrained_s2_swin_v2_base_seg:
+        'https://huggingface.co/martinkorelic/dpr-zoo-models/resolve/main/Satlas_MS_tci-b08_epoch150.pth?download=true',  # noqa: E501
+    pytorch_pretrained_s2_swin_v2_base_rgb_seg:
+        'https://huggingface.co/martinkorelic/dpr-zoo-models/resolve/main/Satlas_RGB1_epoch70.pth?download=true',  # noqa: E501
+}
+
+pretrained_model_replace_dict = {
+    pytorch_pretrained_s2_swin_v2_base_seg:
+        ['backbone.backbone.', 'swin.swin.'],
+    pytorch_pretrained_s2_swin_v2_base_rgb_seg:
+        ['backbone.backbone.', 'swin.swin.'],
+}
+

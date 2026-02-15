@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -365,7 +365,7 @@ def query_sentinel_2_database(
                 max_lat = max(y_list)
                 # download Sentinel metadata
                 if product_type == 'L1C':
-                    if copernicus is True:
+                    if copernicus:
                         url_2 = (
                                 '%s/Products(%s)/Nodes(%s.SAFE)'
                                 '/Nodes(MTD_MSIL1C.xml)/$value'
@@ -378,7 +378,7 @@ def query_sentinel_2_database(
                              product_name, '.SAFE/MTD_MSIL1C.xml']
                         )
                 else:
-                    if copernicus is True:
+                    if copernicus:
                         url_2 = (
                                 '%s/Products(%s)/Nodes(%s.SAFE)'
                                 '/Nodes(MTD_MSIL2A.xml)/$value'
@@ -425,7 +425,7 @@ def query_sentinel_2_database(
                                     )
                                     pvi_name = '%s_%s_PVI.jp2' % (
                                         img_name_3[0], img_name_3[1])
-                                    if copernicus is True:
+                                    if copernicus:
                                         img_preview = (
                                                 '%s/Products(%s)'
                                                 '/Nodes(%s.SAFE)'
@@ -452,7 +452,7 @@ def query_sentinel_2_database(
                                     )
                                     pvi_name = '%s_%s_PVI.jp2' % (
                                         img_name_3[0], img_name_3[1])
-                                    if copernicus is True:
+                                    if copernicus:
                                         img_preview = (
                                                 '%s/Products(%s)'
                                                 '/Nodes(%s.SAFE)'
@@ -615,7 +615,10 @@ def download(
     https://storage.googleapis.com/gcp-public-data-sentinel-2 or
     https://catalogue.dataspace.copernicus.eu 
     if copernicus_user and copernicus_password are provided.
-
+    
+    Alternatively, downloads the collections from Microsoft Planetary Computer
+    https://planetarycomputer.microsoft.com
+    
     Downloads HLS images from:
     https://cmr.earthdata.nasa.gov/search/site/search_api_docs.html.
 
@@ -658,6 +661,8 @@ def download(
     output_file_list = []
     # list of output directories
     output_directory_list = []
+    # list of downloaded rasters
+    output_raster_lists = []
     total_products = product_table.shape[0]
     try:
         progress_step = 100 / (len(band_list) * total_products)
@@ -713,20 +718,21 @@ def download(
                 timeout=2, ignore_errors=ignore_errors
             )
             if exporter:
-                output_file_list.extend(
-                    [metadata_url]
-                )
+                output_file_list.extend([metadata_url])
             else:
                 if check:
                     files_directories.move_file(
                         in_path=temp_file, out_path=metadata_file
                     )
             # download bands
+            output_raster_dic = {cfg.satSentinel2: []}
             for band in band_list:
                 _check_sentinel_2_bands(
                     band_number=band, product_name=product_name,
                     image_name=image_name, output_path=base_output_dir,
-                    output_list=output_file_list, exporter=exporter,
+                    output_list=output_file_list,
+                    exporter=exporter,
+                    output_raster_list=output_raster_dic[cfg.satSentinel2],
                     progress=progress_message, uid=uid,
                     virtual_download=virtual_download,
                     extent_coordinate_list=extent_coordinate_list,
@@ -737,6 +743,7 @@ def download(
                 )
                 min_progress += progress_step
                 max_progress += progress_step
+            output_raster_lists.append(output_raster_dic)
         elif product_table['product'][i] == cfg.sentinel2:
             top_url = (
                 'https://storage.googleapis.com/gcp-public-data-sentinel-2'
@@ -779,6 +786,7 @@ def download(
                 cloud_mask_gml_url = \
                     '%s.SAFE/GRANULE/%s/QI_DATA/MSK_CLOUDS_B00.gml' % (
                         base_url, image_name)
+
             # old structure version
             else:
                 base_output_dir = '%s/%s_%s' % (
@@ -840,11 +848,14 @@ def download(
                             timeout=2, ignore_errors=ignore_errors
                         )
             # download bands
+            output_raster_dic = {cfg.satSentinel2: []}
             for band in band_list:
                 _check_sentinel_2_bands(
                     band_number=band, product_name=product_name,
                     image_name=image_name, output_path=base_output_dir,
-                    output_list=output_file_list, exporter=exporter,
+                    output_list=output_file_list,
+                    output_raster_list=output_raster_dic[cfg.satSentinel2],
+                    exporter=exporter,
                     progress=progress_message,
                     virtual_download=virtual_download,
                     extent_coordinate_list=extent_coordinate_list,
@@ -854,6 +865,7 @@ def download(
                 )
                 min_progress += progress_step
                 max_progress += progress_step
+            output_raster_lists.append(output_raster_dic)
         elif (product_table['product'][i] == cfg.sentinel2_hls
               or product_table['product'][i] == cfg.landsat_hls):
             product_url = None
@@ -862,6 +874,7 @@ def download(
             product_name = product_table['product_id'][i]
             image_name = product_table['image'][i]
             acquisition_date = product_table['acquisition_date'][i]
+            output_raster_dic = {}
             if product_table['product'][i] == cfg.sentinel2_hls:
                 top_url = (
                     'https://data.lpdaac.earthdatacloud.nasa.gov'
@@ -870,6 +883,7 @@ def download(
                 # noinspection SpellCheckingInspection
                 product_url = '%s/HLSS30.020/%s/%s' % (
                     top_url, image_name, image_name)
+                output_raster_dic = {cfg.satSentinel2: []}
             elif product_table['product'][i] == cfg.landsat_hls:
                 top_url = (
                     'https://data.lpdaac.earthdatacloud.nasa.gov'
@@ -877,6 +891,7 @@ def download(
                 )
                 product_url = '%s/HLSL30.020/%s/%s' % (
                     top_url, image_name, image_name)
+                output_raster_dic = {cfg.satLandsat89: []}
             base_output_dir = '%s/%s_%s' % (
                 output_path, product_name.replace('.', '_'),
                 str(acquisition_date))
@@ -885,7 +900,8 @@ def download(
             for band in band_list:
                 if product_table['product'][i] == cfg.landsat_hls:
                     if ('8A' in str(band) or '8' in str(band)
-                            or '12' in str(band)):
+                            or '12' in str(band)
+                            or 'scl' in str(band).lower()):
                         band = None
                 if band is not None:
                     url = '%s.B%s%s' % (
@@ -913,6 +929,12 @@ def download(
                         )
                         if files_directories.is_file(output_file):
                             output_file_list.append(output_file)
+                            if product_table['product'][i] == cfg.landsat_hls:
+                                output_raster_dic[cfg.satLandsat89].append(
+                                    output_file)
+                            else:
+                                output_raster_dic[cfg.satSentinel2].append(
+                                    output_file)
                             cfg.logger.log.debug(
                                 'downloaded file %s' % output_file
                             )
@@ -946,6 +968,7 @@ def download(
                                 str(err)
                 min_progress += progress_step
                 max_progress += progress_step
+            output_raster_lists.append(output_raster_dic)
         elif (product_table['product'][i] == cfg.sentinel2_mpc
               or product_table['product'][i] == cfg.landsat_mpc
               or product_table['product'][i] == cfg.modis_09q1_mpc
@@ -1040,18 +1063,33 @@ def download(
                                     in_path=temp_file, out_path=metadata_file
                                 )
                     # download bands
+                    output_raster_dic = {}
+                    if product_table['product'][i] == cfg.landsat_mpc:
+                        if 'LC08' in image_name or 'LC09' in image_name:
+                            output_raster_dic = {cfg.satLandsat89: []}
+                        elif 'LE07' in image_name:
+                            output_raster_dic = {cfg.satLandsat7: []}
+                        else:
+                            output_raster_dic = {cfg.satLandsat45: []}
+                    elif product_table['product'][i] == cfg.sentinel2_mpc:
+                        output_raster_dic = {cfg.satSentinel2: []}
+                    elif product_table['product'][i] == cfg.aster_l1t_mpc:
+                        output_raster_dic = {cfg.satASTER: []}
+                    elif product_table['product'][i] == cfg.modis_09q1_mpc:
+                        output_raster_dic = {cfg.satMODIS2: []}
                     for band in band_list:
                         band_name = None
                         if product_table['product'][i] == cfg.landsat_mpc:
                             if ('8A' in str(band) or '08' in str(band)
-                                    or '12' in str(band)):
+                                    or '12' in str(band)
+                                    or 'scl' in str(band).lower()):
                                 band = None
                             if 'LC08' in image_name or 'LC09' in image_name:
                                 band_names = {
-                                    '01': 'coastal', '02': 'blue',
-                                    '03': 'green', '04': 'red', '05': 'nir08',
-                                    '06': 'swir16', '07': 'swir22',
-                                    '10': 'lwir11'
+                                    'B01': 'coastal', 'B02': 'blue',
+                                    'B03': 'green', 'B04': 'red', '05': 'nir08',
+                                    'B06': 'swir16', 'B07': 'swir22',
+                                    'B10': 'lwir11'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
@@ -1059,9 +1097,10 @@ def download(
                                     band = None
                             elif 'LE07' in image_name:
                                 band_names = {
-                                    '01': 'blue', '02': 'green', '03': 'red',
-                                    '04': 'nir08', '05': 'swir16',
-                                    '06': 'lwir11', '07': 'swir22'
+                                    'B01': 'blue', 'B02': 'green',
+                                    'B03': 'red',
+                                    'B04': 'nir08', 'B05': 'swir16',
+                                    'B06': 'lwir11', 'B07': 'swir22'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
@@ -1069,9 +1108,10 @@ def download(
                                     band = None
                             else:
                                 band_names = {
-                                    '01': 'blue', '02': 'green', '03': 'red',
-                                    '04': 'nir08', '05': 'swir16',
-                                    '06': 'lwir11', '07': 'swir22'
+                                    'B01': 'blue', 'B02': 'green',
+                                    'B03': 'red',
+                                    'B04': 'nir08', 'B05': 'swir16',
+                                    'B06': 'lwir11', 'B07': 'swir22'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
@@ -1080,11 +1120,13 @@ def download(
                         elif product_table['product'][i] == cfg.sentinel2_mpc:
                             if '10' in str(band):
                                 band = None
+                            elif 'scl' in str(band).lower():
+                                band_name = 'SCL'
                             else:
                                 band_name = 'B%s' % band
                         elif product_table['product'][i] == cfg.aster_l1t_mpc:
                             band_names = {
-                                '01': 'VNIR', '04': 'SWIR', '10': 'TIR'
+                                'B01': 'VNIR', 'B04': 'SWIR', 'B10': 'TIR'
                             }
                             if band in band_names:
                                 band_name = band_names[band]
@@ -1126,7 +1168,7 @@ def download(
                                         product_name.replace('.', '_'),
                                         band_name, cfg.tif_suffix)
                                 else:
-                                    output_file = '%s/%s_B%s%s' % (
+                                    output_file = '%s/%s_%s%s' % (
                                         base_output_dir,
                                         product_name.replace('.', '_'),
                                         str(band).zfill(2), cfg.tif_suffix)
@@ -1157,6 +1199,34 @@ def download(
                                     )
                                 if files_directories.is_file(output_file):
                                     output_file_list.append(output_file)
+                                    if product_table['product'][
+                                        i] == cfg.landsat_mpc:
+                                        if ('LC08' in image_name or
+                                                'LC09' in image_name):
+                                            output_raster_dic[
+                                                cfg.satLandsat89].append(
+                                                output_file)
+                                        elif 'LE07' in image_name:
+                                            output_raster_dic[
+                                                cfg.satLandsat7].append(
+                                                output_file)
+                                        else:
+                                            output_raster_dic[
+                                                cfg.satLandsat45].append(
+                                                output_file)
+                                    elif product_table['product'][
+                                        i] == cfg.sentinel2_mpc:
+                                        output_raster_dic[
+                                            cfg.satSentinel2].append(
+                                            output_file)
+                                    elif product_table['product'][
+                                        i] == cfg.aster_l1t_mpc:
+                                        output_raster_dic[
+                                            cfg.satASTER].append(output_file)
+                                    elif product_table['product'][
+                                        i] == cfg.modis_09q1_mpc:
+                                        output_raster_dic[
+                                            cfg.satMODIS2].append(output_file)
                                     cfg.logger.log.debug(
                                         'downloaded file %s' % output_file
                                     )
@@ -1171,8 +1241,9 @@ def download(
                                     )
                         min_progress += progress_step
                         max_progress += progress_step
+                    output_raster_lists.append(output_raster_dic)
             else:
-                if ignore_errors is not True:
+                if not ignore_errors:
                     return OutputManager(check=False)
     if access_token is not None:
         delete_copernicus_token(
@@ -1194,7 +1265,8 @@ def download(
             cfg.logger.log.info('end')
             return OutputManager(
                 paths=output_file_list,
-                extra={'directory_paths': output_directory_list}
+                extra={'directory_paths': output_directory_list,
+                       'output_raster_lists': output_raster_lists}
             )
         else:
             cfg.logger.log.error('unable to download')
@@ -1203,7 +1275,8 @@ def download(
 
 def _check_sentinel_2_bands(
         band_number, product_name, image_name, output_path, uid=None,
-        output_list=None, exporter=False, progress=True,
+        output_list=None, output_raster_list=None, exporter=False,
+        progress=True,
         virtual_download=False, extent_coordinate_list=None,
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
         min_progress=0, max_progress=100, access_token=None
@@ -1224,7 +1297,7 @@ def _check_sentinel_2_bands(
     band_url = ''
     output_file = ''
     if image_name[0:4] == 'L1C_':
-        if copernicus is False:
+        if not copernicus:
             band_url = ''.join(
                 [top_url, '/tiles/', product_name[39:41], '/',
                  product_name[41], '/', product_name[42:44], '/',
@@ -1243,7 +1316,7 @@ def _check_sentinel_2_bands(
             output_path, image_name[4:], band_number)
     elif image_name[0:4] == 'L2A_':
         if band_number in ['02', '03', '04', '08']:
-            if copernicus is False:
+            if not copernicus:
                 band_url = ''.join(
                     [top_url, '/L2/tiles/', product_name[39:41], '/',
                      product_name[41], '/', product_name[42:44], '/',
@@ -1263,7 +1336,7 @@ def _check_sentinel_2_bands(
             output_file = '%s/%s_B%s' % (
                 output_path, image_name[4:], band_number)
         elif band_number in ['05', '06', '07', '11', '12', '8A']:
-            if copernicus is False:
+            if not copernicus:
                 band_url = ''.join(
                     [top_url, '/L2/tiles/', product_name[39:41], '/',
                      product_name[41], '/', product_name[42:44], '/',
@@ -1282,8 +1355,27 @@ def _check_sentinel_2_bands(
                 )
             output_file = '%s/%s_B%s' % (
                 output_path, image_name[4:], band_number)
+        elif band_number.lower() in ['scl']:
+            if not copernicus:
+                band_url = ''.join(
+                    [top_url, '/L2/tiles/', product_name[39:41], '/',
+                     product_name[41], '/', product_name[42:44], '/',
+                     product_name, '.SAFE', '/GRANULE/', image_name,
+                     '/IMG_DATA/R20m/', image_name.split('_')[1], '_',
+                     product_name.split('_')[2], '_SCL_20m.jp2']
+                )
+            else:
+                band_url = ''.join(
+                    [top_url, '/Products(', uid, ')/Nodes(', product_name,
+                     '.SAFE)/Nodes(GRANULE)/Nodes(', image_name,
+                     ')/Nodes(IMG_DATA)/Nodes(R20m)/Nodes(',
+                     image_name.split('_')[1], '_',
+                     product_name.split('_')[2], '_SCL_20m.jp2)/$value']
+                )
+            output_file = '%s/%s_SCL_20m' % (
+                output_path, image_name[4:])
         elif band_number in ['01', '09']:
-            if copernicus is False:
+            if not copernicus:
                 band_url = ''.join(
                     [top_url, '/L2/tiles/', product_name[39:41], '/',
                      product_name[41], '/', product_name[42:44], '/',
@@ -1345,6 +1437,8 @@ def _check_sentinel_2_bands(
             )
         if files_directories.is_file(output_file):
             output_list.append(output_file)
+            if output_raster_list:
+                output_raster_list.append(output_file)
             cfg.logger.log.debug('downloaded file %s' % output_file)
         else:
             cfg.messages.error(
@@ -1429,6 +1523,7 @@ def query_nasa_cmr(
     if max_result_number > 2000:
         max_result_number = 2000
     page = 0
+    product_table_list = []
     for _results in range(0, result_number, max_result_number):
         page += 1
         if coordinate_list is None:
@@ -1459,7 +1554,6 @@ def query_nasa_cmr(
             xml_file = response.read()
             doc = minidom.parseString(xml_file)
             entries = doc.getElementsByTagName('Granule')
-            product_table_list = []
             e = 0
             for entry in entries:
                 e += 1
@@ -1546,19 +1640,19 @@ def query_nasa_cmr(
                                     image=product_name
                                 )
                             )
-            cfg.progress.update(end=True)
-            cfg.logger.log.info('end')
-            return OutputManager(
-                extra={
-                    'product_table': tm.stack_product_table(
-                        product_list=product_table_list
-                    )
-                }
-            )
         else:
             cfg.logger.log.error('error: search failed')
             cfg.messages.error('error: search failed')
             return OutputManager(check=False)
+    cfg.progress.update(end=True)
+    cfg.logger.log.info('end')
+    return OutputManager(
+        extra={
+            'product_table': tm.stack_product_table(
+                product_list=product_table_list
+            )
+        }
+    )
 
 
 def query_landsat_mpc(
@@ -1613,6 +1707,7 @@ def query_landsat_mpc(
     }
     query_dict = {'eo:cloud_cover': {'lt': max_cloud_cover}}
     if coordinate_list is None and name_filter is not None:
+        # noinspection PyTypeChecker
         query_dict['id'] = {'ilike': f'%{name_filter}%'}
     # coordinate list left, top, right, bottom
     elif coordinate_list is None:
@@ -2130,6 +2225,7 @@ def query_aster_l1t_mpc(
     }
     query_dict = {'eo:cloud_cover': {'lt': max_cloud_cover}}
     if coordinate_list is None and name_filter is not None:
+        # noinspection PyTypeChecker
         query_dict['id'] = {'ilike': f'%{name_filter}%'}
     # coordinate list left, top, right, bottom
     elif coordinate_list is None:
@@ -2203,6 +2299,7 @@ def query_aster_l1t_mpc(
         return OutputManager(check=False)
 
 
+# noinspection PyTypeChecker
 def query_sentinel2_mpc(
         date_from, date_to, max_cloud_cover=100, result_number=50,
         name_filter=None, coordinate_list=None, progress_message=True,

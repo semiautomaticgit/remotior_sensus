@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -15,27 +15,26 @@
 # You should have received a copy of the GNU General Public License
 # along with Remotior Sensus. If not, see <https://www.gnu.org/licenses/>.
 
+
+import os
 import datetime
 # garbage collector for memory issue
 import gc
-import os
 
 import numpy as np
 from numpy.lib import recfunctions as rfn
 
-from remotior_sensus.core import configurations as cfg, table_manager as tm
-from remotior_sensus.core.log import Log
-from remotior_sensus.util import (
-    files_directories, raster_vector, download_tools
-)
 
-
+# noinspection PyPackageRequirements
 def function_initiator(
         process_parameters=None, input_parameters=None, output_parameters=None,
         function=None, function_argument=None, function_variable=None,
         run_separate_process=False, classification=False,
         classification_confidence=False, signature_raster=False
 ):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
+    from remotior_sensus.util import files_directories, raster_vector
     # get process parameters
     process_id = str(process_parameters[0])
     cfg.temp = process_parameters[1]
@@ -50,7 +49,7 @@ def function_initiator(
     n_processes = process_parameters[9]
     # get input raster parameters
     raster_list = input_parameters[0]
-    calc_data_type = input_parameters[1]
+    calc_datatype = input_parameters[1]
     boundary_size = input_parameters[2]
     if input_parameters[3] is None:
         x_min_piece = 0
@@ -112,6 +111,7 @@ def function_initiator(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
         gdal.DontUseExceptions()
     except Exception as err:
         str(err)
@@ -151,7 +151,7 @@ def function_initiator(
         # reset section counter
         count_section_progress = 1
         prev_count_section_progress = 0
-        calculation_datatype = calc_data_type[raster_count]
+        calculation_datatype = calc_datatype[raster_count]
         cfg.logger.log.debug(
             'process raster: %s; calculation_datatype: %s'
             % (str(raster), calculation_datatype)
@@ -236,43 +236,47 @@ def function_initiator(
             if classification:
                 signatures = function_argument[0][
                     cfg.spectral_signatures_framework]
-                # get selected signatures
-                signatures_table = signatures.table[
-                    signatures.table.selected == 1]
                 # list of rasters to be created
                 output_classification_raster_list = []
-                output_signature_raster = {}
-                output_signature_raster_dic = {}
                 # create output raster paths
                 out_class = cfg.temp.temporary_raster_path(
                     name='class_', name_suffix=process_id
                 )
                 output_classification_raster_list.append(out_class)
                 classification_rasters.append(out_class)
-                # signature output rasters
-                if signature_raster:
-                    for s in signatures_table.signature_id.tolist():
-                        sig_name = '{}{}_{}_'.format(
-                            s, signatures_table[
-                                signatures_table.signature_id ==
-                                s].macroclass_id[0],
-                            signatures_table[
-                                signatures_table.signature_id == s].class_id[0]
-                        )
-                        signature_file_path = cfg.temp.temporary_raster_path(
-                            name=sig_name, name_suffix=process_id
-                        )
-                        output_signature_raster[s] = signature_file_path
-                        if s in output_signature_raster_dic:
-                            output_signature_raster_dic[s].append(
+                if signatures is not None:
+                    # get selected signatures
+                    signatures_table = signatures.table[
+                        signatures.table.selected == 1]
+                    output_signature_raster = {}
+                    output_signature_raster_dic = {}
+                    # signature output rasters
+                    if signature_raster:
+                        for s in signatures_table.signature_id.tolist():
+                            sig_name = '{}{}_{}_'.format(
+                                s, signatures_table[
+                                    signatures_table.signature_id ==
+                                    s].macroclass_id[0],
+                                signatures_table[
+                                    signatures_table.signature_id == s
+                                ].class_id[0]
+                            )
+                            signature_file_path = (
+                                cfg.temp.temporary_raster_path(
+                                    name=sig_name, name_suffix=process_id
+                                )
+                            )
+                            output_signature_raster[s] = signature_file_path
+                            if s in output_signature_raster_dic:
+                                output_signature_raster_dic[s].append(
+                                    signature_file_path
+                                )
+                            else:
+                                output_signature_raster_dic[
+                                    s] = [signature_file_path]
+                            output_classification_raster_list.append(
                                 signature_file_path
                             )
-                        else:
-                            output_signature_raster_dic[
-                                s] = [signature_file_path]
-                        output_classification_raster_list.append(
-                            signature_file_path
-                        )
                 # create rasters
                 raster_vector.create_raster_from_reference(
                     path=info_raster, band_number=1,
@@ -556,6 +560,7 @@ def function_initiator(
             if (classification is not True
                     and (output_raster_list[0] is not None and
                          output_raster_list[0] is not False)):
+                # noinspection PySimplifyBooleanCheck
                 if specific_output is not None:
                     # replace nodata
                     output_array[output_array_mask] = out_no_data
@@ -575,8 +580,8 @@ def function_initiator(
                         # reduce array size without boundary
                         output_array = (
                             output_array[
-                            specific_output_piece.sections[
-                                count_section_progress - 1
+                                specific_output_piece.sections[
+                                    count_section_progress - 1
                                 ].y_size_boundary_top:(
                                     specific_output_piece.sections[
                                         count_section_progress - 1
@@ -584,8 +589,8 @@ def function_initiator(
                                     + specific_output_piece.sections[
                                         count_section_progress - 1
                                         ].y_size_no_boundary
-                            ), 0:specific_output_piece.sections[
-                                count_section_progress - 1].x_max
+                                ), 0:specific_output_piece.sections[
+                                    count_section_progress - 1].x_max
                             ]
                         )
                     try:
@@ -642,11 +647,10 @@ def function_initiator(
             # progress
             now_time = datetime.datetime.now()
             elapsed_time = (now_time - start_time).total_seconds()
-            if (process_id == '0' and elapsed_time > refresh_time
-                    and not run_separate_process):
+            if elapsed_time > refresh_time and not run_separate_process:
                 start_time = now_time
                 progress_queue.put(
-                    [count_section_progress, len(sections)], False
+                    [count_section_progress, len(sections), process_id], False
                 )
                 if count_section_progress > prev_count_section_progress:
                     refresh_time *= 0.5
@@ -654,13 +658,13 @@ def function_initiator(
                         refresh_time = 0.01
                 else:
                     refresh_time = prev_refresh_time
-            elif (process_id == '1' and elapsed_time > refresh_time
-                  and run_separate_process):
+            elif elapsed_time > refresh_time and run_separate_process:
                 start_time = now_time
                 progress_queue.put(
                     [count_section_progress
                      + len(sections) * raster_count,
-                     len(sections) * len(raster_list)], False
+                     len(sections) * len(raster_list),
+                     process_id], False
                 )
                 if count_section_progress > prev_count_section_progress:
                     refresh_time *= 0.5
@@ -692,6 +696,8 @@ def get_raster_band_array(
         gdal, band, calculation_datatype, _a, _a_mask, sec,
         input_nodata_as_value, value_as_nodata
 ):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.util import raster_vector
     nd_val = None
     data_types = {
         cfg.float64_dt: np.float64, cfg.float32_dt: np.float32,
@@ -750,7 +756,6 @@ def get_raster_band_array(
     if value_as_nodata is not None:
         _a_mask[_a == np.asarray(value_as_nodata)] = True
     # rescale
-    #_a = _a * scl_b + offs_b
     np.multiply(_a, scl_b, out=_a)
     np.add(_a, offs_b, out=_a)
     return _a.astype(calculation_datatype), _a_mask, _a_data_type, ndv_band
@@ -760,6 +765,7 @@ def get_raster_band_array(
 def _calculate_block_size(
         x_block, y_block, available_ram, memory_unit, dummy_bands
 ):
+    from remotior_sensus.core import configurations as cfg
     single_block_size = x_block * y_block * memory_unit * (1 + dummy_bands)
     ram_blocks = int(single_block_size / available_ram)
     if ram_blocks == 0:
@@ -780,6 +786,8 @@ def table_join(
         table_1_parameters, table_2_parameters, nodata_value, join_type,
         features, output_names, process_parameters
 ):
+    from remotior_sensus.core import configurations as cfg, table_manager as tm
+    from remotior_sensus.core.log import Log
     # get parameters
     (table1, field1_name, table1_names, table1_dtypes, table1_features,
      table1_features_index) = table_1_parameters
@@ -788,168 +796,124 @@ def table_join(
      features_table_2_outer) = table_2_parameters
     (process_id, cfg.temp, progress_queue, refresh_time,
      log_level) = process_parameters
+
     proc_error = False
     cfg.logger = Log(
         directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
     )
     cfg.logger.log.debug('start')
-    c = 0
-    output = output_part = outer_part = None
+    output_part = None
+    output_parts = []
     start_time = datetime.datetime.now()
     cfg.logger.log.debug('join_type: %s' % join_type)
-    for feature in features:
-        c += 1
+    table1_index = {feature: i for i, feature in enumerate(table1_features)}
+    table2_index = {feature: i for i, feature in enumerate(table2_features)}
+    for c, feature in enumerate(features, start=1):
         now_time = datetime.datetime.now()
         elapsed_time = (now_time - start_time).total_seconds()
         if process_id == 0 and elapsed_time > refresh_time:
             start_time = now_time
             progress_queue.put([c, len(features)], False)
-        if join_type == 'left':
+        if join_type in ('left', 'inner', 'outer'):
             # table 1 features
             output_part = table1[table1[field1_name] == feature]
             # table 2 row of unique features
-            if feature in table2_features:
-                row_table_2 = table2[table2_features_index[
-                    np.where(table2_features == feature)]]
-            else:
-                row_table_2 = None
+            row_table_2 = (
+                table2[table2_features_index[
+                    np.where(table2_features == feature)]
+                ] if feature in table2_index else None
+            )
+            if join_type == 'inner' and row_table_2 is None:
+                continue
             # add table 2 fields and features
-            for column_2, table2_output_name in enumerate(table2_output_names):
+            for col2, name2 in enumerate(table2_output_names):
                 if row_table_2 is None:
-                    new_field = np.array(
-                        [nodata_value] * output_part.shape[0],
-                        dtype=table2_dtypes[column_2]
-                    )
+                    try:
+                        new_field = np.full(output_part.shape[0], nodata_value,
+                                            dtype=table2_dtypes[col2])
+                    except Exception as err:
+                        cfg.logger.log.debug('possible error: %s' % str(err))
+                        new_field = np.full(output_part.shape[0], nodata_value,
+                                            dtype=np.uint64)
                 else:
-                    new_field = np.array(
-                        list(row_table_2[table2_names[column_2]])
-                        * output_part.shape[0],
-                        dtype=table2_dtypes[column_2]
-                    )
-                output_part = tm.append_field(
-                    output_part, table2_output_name,
-                    new_field, table2_dtypes[column_2]
-                )
+                    try:
+                        new_field = np.repeat(
+                            row_table_2[table2_names[col2]],
+                            output_part.shape[0]).astype(table2_dtypes[col2])
+                    except Exception as err:
+                        cfg.logger.log.debug('possible error: %s' % str(err))
+                        new_field = np.repeat(
+                            row_table_2[table2_names[col2]],
+                            output_part.shape[0]).astype(np.uint64)
+                output_part = tm.append_field(output_part, name2, new_field,
+                                              table2_dtypes[col2])
         elif join_type == 'right':
             # table 2 features
             output_part = table2[table2[field2_name] == feature]
             # rename fields
             output_part = tm.redefine_matrix_columns(
                 matrix=output_part, input_field_names=table2_names,
-                output_field_names=table2_output_names,
-                progress_message=False
+                output_field_names=table2_output_names, progress_message=False
             )
             # table 1 row of unique features
-            if feature in table1_features:
-                row_table_1 = table1[table1_features_index[
-                    np.where(table1_features == feature)]]
-            else:
-                row_table_1 = None
+            row_table_1 = (
+                table1[table1_features_index[
+                    np.where(table1_features == feature)]
+                ] if feature in table1_index else None
+            )
             # add table 1 fields and features
-            for column_1, table1_name in enumerate(table1_names):
-                # get field1 name
-                if table1_names[column_1] == field1_name:
-                    new_field = np.array(
-                        [feature] * output_part.shape[0],
-                        dtype=table1_dtypes[column_1]
-                    )
+            for col1, name1 in enumerate(table1_names):
+                if name1 == field1_name:
+                    new_field = np.full(output_part.shape[0], feature,
+                                        dtype=table1_dtypes[col1])
                 elif row_table_1 is None:
-                    new_field = np.array(
-                        [nodata_value] * output_part.shape[0],
-                        dtype=table1_dtypes[column_1]
-                    )
+                    new_field = np.full(output_part.shape[0], nodata_value,
+                                        dtype=table1_dtypes[col1])
                 else:
-                    new_field = np.array(
-                        list(row_table_1[table1_name]) * output_part.shape[0],
-                        dtype=table1_dtypes[column_1]
-                    )
-                output_part = tm.append_field(
-                    output_part, table1_names[column_1], new_field,
-                    table1_dtypes[column_1]
-                )
-        elif join_type == 'inner':
-            # table 1 features
-            output_part = table1[table1[field1_name] == feature]
-            # table 2 row of unique features
-            row_table_2 = table2[table2_features_index[
-                np.where(table2_features == feature)]]
-            # add table 2 fields and features
-            for column_2, table2_output_name in enumerate(table2_output_names):
-                new_field = np.array(
-                    list(row_table_2[table2_names[column_2]])
-                    * output_part.shape[0], dtype=table2_dtypes[column_2]
-                )
-                output_part = tm.append_field(
-                    output_part, table2_output_name,
-                    new_field, table2_dtypes[column_2]
-                )
-        # full outer join
-        elif join_type == 'outer':
-            # table 1 features
-            output_part = table1[table1[field1_name] == feature]
-            # table 2 row of unique features
-            if feature in table2_features:
-                row_table_2 = table2[table2_features_index[
-                    np.where(table2_features == feature)]]
-            else:
-                row_table_2 = None
-            # add table 2 fields and features
-            for column_2, table2_output_name in enumerate(table2_output_names):
-                if row_table_2 is None:
-                    new_field = np.array(
-                        [nodata_value] * output_part.shape[0],
-                        dtype=table2_dtypes[column_2]
-                    )
-                else:
-                    new_field = np.array(
-                        list(row_table_2[table2_names[column_2]])
-                        * output_part.shape[0],
-                        dtype=table2_dtypes[column_2]
-                    )
-                output_part = tm.append_field(
-                    output_part, table2_output_name,
-                    new_field, table2_dtypes[column_2]
-                )
-        if output is None:
-            output = output_part
-        else:
-            output = rfn.stack_arrays(
-                (output, output_part), asrecarray=True, usemask=False
-            )
+                    new_field = np.repeat(
+                        row_table_1[name1],
+                        output_part.shape[0]).astype(table1_dtypes[col1])
+                output_part = tm.append_field(output_part, name1, new_field,
+                                              table1_dtypes[col1])
+        output_parts.append(output_part)
+    if output_parts:
+        output = rfn.stack_arrays(output_parts, asrecarray=True,
+                                  usemask=False)
+    else:
+        output = None
+    outer_parts = []
     # complete outer join with remaining features
-    if (join_type == 'outer' and process_id == 0
-            and len(features_table_2_outer) > 0):
-        # iterate main features
+    if features_table_2_outer:
         for feature in features_table_2_outer:
-            # table 2 features
-            outer_part = table2[table2[field2_name] == feature]
-            # rename fields
-            outer_part = tm.redefine_matrix_columns(
-                matrix=outer_part, input_field_names=table2_names,
-                output_field_names=table2_output_names,
-                progress_message=False
-            )
-            # add table 1 fields and features
-            for column_1, table1_name in enumerate(table1_names):
-                # get field1 name
-                if table1_name == field1_name:
-                    new_field = np.array(
-                        [feature] * outer_part.shape[0],
-                        dtype=table1_dtypes[column_1]
-                    )
-                else:
-                    new_field = np.array(
-                        [nodata_value] * outer_part.shape[0],
-                        dtype=table1_dtypes[column_1]
-                    )
-                outer_part = tm.append_field(
-                    outer_part, table1_name, new_field, table1_dtypes[column_1]
+            try:
+                outer_part = table2[table2[field2_name] == feature]
+                outer_part = tm.redefine_matrix_columns(
+                    matrix=outer_part,
+                    input_field_names=table2_names,
+                    output_field_names=table2_output_names,
+                    progress_message=False,
                 )
-        if output is None:
-            output = outer_part
-        else:
-            output = rfn.stack_arrays(
-                (output, outer_part), asrecarray=True, usemask=False
+                for col1, name1 in enumerate(table1_names):
+                    dtype1 = table1_dtypes[col1]
+                    if name1 == field1_name:
+                        new_field = np.full(outer_part.shape[0], feature,
+                                            dtype=dtype1)
+                    else:
+                        new_field = np.full(outer_part.shape[0], nodata_value,
+                                            dtype=dtype1)
+                    outer_part = tm.append_field(outer_part, name1, new_field,
+                                                 dtype1)
+                outer_parts.append(outer_part)
+            except Exception as err:
+                str(err)
+                continue
+        if outer_parts:
+            outer_combined = rfn.stack_arrays(outer_parts, asrecarray=True,
+                                              usemask=False)
+            output = (
+                outer_combined if output is None
+                else rfn.stack_arrays((output, outer_combined),
+                                      asrecarray=True, usemask=False)
             )
     # arrange fields
     output = tm.redefine_matrix_columns(
@@ -962,10 +926,13 @@ def table_join(
 
 
 # gdal translate processor
+# noinspection PyPackageRequirements
 def gdal_translate(
         input_file=None, output=None, option_string=None,
         process_parameters=None
 ):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
     (process_id, cfg.temp, memory, gdal_path, progress_queue, log_level,
      disable_warnings) = process_parameters[:7]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
@@ -984,6 +951,7 @@ def gdal_translate(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
         gdal.DontUseExceptions()
     except Exception as err:
         str(err)
@@ -1012,10 +980,14 @@ def gdal_translate(
 
 
 # gdal vector translate processor
+# noinspection PyPackageRequirements
 def gdal_vector_translate(
         input_file=None, output=None, attribute_field=None, output_drive=None,
         process_parameters=None, explode_collections=None
 ):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
+    from remotior_sensus.util import files_directories
     (process_id, cfg.temp, memory, gdal_path, progress_queue,
      log_level) = process_parameters[:6]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
@@ -1034,6 +1006,7 @@ def gdal_vector_translate(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
         gdal.DontUseExceptions()
     except Exception as err:
         str(err)
@@ -1085,10 +1058,13 @@ def gdal_vector_translate(
 
 
 # gdal warp processor
+# noinspection PyPackageRequirements
 def gdal_warp(
         input_file=None, output=None, option_string=None,
         process_parameters=None
 ):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
     (process_id, cfg.temp, gdal_path, progress_queue, memory,
      log_level) = process_parameters[:6]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
@@ -1107,6 +1083,7 @@ def gdal_warp(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
         gdal.DontUseExceptions()
     except Exception as err:
         str(err)
@@ -1131,10 +1108,13 @@ def gdal_warp(
 
 
 # convert raster to vector
+# noinspection PyPackageRequirements
 def raster_to_vector_process(
         raster_path, output_vector_path, field_name=False,
         process_parameters=None, connected=4
 ):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
     # process parameters
     (process_id, cfg.temp, gdal_path, progress_queue, memory,
      log_level) = process_parameters[:6]
@@ -1159,6 +1139,7 @@ def raster_to_vector_process(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
         gdal.DontUseExceptions()
     except Exception as err:
         str(err)
@@ -1244,9 +1225,13 @@ def raster_to_vector_process(
 
 
 # raster sieve
+# noinspection PyPackageRequirements
 def raster_sieve_process(
         process_parameters=None, input_parameters=None, output_parameters=None
 ):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
+    from remotior_sensus.util import raster_vector
     # process parameters
     (process_id, cfg.temp, gdal_path, progress_queue, memory,
      log_level) = process_parameters[:6]
@@ -1273,6 +1258,7 @@ def raster_sieve_process(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
         gdal.DontUseExceptions()
     except Exception as err:
         str(err)
@@ -1336,9 +1322,13 @@ def raster_sieve_process(
 
 
 # convert vector to raster based on the resolution of a raster
+# noinspection PyPackageRequirements
 def vector_to_raster(
         process_parameters=None, input_parameters=None, output_parameters=None
 ):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
+    from remotior_sensus.util import raster_vector
     # process parameters
     (process_id, cfg.temp, gdal_path, progress_queue, memory,
      log_level) = process_parameters[:6]
@@ -1373,6 +1363,7 @@ def vector_to_raster(
         gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
         gdal.SetConfigOption('VSI_CACHE', 'FALSE')
         gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
         gdal.DontUseExceptions()
     except Exception as err:
         str(err)
@@ -1528,6 +1519,9 @@ def vector_to_raster(
 
 # download file processor
 def download_file_processor(input_parameters, process_parameters=None):
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
+    from remotior_sensus.util import download_tools
     (process_id, cfg.temp, progress_queue, refresh_time,
      log_level) = process_parameters[:5]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
@@ -1564,7 +1558,7 @@ def download_file_processor(input_parameters, process_parameters=None):
                 progress=True, retried=retried, timeout=timeout,
                 callback=progress_queue.put, log=cfg.logger.log
             )
-        if downloaded is None:
+        if downloaded is None or downloaded[0] is False:
             # second try
             if copernicus is True:
                 downloaded = download_tools.download_copernicus_file(
@@ -1586,7 +1580,7 @@ def download_file_processor(input_parameters, process_parameters=None):
                     progress=True, retried=retried, timeout=timeout,
                     callback=progress_queue.put, log=cfg.logger.log
                 )
-            if downloaded is None:
+            if downloaded is None or downloaded[0] is False:
                 cfg.logger.log.debug('error downloading: %s' % url_x)
                 logger = cfg.logger.stream.getvalue()
                 return (
@@ -1718,6 +1712,5 @@ class RasterSection(object):
 def array_multiplicative_additive_factors(
         array, multiplicative_factor, additive_factor
 ):
-    #a = array * float(multiplicative_factor) + float(additive_factor)
     np.multiply(array, float(multiplicative_factor), out=array)
     np.add(array, float(additive_factor), out=array)

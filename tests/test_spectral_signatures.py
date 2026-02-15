@@ -180,8 +180,9 @@ class TestSpectralSignatures(TestCase):
         self.assertEqual(
             signature_catalog_3.table.shape[0], signature_count + 1
         )
-        signature = signature_catalog_3.table[
-            signature_catalog_3.table['signature'] == 0].signature_id[0]
+
+        signature = str(signature_catalog_3.table[
+            signature_catalog_3.table['signature'] == 0].signature_id[0])
         ids.append(signature)
         signature_catalog_3.merge_signatures_by_id(
             signature_id_list=ids, calculate_signature=True,
@@ -223,12 +224,15 @@ class TestSpectralSignatures(TestCase):
             self.assertEqual(signature.signature_id, signature_id)
         signature_ids = plot_catalog.get_signature_ids()
         self.assertEqual(len(signature_ids), 1)
+
         """
         # interactive plot
         signature_catalog_3.add_signatures_to_plot_by_id(signature_ids)
         """
+
         plot_catalog.remove_signature(signature_id)
         self.assertEqual(plot_catalog.get_signature_count(), 0)
+
         """
         # interactive plot
         histogram = signature_catalog_3.calculate_scatter_plot_by_id(
@@ -236,6 +240,7 @@ class TestSpectralSignatures(TestCase):
             plot=True
         )
         """
+
         histogram = signature_catalog_3.calculate_scatter_plot_by_id(
             signature_id=signature_id, band_x=1, band_y=2, decimal_round=1
         )

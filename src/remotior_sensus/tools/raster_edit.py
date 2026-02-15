@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -112,6 +112,8 @@ def raster_edit(
     )
     raster_info = prepared['raster_info']
     input_raster_list = prepared['input_raster_list']
+    vector_raster = None
+    print('vector_path', vector_path)
     if vector_path is not None:
         # get vector info
         vector, raster, mask_crs = raster_vector.raster_or_vector_input(
@@ -134,22 +136,22 @@ def raster_edit(
                 cfg.progress.update(failed=True)
                 return OutputManager(check=False)
             vector_path = t_vector
-    # convert vector to raster
-    vector_raster = cfg.temp.temporary_raster_path(
-        extension=cfg.tif_suffix
-    )
-    if field_name is None:
-        burn_values = 1
-    else:
-        burn_values = None
-    # perform conversion
-    cfg.multiprocess.multiprocess_vector_to_raster(
-        vector_path=vector_path, output_path=vector_raster,
-        field_name=field_name, burn_values=burn_values,
-        nodata_value=0, background_value=0,
-        reference_raster_path=input_raster_list[0], minimum_extent=True,
-        available_ram=available_ram
-    )
+        # convert vector to raster
+        vector_raster = cfg.temp.temporary_raster_path(
+            extension=cfg.tif_suffix
+        )
+        if field_name is None:
+            burn_values = 1
+        else:
+            burn_values = None
+        # perform conversion
+        cfg.multiprocess.multiprocess_vector_to_raster(
+            vector_path=vector_path, output_path=vector_raster,
+            field_name=field_name, burn_values=burn_values,
+            nodata_value=0, background_value=0,
+            reference_raster_path=input_raster_list[0], minimum_extent=True,
+            available_ram=available_ram
+        )
     if expression is not None:
         cfg.logger.log.debug('expression: %s' % expression)
         check, expression = check_expression(expression, constant_value)
@@ -184,45 +186,6 @@ def raster_edit(
 # check the expression
 # noinspection PyShadowingBuiltins
 def check_expression(expression, constant_value):
-    # expose numpy functions
-    log = np.log
-    _log = log
-    log10 = np.log10
-    _log10 = log10
-    sqrt = np.sqrt
-    _sqrt = sqrt
-    cos = np.cos
-    _cos = cos
-    arccos = np.arccos
-    _arccos = arccos
-    sin = np.sin
-    _sin = sin
-    arcsin = np.arcsin
-    _arcsin = arcsin
-    tan = np.tan
-    _tan = tan
-    arctan = np.arctan
-    _arctan = arctan
-    exp = np.exp
-    _exp = exp
-    min = np.nanmin
-    _min = min
-    max = np.nanmax
-    _max = max
-    sum = np.nansum
-    _sum = sum
-    percentile = np.nanpercentile
-    _percentile = percentile
-    median = np.nanmedian
-    _median = median
-    mean = np.nanmean
-    _mean = mean
-    std = np.nanstd
-    _std = std
-    where = np.where
-    _where = where
-    nan = np.nan
-    _nan = nan
     # replace variables
     expression = expression.replace(
         '%s%s%s' % (cfg.variable_band_quotes, cfg.variable_vector_name,
@@ -242,8 +205,17 @@ def check_expression(expression, constant_value):
                                               '_test_array')
     expression_copy = expression_copy.replace(cfg.variable_raster_name,
                                               '_test_array')
+    # expose numpy functions
+    namespace = {
+        '_test_array': _test_array, 'np': np, 'log': np.log,
+        'log10': np.log10, 'sqrt': np.sqrt, 'cos': np.cos, 'arccos': np.arccos,
+        'sin': np.sin, 'arcsin': np.arcsin, 'tan': np.tan, 'arctan': np.arctan,
+        'exp': np.exp, 'min': np.nanmin, 'max': np.nanmax, 'sum': np.nansum,
+        'percentile': np.nanpercentile, 'median': np.nanmedian,
+        'mean': np.nanmean, 'std': np.nanstd, 'where': np.where, 'nan': np.nan
+    }
     try:
-        eval(expression_copy)
+        eval(expression_copy, {'__builtins__': None}, namespace)
         return True, conditional_exp
     except Exception as err:
         cfg.logger.log.error(str(err))

@@ -1,6 +1,46 @@
 Changelog
 ===============
 
+v0.6.0
+________
+
+* Added optional dependency Pandas for performance improvement in tabular
+  data.
+* In tool "Band classification" added option for using PyTorch pretrained
+  model. In case a pretrained model is selected, and additional algorithm
+  is selected for classification, using the same parameters of the named
+  algorithm (e.g. random forest); after executing the pretrained model, the
+  additional algorithm is executed on the embeddings for classification.
+  Currently, it works with models pretrained by the Allen Institute for
+  Artificial Intelligence (SatlasPretrain: https://satlas-pretrain.allen.ai)
+  in particular, Sentinel-2 swin-v2-base single-image multispectral and
+  swin-v2-tiny single-image multispectral models, and Landsat 8 Landsat 9
+  swin-v2-base single-image multispectral model.
+  SatlasPretrain model weights are released under the
+  Open Data Commons 'Attribution License (ODC-BY).
+  The repository code is licensed under the Apache License
+  2.0 (https://huggingface.co/allenai/satlas-pretrain). This tool downloads the
+  official SatlasPretrain weights (Bastani et al., "SatlasPretrain: A
+  Large-Scale Dataset for Remote Sensing Image Understanding", ICCV 2023,
+  arXiv:2211.15660, https://doi.org/10.48550/arXiv.2211.15660).
+  All model weights remain the property of their respective authors.
+* In tool "Band classification" added PyTorch pretreained segmentation models
+  for Sentinel-2 (swin-v2-base single-image multispectral model using 3 bands
+  or 4 bands) pretrained by DPR Team as part of the DPR Zoo Segmentation Hub
+  framework (https://github.com/DPR25/dpr-zoo-segmentation-hub) based on
+  SatlasPretrain models.
+  The model output classes: background, water, developed, tree, shrub, grass,
+  crop, bare, snow, wetland, mangroves, moss.
+  The repository code of DPR Zoo models are licensed under the MIT License
+  (https://huggingface.co/martinkorelic/dpr-zoo-models).
+  This tool downloads the model weights (DPR Team, 2025. Made as part of Arnes
+  Hackathon 2025).
+  All model weights remain the property of their respective authors.
+* In tool "Download products" included the download of Sentinel-2 L2A SCL band.
+* In tool "Preprocess products" included the Sentinel-2 L2A SCL band.
+* Improved progress monitoring for multiprocess.
+* Code optimization and bug fixing.
+
 v0.5.2
 ________
 

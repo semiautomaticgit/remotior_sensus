@@ -1,5 +1,5 @@
 # Remotior Sensus , software to process remote sensing and GIS data.
-# Copyright (C) 2022-2025 Luca Congedo.
+# Copyright (C) 2022-2026 Luca Congedo.
 # Author: Luca Congedo
 # Email: ing.congedoluca@gmail.com
 #
@@ -60,9 +60,18 @@ except Exception as error:
     cfg.logger.log.error(str(error))
 
 try:
+    # noinspection PyPackageRequirements
     from osgeo import ogr
 except Exception as error:
     cfg.logger.log.error(str(error))
+
+try:
+    # noinspection PyPackageRequirements
+    import pandas as pd
+    run_pandas = True
+except Exception as error:
+    str(error)
+    run_pandas = False
 
 try:
     assert rfn.assign_fields_by_name
@@ -285,8 +294,8 @@ def _open_csv(
 # join matrices without duplicates
 def join_matrices(
         matrix1, matrix2, field1_name, field2_name, join_type='leftouter',
-        matrix1_postfix='_m1',
-        matrix2_postfix='_m2', use_mask=False, progress_message=True
+        matrix1_postfix='_m1', matrix2_postfix='_m2',
+        use_mask=False, progress_message=True
 ):
     cfg.logger.log.info('start')
     if progress_message:
@@ -294,10 +303,11 @@ def join_matrices(
             process='join_matrices', message='starting', start=True
         )
     renamed_matrix1 = rfn.rename_fields(matrix1, {field1_name: field2_name})
+    # noinspection PyTypeChecker
     new_matrix = rfn.join_by(
         field2_name, renamed_matrix1, matrix2, jointype=join_type,
-        r1postfix=matrix1_postfix,
-        r2postfix=matrix2_postfix, asrecarray=True, usemask=use_mask
+        r1postfix=matrix1_postfix, r2postfix=matrix2_postfix,
+        asrecarray=True, usemask=use_mask
     )
     if progress_message:
         cfg.progress.update(end=True)
@@ -309,7 +319,8 @@ def join_matrices(
 def join_tables(
         table1, table2, field1_name, field2_name, postfix='2',
         nodata_value=None, join_type='left', n_processes: int = None,
-        progress_message=True, min_progress=None, max_progress=None
+        progress_message=True, min_progress=None, max_progress=None,
+        use_pandas=True
 ):
     cfg.logger.log.info('start')
     if progress_message:
@@ -321,23 +332,37 @@ def join_tables(
     join_type = join_type.lower()
     if nodata_value is None:
         nodata_value = -9999
-    cfg.multiprocess.join_tables_multiprocess(
-        table1=table1, table2=table2, field1_name=field1_name,
-        field2_name=field2_name, nodata_value=nodata_value,
-        join_type=join_type, postfix=postfix, n_processes=n_processes,
-        min_progress=min_progress, max_progress=max_progress
-    )
-    if progress_message:
-        cfg.progress.update(end=True)
-    cfg.logger.log.info('end')
-    return cfg.multiprocess.output
+    if run_pandas and use_pandas:
+        # noinspection PyTypeChecker
+        joined_table = pd.merge(
+            pd.DataFrame(table1), pd.DataFrame(table2),
+            left_on=field1_name, right_on=field2_name,
+            how=join_type, suffixes=('', postfix)
+        )
+        joined_table = joined_table.fillna(
+            nodata_value).to_records(index=False)
+        if progress_message:
+            cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return joined_table
+    else:
+        cfg.multiprocess.join_tables_multiprocess(
+            table1=table1, table2=table2, field1_name=field1_name,
+            field2_name=field2_name, nodata_value=nodata_value,
+            join_type=join_type, postfix=postfix, n_processes=n_processes,
+            min_progress=min_progress, max_progress=max_progress
+        )
+        if progress_message:
+            cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return cfg.multiprocess.output
 
 
-# calculate pivot_60
+# calculate pivot
 def pivot_matrix(
         matrix, row_field, column_function_list, secondary_row_field_list=None,
         filter_string=None, nodata_value=-999, cross_matrix=None,
-        field_names=False, progress_message=True
+        field_names=False, progress_message=True, use_pandas=True
 ):
     """
     :param matrix: matrix array
@@ -353,6 +378,7 @@ def pivot_matrix(
     :param field_names: optional, if True returns field names without
         performing the pivot matrix
     :param progress_message: optional, if True display process message
+    :param use_pandas: optional, if True use Pandas if available
 
     """
 
@@ -361,186 +387,255 @@ def pivot_matrix(
         cfg.progress.update(
             process='pivot_matrix', message='starting', start=True
         )
-    # matrix filter
-    if filter_string is None:
-        matrix_1 = matrix
-    else:
-        matrix_1 = eval('matrix[%s]' % filter_string)
-    # rows
-    row_values = np.unique(matrix_1[row_field])
-    # noinspection PyTypeChecker
-    row_value_list: list = row_values.tolist()
-    cfg.logger.log.debug(
-        'column_function_list: %s; len(row_value_list): %s' % (
-            str(column_function_list), len(row_value_list))
-    )
-    # primary rows
-    if secondary_row_field_list is None:
-        pivot = np.zeros([len(column_function_list) + 1, len(row_value_list)])
-        secondary_row_list = None
-    # secondary rows
-    else:
-        unique_value_list = []
-        for field in secondary_row_field_list:
-            unique_value_list.append(np.unique(matrix_1[field]).tolist())
-        if len(secondary_row_field_list) == 1:
-            secondary_row_list = unique_value_list[0]
+    if run_pandas and use_pandas:
+        # matrix filter
+        if filter_string is None:
+            matrix_1 = matrix
         else:
-            assert itertools
-            secondary_row_list = eval(
-                'list(itertools.product%s)' % str((tuple(unique_value_list)))
+            matrix_1 = eval('matrix[%s]' % filter_string)
+        matrix_1 = pd.DataFrame.from_records(matrix_1)
+        if field_names:
+            if secondary_row_field_list is None:
+                return [(f'{col}_{func}', matrix_1[col].dtype)
+                        for col, func, *dtype in column_function_list]
+            else:
+                sec_vals = [matrix_1[f].unique().tolist() for f
+                            in secondary_row_field_list]
+                combinations = list(itertools.product(*sec_vals))
+                names = []
+                for column, column_function_c, *dtype in column_function_list:
+                    for comb in combinations:
+                        if cross_matrix:
+                            name = '_'.join(map(str, comb))
+                        else:
+                            suffix = '_'.join(f'{f}{v}' for f, v in zip(
+                                secondary_row_field_list, comb))
+                            name = f'{column}_{column_function_c}_{suffix}'
+                        names.append((name, matrix_1[column].dtype))
+                return names
+        aggregation_list = []
+        for column, column_function_c, *dtype in column_function_list:
+            aggregation_list.append((column, column_function_c))
+        if secondary_row_field_list is None:
+            aggregation_dict = {
+                column: column_function_c for column, column_function_c
+                in aggregation_list
+            }
+            result = matrix_1.groupby(row_field, dropna=False).agg(
+                aggregation_dict)
+            result.columns = [f'{c}_{f}' for c, f in aggregation_list]
+            result = result.reset_index().fillna(nodata_value)
+            return result.to_records(index=False)
+        pivoted_frames = []
+        for column, column_function_c, *dtype in column_function_list:
+            aggregation = (
+                matrix_1.groupby(
+                    [row_field] + secondary_row_field_list, dropna=False
+                )[column].agg(column_function_c).reset_index()
             )
-        pivot = np.zeros(
-            [len(column_function_list) * len(secondary_row_list) + 1,
-             len(row_value_list)]
-        )
-        cfg.logger.log.debug(
-            'secondary_row_list: %s' % str(secondary_row_list)
-        )
-    output_column_list = [(row_field, matrix_1[row_field].dtype)]
-    # filters for secondary rows
-    secondary_row_filter_list = []
-    # primary rows
-    if secondary_row_field_list is None:
-        for column_function in column_function_list:
-            if not cfg.action:
-                break
-            out_column_name = '%s_%s' % (
-                column_function[0], column_function[1])
-            # output columns
-            output_column_list.append(
-                (out_column_name, matrix_1[column_function[0]].dtype)
+            pivoted = aggregation.pivot_table(
+                index=row_field, columns=secondary_row_field_list,
+                values=column, aggfunc=lambda x: x
             )
-    # secondary rows
+            pivoted.columns = [
+                c if cross_matrix
+                else f'{column}_{column_function_c}_' + '_'.join(
+                    f'{f}{v}' for f, v in zip(secondary_row_field_list,
+                                              (c if isinstance(c, tuple)
+                                               else (c,)))
+                ) for c in pivoted.columns
+            ]
+            pivoted_frames.append(pivoted)
+        result = pd.concat(pivoted_frames, axis=1).reset_index().fillna(
+            0).to_records(index=False)
+        return result
+    # use numpy
     else:
-        for column_function in column_function_list:
-            if not cfg.action:
-                break
-            for combination in secondary_row_list:
+        # matrix filter
+        if filter_string is None:
+            matrix_1 = matrix
+        else:
+            matrix_1 = eval('matrix[%s]' % filter_string)
+        # rows
+        row_values = np.unique(matrix_1[row_field])
+        # noinspection PyTypeChecker
+        row_value_list: list = row_values.tolist()
+        cfg.logger.log.debug(
+            'column_function_list: %s; len(row_value_list): %s' % (
+                str(column_function_list), len(row_value_list))
+        )
+        # primary rows
+        if secondary_row_field_list is None:
+            pivot = np.zeros([len(column_function_list) + 1,
+                              len(row_value_list)])
+            secondary_row_list = None
+        # secondary rows
+        else:
+            unique_value_list = []
+            for field in secondary_row_field_list:
+                unique_value_list.append(np.unique(matrix_1[field]).tolist())
+            if len(secondary_row_field_list) == 1:
+                secondary_row_list = unique_value_list[0]
+            else:
+                assert itertools
+                secondary_row_list = eval(
+                    'list(itertools.product%s)'
+                    % str((tuple(unique_value_list)))
+                )
+            pivot = np.zeros(
+                [len(column_function_list) * len(secondary_row_list) + 1,
+                 len(row_value_list)]
+            )
+            cfg.logger.log.debug(
+                'secondary_row_list: %s' % str(secondary_row_list)
+            )
+        output_column_list = [(row_field, matrix_1[row_field].dtype)]
+        # filters for secondary rows
+        secondary_row_filter_list = []
+        # primary rows
+        if secondary_row_field_list is None:
+            for column_function in column_function_list:
                 if not cfg.action:
                     break
                 out_column_name = '%s_%s' % (
-                    column_function[0], column_function[1].replace('.', ''))
-                function_string = ['[ ']
-                for n, secondary_field in enumerate(secondary_row_field_list):
+                    column_function[0], column_function[1])
+                # output columns
+                output_column_list.append(
+                    (out_column_name, matrix_1[column_function[0]].dtype)
+                )
+        # secondary rows
+        else:
+            for column_function in column_function_list:
+                if not cfg.action:
+                    break
+                for combination in secondary_row_list:
                     if not cfg.action:
                         break
-                    try:
+                    out_column_name = '%s_%s' % (
+                        column_function[0], column_function[1].replace('.',
+                                                                       ''))
+                    function_string = ['[ ']
+                    for n, secondary_field in enumerate(
+                            secondary_row_field_list):
+                        if not cfg.action:
+                            break
                         try:
-                            float(combination[n])
-                            comb_string = str(combination[n])
+                            try:
+                                float(combination[n])
+                                comb_string = str(combination[n])
+                            except Exception as err:
+                                str(err)
+                                comb_string = '"%s"' % combination[n]
+                            if cross_matrix:
+                                out_column_name = str(combination[n])
+                            else:
+                                out_column_name = '%s_%s%s' % (
+                                    out_column_name, secondary_field,
+                                    combination[n])
+                            function_string.append(
+                                '(r["%s"] == %s)' % (
+                                    secondary_field, comb_string)
+                            )
+                            function_string.append(' &')
                         except Exception as err:
                             str(err)
-                            comb_string = '"%s"' % combination[n]
-                        if cross_matrix:
-                            out_column_name = str(combination[n])
-                        else:
-                            out_column_name = '%s_%s%s' % (
-                                out_column_name, secondary_field,
-                                combination[n])
-                        function_string.append(
-                            '(r["%s"] == %s)' % (
-                                secondary_field, comb_string)
+                            try:
+                                float(combination)
+                                comb_string = str(combination)
+                            except Exception as err:
+                                str(err)
+                                comb_string = '"%s"' % combination
+                            if cross_matrix:
+                                out_column_name = str(combination)
+                            else:
+                                out_column_name = '%s_%s%s' % (
+                                    out_column_name, secondary_field,
+                                    combination)
+                            function_string.append(
+                                '(r["%s"] == %s)' % (
+                                    secondary_field, comb_string)
+                            )
+                            function_string.append(' &')
+                    if function_string[-1] == ' &':
+                        function_string.pop(-1)
+                    function_string.append(']')
+                    secondary_row_filter_list.append(''.join(function_string))
+                    # output columns
+                    try:
+                        output_column_list.append(
+                            (out_column_name, column_function[2])
                         )
-                        function_string.append(' &')
                     except Exception as err:
                         str(err)
-                        try:
-                            float(combination)
-                            comb_string = str(combination)
-                        except Exception as err:
-                            str(err)
-                            comb_string = '"%s"' % combination
-                        if cross_matrix:
-                            out_column_name = str(combination)
-                        else:
-                            out_column_name = '%s_%s%s' % (
-                                out_column_name, secondary_field,
-                                combination)
-                        function_string.append(
-                            '(r["%s"] == %s)' % (
-                                secondary_field, comb_string)
+                        output_column_list.append(
+                            (out_column_name,
+                             matrix_1[column_function[0]].dtype)
                         )
-                        function_string.append(' &')
-                if function_string[-1] == ' &':
-                    function_string.pop(-1)
-                function_string.append(']')
-                secondary_row_filter_list.append(''.join(function_string))
-                # output columns
-                try:
-                    output_column_list.append(
-                        (out_column_name, column_function[2])
-                    )
-                except Exception as err:
-                    str(err)
-                    output_column_list.append(
-                        (out_column_name, matrix_1[column_function[0]].dtype)
-                    )
-    cfg.logger.log.debug(
-        'secondary_row_filter_list: %s; output_column_list: %s'
-        % (str(secondary_row_filter_list), str(output_column_list))
-    )
-    if field_names:
-        return output_column_list
-    pivot = np.rec.fromarrays(pivot, dtype=output_column_list)
-    pivot[row_field] = row_values
-    # populate table
-    row_value_count = len(row_value_list)
-    for v in range(row_value_count):
-        if not cfg.action:
-            break
-        if progress_message:
-            cfg.progress.update(
-                message='processing data',
-                step=int(100 * (v + 1) / row_value_count),
-                percentage=int(100 * (v + 1) / row_value_count)
-            )
-        else:
-            cfg.progress.update(
-                message='processing data',
-                percentage=int(100 * (v + 1) / row_value_count)
-            )
-        r = matrix_1[matrix_1[row_field] == row_value_list[v]]
-        assert r.shape
-        d = 0
-        for column, column_function_c in enumerate(column_function_list):
+        cfg.logger.log.debug(
+            'secondary_row_filter_list: %s; output_column_list: %s'
+            % (str(secondary_row_filter_list), str(output_column_list))
+        )
+        if field_names:
+            return output_column_list
+        pivot = np.rec.fromarrays(pivot, dtype=output_column_list)
+        pivot[row_field] = row_values
+        # populate table
+        row_value_count = len(row_value_list)
+        for v in range(row_value_count):
             if not cfg.action:
                 break
-            operator = replace_numpy_operators(column_function_c[1])
-            try:
-                datatype = column_function_c[2]
-            except Exception as err:
-                str(err)
-                datatype = matrix_1[column_function_c[0]].dtype
-            if secondary_row_field_list is None:
+            if progress_message:
+                cfg.progress.update(
+                    message='processing data',
+                    step=int(100 * (v + 1) / row_value_count),
+                    percentage=int(100 * (v + 1) / row_value_count)
+                )
+            else:
+                cfg.progress.update(
+                    message='processing data',
+                    percentage=int(100 * (v + 1) / row_value_count)
+                )
+            r = matrix_1[matrix_1[row_field] == row_value_list[v]]
+            assert r.shape
+            d = 0
+            for column, column_function_c in enumerate(column_function_list):
+                if not cfg.action:
+                    break
+                operator = replace_numpy_operators(column_function_c[1])
                 try:
-                    s = eval(
-                        '%s(r["%s"].astype("%s"))' % (
-                            operator, column_function_c[0], datatype)
-                    )
+                    datatype = column_function_c[2]
                 except Exception as err:
                     str(err)
-                    s = nodata_value
-                pivot[output_column_list[column + 1][0]][v] = s
-            else:
-                for _ in secondary_row_list:
-                    if not cfg.action:
-                        break
+                    datatype = matrix_1[column_function_c[0]].dtype
+                if secondary_row_field_list is None:
                     try:
                         s = eval(
-                            '%s((r["%s"]%s).astype("%s"))'
-                            % (operator, column_function_c[0],
-                               secondary_row_filter_list[d], datatype)
+                            '%s(r["%s"].astype("%s"))' % (
+                                operator, column_function_c[0], datatype)
                         )
                     except Exception as err:
                         str(err)
                         s = nodata_value
-                    pivot[output_column_list[d + 1][0]][v] = s
-                    d += 1
-    if progress_message:
-        cfg.progress.update(end=True)
-    cfg.logger.log.info('end')
-    return pivot
+                    pivot[output_column_list[column + 1][0]][v] = s
+                else:
+                    for _ in secondary_row_list:
+                        if not cfg.action:
+                            break
+                        try:
+                            s = eval(
+                                '%s((r["%s"]%s).astype("%s"))'
+                                % (operator, column_function_c[0],
+                                   secondary_row_filter_list[d], datatype)
+                            )
+                        except Exception as err:
+                            str(err)
+                            s = nodata_value
+                        pivot[output_column_list[d + 1][0]][v] = s
+                        d += 1
+        if progress_message:
+            cfg.progress.update(end=True)
+        cfg.logger.log.info('end')
+        return pivot
 
 
 # get values from matrix
@@ -571,7 +666,7 @@ def get_values(
             values = matrix_values[a]
         except Exception as err:
             cfg.logger.log.error(str(err))
-            return
+            return []
     if progress_message:
         cfg.progress.update(end=True)
     cfg.logger.log.info('end')
@@ -596,7 +691,8 @@ def replace_variables(matrix, expression_string):
 # calculate single expression
 # noinspection PyShadowingBuiltins
 def calculate(
-        matrix, expression_string, output_field_name, progress_message=True
+        matrix, expression_string, output_field_name, progress_message=True,
+        calculation_type=None
 ):
     """
     :param matrix: input matrix
@@ -606,6 +702,7 @@ def calculate(
         'matrix.' such as matrix.field_name
     :param output_field_name: string of output field name
     :param progress_message: optional, if True display process message
+    :param calculation_type: optional, numpy calculation dtype
     """
     if progress_message:
         cfg.logger.log.info('start')
@@ -613,60 +710,30 @@ def calculate(
             process='calculate', message='starting', start=True
         )
     cfg.logger.log.debug('expression_string: %s' % expression_string)
-    # alias for field in expression
-    field = matrix
     expression_string = replace_variables(matrix, expression_string)
     # expose numpy functions
-    log = np.log
-    _log = log
-    log10 = np.log10
-    _log10 = log10
-    sqrt = np.sqrt
-    _sqrt = sqrt
-    cos = np.cos
-    _cos = cos
-    arccos = np.arccos
-    _arccos = arccos
-    sin = np.sin
-    _sin = sin
-    arcsin = np.arcsin
-    _arcsin = arcsin
-    tan = np.tan
-    _tan = tan
-    arctan = np.arctan
-    _arctan = arctan
-    exp = np.exp
-    _exp = exp
-    min = np.nanmin
-    _min = min
-    max = np.nanmax
-    _max = max
-    sum = np.nansum
-    _sum = sum
-    percentile = np.nanpercentile
-    _percentile = percentile
-    median = np.nanmedian
-    _median = median
-    mean = np.nanmean
-    _mean = mean
-    std = np.nanstd
-    _std = std
-    where = np.where
-    _where = where
-    nan = np.nan
-    _nan = nan
+    namespace = {
+        'matrix': matrix, 'field': matrix, 'np': np, 'log': np.log,
+        'log10': np.log10, 'sqrt': np.sqrt, 'cos': np.cos, 'arccos': np.arccos,
+        'sin': np.sin, 'arcsin': np.arcsin, 'tan': np.tan, 'arctan': np.arctan,
+        'exp': np.exp, 'min': np.nanmin, 'max': np.nanmax, 'sum': np.nansum,
+        'percentile': np.nanpercentile, 'median': np.nanmedian,
+        'mean': np.nanmean, 'std': np.nanstd, 'where': np.where, 'nan': np.nan
+    }
     matrix1 = None
     try:
-        a = eval(expression_string)
-        try:
-            # existing field
-            assert field[output_field_name]
+        a = eval(expression_string, {'__builtins__': None}, namespace)
+        # existing field
+        if output_field_name in matrix.dtype.names:
             matrix1 = np.rec.array(np.copy(matrix))
             matrix1[output_field_name] = a
-        except Exception as err:
-            str(err)
-            # new field
-            matrix1 = append_field(matrix, output_field_name, a, a.dtype)
+        # new field
+        else:
+            if calculation_type is None:
+                matrix1 = append_field(matrix, output_field_name, a, a.dtype)
+            else:
+                matrix1 = append_field(matrix, output_field_name, a,
+                                       calculation_type)
     except Exception as err:
         cfg.logger.log.error(str(err))
     if progress_message:
@@ -699,44 +766,14 @@ def calculate_multi(
     field = matrix
     matrix1 = np.rec.array(np.copy(field))
     # expose numpy functions
-    log = np.log
-    _log = log
-    log10 = np.log10
-    _log10 = log10
-    sqrt = np.sqrt
-    _sqrt = sqrt
-    cos = np.cos
-    _cos = cos
-    arccos = np.arccos
-    _arccos = arccos
-    sin = np.sin
-    _sin = sin
-    arcsin = np.arcsin
-    _arcsin = arcsin
-    tan = np.tan
-    _tan = tan
-    arctan = np.arctan
-    _arctan = arctan
-    exp = np.exp
-    _exp = exp
-    min = np.nanmin
-    _min = min
-    max = np.nanmax
-    _max = max
-    sum = np.nansum
-    _sum = sum
-    percentile = np.nanpercentile
-    _percentile = percentile
-    median = np.nanmedian
-    _median = median
-    mean = np.nanmean
-    _mean = mean
-    std = np.nanstd
-    _std = std
-    where = np.where
-    _where = where
-    nan = np.nan
-    _nan = nan
+    namespace = {
+        'field': field, 'np': np, 'log': np.log, 'log10': np.log10,
+        'sqrt': np.sqrt, 'cos': np.cos, 'arccos': np.arccos, 'sin': np.sin,
+        'arcsin': np.arcsin, 'tan': np.tan, 'arctan': np.arctan, 'exp': np.exp,
+        'min': np.nanmin, 'max': np.nanmax, 'sum': np.nansum,
+        'percentile': np.nanpercentile, 'median': np.nanmedian,
+        'mean': np.nanmean, 'std': np.nanstd, 'where': np.where, 'nan': np.nan
+    }
     expression_count = len(expression_string_list)
     for e in range(expression_count):
         if not cfg.action:
@@ -755,7 +792,7 @@ def calculate_multi(
             )
         expression = replace_variables(matrix, expression_string_list[e])
         try:
-            a = eval(expression)
+            a = eval(expression, {'__builtins__': None}, namespace)
             try:
                 matrix1[output_field_name_list[e]] = a
             except Exception as err:
@@ -831,7 +868,7 @@ def matrix_to_csv(
     :param fields: optional list of fields to export
     :param field_decimals: integer number of decimals for decimal fields or
         list of integer values for decimal fields
-    :param separator: separator of fields
+    :param separator: separator of fields (default tab)
     :param decimal_separator: optional decimal separator for float values
         replacing . character
     :param nodata_value: optional nodata value to be replaced
@@ -846,97 +883,57 @@ def matrix_to_csv(
         cfg.progress.update(
             process='matrix_to_csv', message='starting', start=True
         )
-    if fields is None:
-        fields = matrix.dtype.names
-    if separator is None:
-        separator = cfg.tab_delimiter
-    dtypes = []
-    for name in matrix.dtype.names:
-        if not cfg.action:
-            break
-        data_type = matrix[name].dtype
-        if 'int' in str(data_type).lower() or '<i' in str(data_type).lower():
-            data_type = np.dtype('int64')
-        dtypes.append((name, str(data_type)))
-    cfg.logger.log.debug('dtypes: %s' % str(dtypes))
-    matrix_c = np.rec.array(np.copy(matrix))
-    cfg.logger.log.debug('matrix_c.shape: %s' % str(matrix_c.shape))
-    matrix_c = define_fields(matrix_c, dtypes)
+    fields = fields or matrix.dtype.names
+    separator = separator or cfg.tab_delimiter
+    dtypes = [
+        (name, 'int64' if np.issubdtype(matrix[name].dtype, np.integer)
+            else matrix[name].dtype) for name in matrix.dtype.names
+    ]
+    matrix_c = define_fields(np.copy(matrix), dtypes)
     # list of field formats
     format_list = []
     # list of fields
     field_list = []
-    c = 0
-    header = []
     # iterate fields
-    for field in fields:
+    for c, field in enumerate(fields):
         if not cfg.action:
             break
-        cfg.logger.log.debug('field: %s' % str(field))
-        # header
-        header.append(field)
-        header.append(separator)
-        if field in matrix.dtype.names:
-            data_type = matrix[field].dtype
-            field_list.append((field, data_type))
-            # integer fields
-            if ('int' in str(data_type).lower()
-                    or '<i' in str(data_type).lower()):
-                matrix_c[field][
-                    matrix[field] == nodata_value] = cfg.nodata_val_Int64
-                format_list.append('%s')
-            # float fields
-            elif (str(data_type)[0].lower() == 'f'
-                  or '<f' in str(data_type)[0].lower()
-                  or ('>f' in str(data_type)[0].lower())):
-                matrix_c[field][
-                    matrix[field] == nodata_value] = cfg.nodata_val_Int64
-                try:
-                    format_list.append('%1.{}f'.format(field_decimals[c]))
-                except Exception as err:
-                    str(err)
-                    try:
-                        format_list.append('%1.{}f'.format(field_decimals))
-                    except Exception as err:
-                        str(err)
-                        format_list.append('%1.2f')
-            # string fields
-            else:
-                format_list.append('%s')
-                matrix_c[field][matrix[field] == str(
-                    nodata_value)] = str(cfg.nodata_val_Int64)
+        if field not in matrix.dtype.names:
+            cfg.logger.log.error(f'field {field} not found')
+            continue
+        data_type = matrix[field].dtype
+        field_list.append((field, data_type))
+        # replace nodata integer fields
+        if np.issubdtype(data_type, np.integer):
+            matrix_c[field][matrix[field]
+                            == nodata_value] = cfg.nodata_val_Int64
+            format_list.append('%s')
+        # replace nodata floating fields
+        elif np.issubdtype(data_type, np.floating):
+            matrix_c[field][matrix[field]
+                            == nodata_value] = cfg.nodata_val_Int64
+            try:
+                fd = (field_decimals[c] if isinstance(field_decimals, list)
+                      else field_decimals)
+                format_list.append(f'%1.{fd}f')
+            except Exception as err:
+                str(err)
+                format_list.append('%1.2f')
+        # replace nodata string fields
         else:
-            cfg.logger.log.error('field %s not found' % field)
-        c += 1
-    header.pop(-1)
-    header.append(cfg.new_line)
-    joined_header = ''.join(header)
+            matrix_c[field][matrix[field]
+                            == str(nodata_value)] = str(cfg.nodata_val_Int64)
+            format_list.append('%s')
+    header = separator.join(fields) + cfg.new_line
     matrix_format = define_fields(matrix_c, field_list)
     # export numpy matrix to text
     stream = io.StringIO()
     np.savetxt(stream, matrix_format, delimiter=separator, fmt=format_list)
-    csv = '{}{}'.format(joined_header, stream.getvalue())
-    if decimal_separator is not None:
+    csv = header + stream.getvalue()
+    if decimal_separator:
         csv = csv.replace('.', decimal_separator)
     # replace nodata values
     if nodata_value_output is not None:
-        if decimal_separator is None:
-            s = '.'
-        else:
-            s = decimal_separator
-        if type(field_decimals) is list:
-            for fd in field_decimals[c]:
-                if not cfg.action:
-                    break
-                csv = csv.replace(
-                    '%s%s%s' % (cfg.nodata_val_Int64, s, '0' * fd),
-                    str(nodata_value_output)
-                )
-        else:
-            csv = csv.replace(
-                '%s%s%s' % (cfg.nodata_val_Int64, s, '0' * field_decimals),
-                str(nodata_value_output)
-            )
         csv = csv.replace(str(cfg.nodata_val_Int64), str(nodata_value_output))
     files_directories.create_parent_directory(output_path)
     try:
