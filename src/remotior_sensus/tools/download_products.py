@@ -1086,10 +1086,10 @@ def download(
                                 band = None
                             if 'LC08' in image_name or 'LC09' in image_name:
                                 band_names = {
-                                    'B01': 'coastal', 'B02': 'blue',
-                                    'B03': 'green', 'B04': 'red', '05': 'nir08',
-                                    'B06': 'swir16', 'B07': 'swir22',
-                                    'B10': 'lwir11'
+                                    '01': 'coastal', '02': 'blue',
+                                    '03': 'green', '04': 'red', '05': 'nir08',
+                                    '06': 'swir16', '07': 'swir22',
+                                    '10': 'lwir11'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
@@ -1097,10 +1097,10 @@ def download(
                                     band = None
                             elif 'LE07' in image_name:
                                 band_names = {
-                                    'B01': 'blue', 'B02': 'green',
-                                    'B03': 'red',
-                                    'B04': 'nir08', 'B05': 'swir16',
-                                    'B06': 'lwir11', 'B07': 'swir22'
+                                    '01': 'blue', '02': 'green',
+                                    '03': 'red',
+                                    '04': 'nir08', '05': 'swir16',
+                                    '06': 'lwir11', '07': 'swir22'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
@@ -1108,10 +1108,10 @@ def download(
                                     band = None
                             else:
                                 band_names = {
-                                    'B01': 'blue', 'B02': 'green',
-                                    'B03': 'red',
-                                    'B04': 'nir08', 'B05': 'swir16',
-                                    'B06': 'lwir11', 'B07': 'swir22'
+                                    '01': 'blue', '02': 'green',
+                                    '03': 'red',
+                                    '04': 'nir08', '05': 'swir16',
+                                    '06': 'lwir11', '07': 'swir22'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
@@ -1126,7 +1126,7 @@ def download(
                                 band_name = 'B%s' % band
                         elif product_table['product'][i] == cfg.aster_l1t_mpc:
                             band_names = {
-                                'B01': 'VNIR', 'B04': 'SWIR', 'B10': 'TIR'
+                                '01': 'VNIR', '04': 'SWIR', '10': 'TIR'
                             }
                             if band in band_names:
                                 band_name = band_names[band]
