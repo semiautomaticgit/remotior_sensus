@@ -60,7 +60,7 @@ except Exception as error:
 
 
 try:
-    from .model_implementation import SatlasSegmentationModel
+    from .model_implementation import SatlasSegmentationModel, SSrRrDBNet
 except Exception as error:
     str(error)
 
@@ -371,7 +371,7 @@ def pretrained_pytorch_model_swin2(
 def segmentation_pytorch_model_swin2(
         array_dic, weights_path, band_number, variant=None,
         pytorch_device=None, stack=True, seed = None, num_classes=None,
-        replace_keys:list=None, n_processes=1
+        replace_keys: list = None, n_processes=1
 ):
     cfg.logger.log.debug('segmentation_pytorch_model_swin2')
     if pytorch_device is None:
@@ -418,3 +418,110 @@ def segmentation_pytorch_model_swin2(
             feats = torch.argmax(feats, dim=1)
             results[s] = feats.squeeze(0).cpu().numpy()
     return results
+
+
+# superresolution model
+def superresolution_pytorch_model_s2(
+        array_dic, weights_path, band_number,
+        pytorch_device=None, stack=True, seed=None, n_processes=1
+):
+    if pytorch_device is None:
+        pytorch_device = 'cpu'
+
+    if pytorch_device == 'cpu':
+        torch.set_num_threads(n_processes)
+
+    # fixed seed
+    seed = 0 if seed is None else seed
+    torch.manual_seed(seed)
+    if pytorch_device != 'cpu':
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+    patch_size = 32
+    scale = 4
+    batch_size = 32
+
+    # ---- Build model ----
+    model = SSrRrDBNet(
+        num_in_ch=band_number,
+        num_out_ch=band_number,
+        num_feat=64,
+        num_block=23,
+        num_grow_ch=32,
+        scale=scale
+    )
+
+    # ---- Load weights (same logic as your segmentation) ----
+    state_dict = torch.load(weights_path, map_location=pytorch_device)
+    state_dict = state_dict['params_ema']
+    model.load_state_dict(state_dict, strict=True)
+
+    model = model.to(pytorch_device).eval()
+
+    results = []
+
+    with torch.inference_mode():
+        for s in array_dic:
+            # ---- Stack bands (same pattern as your function) ----
+            if stack:
+                bands = np.stack(array_dic[s], axis=0)  # (C, H, W)
+            else:
+                bands = np.transpose(array_dic[s], (2, 0, 1))
+
+            C, H, W = bands.shape
+
+            # ---- Normalize (VERY important for RRDB models) ----
+            bands = bands.astype(np.float32)
+            # adjust if your training used different scaling
+            bands /= 255.0
+
+            input_tensor = torch.from_numpy(bands).unsqueeze(0).to(
+                pytorch_device)
+
+            # ---- Pad to multiple of patch_size ----
+            pad_h = (patch_size - H % patch_size) % patch_size
+            pad_w = (patch_size - W % patch_size) % patch_size
+            input_tensor = functional.pad(
+                input_tensor, (0, pad_w, 0, pad_h), mode='reflect')
+
+            _, _, Hp, Wp = input_tensor.shape
+
+            # ---- Unfold into 32x32 patches ----
+            patches = functional.unfold(
+                input_tensor,
+                kernel_size=patch_size,
+                stride=patch_size
+            )  # (1, C*P*P, N)
+
+            patches = patches.permute(0, 2, 1).reshape(-1, C, patch_size,
+                                                       patch_size)
+
+            # ---- Batched SR inference ----
+            sr_chunks = []
+            for i in range(0, patches.size(0), batch_size):
+                sr_chunks.append(model(patches[i:i + batch_size]))
+            sr_patches = torch.cat(sr_chunks, dim=0)
+
+            # ---- Fold back (scaled patches) ----
+            out_patch = patch_size * scale
+            sr_patches = sr_patches.reshape(
+                1, -1, out_patch * out_patch * C).permute(0, 2, 1)
+
+            sr_tensor = functional.fold(
+                sr_patches,
+                output_size=(Hp * scale, Wp * scale),
+                kernel_size=out_patch,
+                stride=out_patch
+            )
+
+            # ---- Crop padding & convert to numpy ----
+            sr_tensor = sr_tensor[:, :, :H * scale, :W * scale]
+            sr_np = sr_tensor.squeeze(0).cpu().numpy()
+
+            # de-normalize if needed
+            sr_np = np.clip(sr_np * 255.0, 0, 255).astype(np.float32)
+
+            results.append(sr_np)
+    cube = np.stack(results, axis=0)
+    return cube[0]

@@ -601,7 +601,7 @@ class BandSet(object):
             text.append(''.join(attributes))
             text.append(''.join(last_line))
         cfg.logger.log.debug('print bandset')
-        # print output
+        # output
         print(''.join(text))
 
     def import_as_xml(self, xml_path):
@@ -2594,7 +2594,7 @@ class BandSetCatalog(object):
         """Function to print a BandSet bands and attributes."""
         cfg.logger.log.debug('print bandset')
         bandset = self.get_bandset(bandset_number)
-        # print bandset
+        # bandset
         bandset.print()
 
     def export_bandset_as_xml(self, bandset_number, output_path=None):

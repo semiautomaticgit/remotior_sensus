@@ -76,7 +76,7 @@ try:
     import torch
     from remotior_sensus.util.pytorch_tools import (
         train_pytorch_model, pretrained_pytorch_model_swin2,
-        segmentation_pytorch_model_swin2
+        segmentation_pytorch_model_swin2, superresolution_pytorch_model_s2
     )
 except Exception as error:
     str(error)
@@ -901,6 +901,29 @@ def segmentation_pytorch_pretrained(*argv):
     return [True, out_class]
 
 
+# super-resolution through pytorch pretrained model
+def super_resolution_pytorch_pretrained(*argv):
+    scale = argv[0][0]
+    offset = argv[0][1]
+    output_no_data = argv[0][2]
+    _array_function_placeholder = argv[1][0]
+    nodata_mask = argv[2]
+    x = argv[4]
+    y = argv[5]
+    model_path = argv[7][cfg.model_path_framework]
+    pytorch_framework = argv[7][cfg.model_path_framework]
+    n_processes = argv[7][cfg.n_processes_framework]
+    x_min_piece, y_min_piece = argv[10]
+    out_class = argv[12]
+    output_super_raster_list = argv[17]
+    super_res = superresolution_pytorch_model_s2(
+        array_dic={0: _array_function_placeholder}, weights_path=model_path,
+        band_number=_array_function_placeholder.shape[2], stack=False,
+        n_processes=n_processes
+    )
+    return [[super_res, None], None]
+
+
 # calculate PCA
 def calculate_pca(*argv):
     # array variable name as defined in cfg.array_function_placeholder
@@ -1563,7 +1586,7 @@ def region_growing(*argv):
     max_spectral_distance = function_variable[2]
     minimum_size = function_variable[3]
     seed_array = np.zeros(array_roi.shape)
-    seed_value = float(array_roi[seed_y, seed_x])
+    seed_value = float(array_roi[seed_y, seed_x].item())
     cfg.logger.log.debug('array_roi.shape: %s; seed_value: %s'
                          % (str(array_roi.shape), str(seed_value)))
     # if nodata
@@ -1822,7 +1845,7 @@ def clip_raster(
                     temp_layer_def = temp_layer.GetLayerDefn()
                     input_feature = _v_layer.GetNextFeature()
                     while input_feature:
-                        geom = input_feature.GetGeometryRef()
+                        geom = input_feature.GetGeometryRef().Clone()
                         geom.Transform(c_t)
                         _out_feature = ogr.Feature(temp_layer_def)
                         _out_feature.SetGeometry(geom)
@@ -1927,21 +1950,26 @@ def vector_to_raster_iter(
             # check crs
             same_crs = raster_vector.compare_crs(reference_crs, vector_crs)
             cfg.logger.log.debug('same_crs: %s' % str(same_crs))
-            if not same_crs:
-                cfg.logger.log.error('different crs')
-                logger = cfg.logger.stream.getvalue()
-                return None, 'different crs', logger
             # create memory layer
             memory_driver = ogr.GetDriverByName('MEM')
             # for backward compatibility
             if memory_driver is None:
                 memory_driver = ogr.GetDriverByName('memory')
+
+            o_layer_sr = osr.SpatialReference()
+            o_layer_sr.ImportFromWkt(reference_crs)
             memory_source = memory_driver.CreateDataSource('in_memory')
             memory_layer = memory_source.CreateLayer(
-                'temp', i_layer_sr, geom_type=ogr.wkbMultiPolygon
+                'temp', o_layer_sr, geom_type=ogr.wkbMultiPolygon
             )
+
             field_definitions = feature[0]
             geometry = ogr.CreateGeometryFromWkt(feature[1])
+            # reproject
+            if not same_crs:
+                transform = osr.CoordinateTransformation(i_layer_sr,
+                                                         o_layer_sr)
+                geometry.Transform(transform)
             attributes = feature[2]
             for f_d in field_definitions:
                 field_defn = ogr.FieldDefn(f_d['name'], f_d['type'])
@@ -2082,7 +2110,6 @@ def vector_to_raster_iter(
                 results.append([output_path])
             if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
-
         except Exception as err:
             errors = str(err)
     return [results, errors, str(process)]

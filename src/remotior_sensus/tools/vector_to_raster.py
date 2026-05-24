@@ -41,6 +41,7 @@ from remotior_sensus.core.processor_functions import (
 from remotior_sensus.util import files_directories, shared_tools, raster_vector
 
 try:
+    # noinspection PyPackageRequirements
     from osgeo import ogr
 except Exception as error:
     cfg.logger.log.error(str(error))
@@ -189,23 +190,38 @@ def vector_to_raster(
     same_crs = raster_vector.compare_crs(vector_crs, reference_crs)
     cfg.logger.log.debug('same_crs: %s' % str(same_crs))
     if not same_crs:
-        input_vector = cfg.temp.temporary_file_path(
-            name_suffix=files_directories.file_extension(vector_path)
-        )
-        vector_path = raster_vector.reproject_vector(
-            vector_path, input_vector, input_epsg=vector_crs,
-            output_epsg=reference_crs
-        )
+        if method is not None and method.lower() == 'area_based':
+            # reproject later by process
+            pass
+        else:
+            input_vector = cfg.temp.temporary_file_path(
+                name_suffix=files_directories.file_extension(vector_path)
+            )
+            vector_path = raster_vector.reproject_vector(
+                vector_path, input_vector, input_epsg=vector_crs,
+                output_epsg=reference_crs
+            )
     if method is not None and method.lower() == 'area_based':
         # force nodata value (workaround for later gdal copy issue)
         nodata_value_set = cfg.nodata_val_Int32
-        temp_vector = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
+        temp_vector = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix,
+                                                   rank=True)
         # dissolve vector
         cfg.multiprocess.gdal_vector_translate(
             input_file=vector_path, output_file=temp_vector,
             explode_collections=True,
             attribute_field=vector_field, min_progress=1, max_progress=10
         )
+        """
+        # probably not needed
+        if cfg.mpi_rank:
+            # copy file to avoid opening issues
+            temp_vector_2 = cfg.temp.temporary_file_path(
+                name_suffix=cfg.gpkg_suffix
+            )
+            files_directories.copy_file(temp_vector, temp_vector_2)
+            temp_vector = temp_vector_2
+        """
         _vector_source = ogr.Open(temp_vector)
         _vector_layer = _vector_source.GetLayer()
         layer_defn = _vector_layer.GetLayerDefn()
@@ -225,12 +241,15 @@ def vector_to_raster(
         vector_crs = crs
         feature_list = []
         for idx, feature in enumerate(_vector_layer):
-            feature_geom = feature.GetGeometryRef()
-            if feature_geom is not None:
-                geom = feature_geom.ExportToWkt()
-                attrs = [feature.GetField(i) for i in
-                         range(layer_defn.GetFieldCount())]
-                feature_list.append([field_definitions, geom, attrs])
+            try:
+                feature_geom = feature.GetGeometryRef().Clone()
+                if feature_geom is not None:
+                    geom = feature_geom.ExportToWkt()
+                    attrs = [feature.GetField(i) for i in
+                             range(layer_defn.GetFieldCount())]
+                    feature_list.append([field_definitions, geom, attrs])
+            except Exception as err:
+                cfg.logger.log.error(str(err))
         _vector_source.Destroy()
         _vector_layer = None
         _vector_source = None
@@ -272,24 +291,29 @@ def vector_to_raster(
         results = cfg.multiprocess.output
         output_raster_list = [r[0] for result in results for r in result]
         output_data_type = 'Int32'
-        virtual_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
-        raster_vector.create_virtual_raster_2_mosaic(
-            input_raster_list=output_raster_list, output=virtual_path,
-            src_nodata=nodata_value_set, dst_nodata=nodata_value_set,
-            data_type=output_data_type,
-            pixel_size=x_y_size, grid_reference=reference_path
-        )
-        # copy raster
-        # (GDAL warns that the Value 2.14748e+09 in the source dataset will
-        # be changed to 2.14748e+09 in the destination dataset to avoid being
-        # treated as NoData, therefore no value is changed because it considers
-        # the float value of 2147483647, while with lower integers it actually
-        # changes the value; but the mode resampling doesn't work as expected
-        # if input has nodata values, therefore the source nodata value must
-        # be the same as destination nodata value)
-        cfg.multiprocess.gdal_copy_raster(
-            virtual_path, output_path, min_progress=75, max_progress=100
-        )
+        virtual_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix,
+                                                    rank=True,
+                                                    synch_ranks=True)
+        if (not cfg.mpi_comm) or (cfg.mpi_rank == 0):
+            raster_vector.create_virtual_raster_2_mosaic(
+                input_raster_list=output_raster_list, output=virtual_path,
+                src_nodata=nodata_value_set, dst_nodata=nodata_value_set,
+                data_type=output_data_type,
+                pixel_size=x_y_size, grid_reference=reference_path
+            )
+            # copy raster
+            # (GDAL warns that the Value 2.14748e+09 in the source dataset
+            # will be changed to 2.14748e+09 in the destination dataset to
+            # avoid being treated as NoData, therefore no value is changed
+            # because it considers the float value of 2147483647, while with
+            # lower integers it actually changes the value; but the mode
+            # resampling doesn't work as expected if input has nodata values,
+            # therefore the source nodata value must be the same as
+            # destination nodata value)
+            cfg.multiprocess.gdal_copy_raster(
+                virtual_path, output_path, min_progress=75, max_progress=100,
+                skip_bcast=True
+            )
     else:
         # perform conversion
         cfg.multiprocess.multiprocess_vector_to_raster(

@@ -157,7 +157,7 @@ def cross_classification(
             t_pmd = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
             reference_raster = cfg.multiprocess.create_warped_vrt(
                 raster_path=reference_path, output_path=t_pmd,
-                output_wkt=str(classification_crs)
+                output_wkt=str(classification_crs), mpi_module=True
             )
         else:
             reference_raster = reference_path

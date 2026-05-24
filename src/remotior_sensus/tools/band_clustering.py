@@ -93,7 +93,8 @@ def band_clustering(
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: optional type BandSetCatalog for BandSet number.
         progress_message: if True then start progress message, if False does 
-            not start the progress message (useful if launched from other tools).
+            not start the progress message (useful if launched from other 
+            tools).
 
     Returns:
         Object :func:`~remotior_sensus.core.output_manager.OutputManager` with
@@ -228,6 +229,7 @@ def _k_means_iter(
     """Calculate iteration."""
     # for potential use
     _class_number = class_number
+    # TODO MPI adaptation
     for iteration in range(1, max_iterations + 1):
         if cfg.action:
             output_path = None
@@ -238,7 +240,7 @@ def _k_means_iter(
             except Exception as err:
                 str(err)
             output_path = cfg.temp.temporary_file_path(
-                name='cluster', name_suffix=cfg.tif_suffix
+                name_suffix=cfg.tif_suffix
             )
             # last iteration
             if iteration == max_iterations:
@@ -248,6 +250,7 @@ def _k_means_iter(
                 spectral_signatures=_signature_catalog, macroclass=True,
                 algorithm_name=algorithm_name, signature_raster=False
             )
+            cfg.logger.log.debug('band_classification')
             # last iteration
             if iteration == max_iterations:
                 return output_path
@@ -332,7 +335,8 @@ def _k_means_iter(
                     )
             if threshold is not None and max(distances) > threshold:
                 # copy raster
-                files_directories.copy_file(output_path, output_raster)
+                files_directories.copy_file(output_path, output_raster,
+                                            rank=True)
                 return output_raster
             # replace signatures
             _signature_catalog = signature_catalog_new

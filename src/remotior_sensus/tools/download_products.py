@@ -21,6 +21,7 @@ and Sentinel-2 datasets.
 """
 
 import datetime
+import inspect
 import json
 from xml.dom import minidom
 from xml.etree import cElementTree
@@ -44,7 +45,7 @@ def search(
         product, date_from, date_to, max_cloud_cover=100, result_number=50,
         name_filter=None, coordinate_list=None, progress_message=True,
         proxy_host=None, proxy_port=None, proxy_user=None, proxy_password=None,
-        copernicus_user=None, copernicus_password=None
+        copernicus_user=None, copernicus_password=None, mpi_module=None
 ) -> OutputManager:
     """Perform the query of image databases.
 
@@ -88,85 +89,89 @@ def search(
         proxy_port: proxy port.
         proxy_user: proxy user.
         proxy_password: proxy password.
+        mpi_module: optional mpi module, if True, only rank 0 is used.
 
     Returns:
         object :func:`~remotior_sensus.core.output_manager.OutputManager`
     """  # noqa: E501
     result = OutputManager(check=False)
-    if product == cfg.sentinel2:
-        result = query_sentinel_2_database(
-            date_from=date_from, date_to=date_to,
-            max_cloud_cover=max_cloud_cover,
-            result_number=result_number, name_filter=name_filter,
-            coordinate_list=coordinate_list, progress_message=progress_message,
-            proxy_host=proxy_host, proxy_port=proxy_port,
-            proxy_user=proxy_user, proxy_password=proxy_password,
-            copernicus_user=copernicus_user,
-            copernicus_password=copernicus_password
-        )
-    elif product == cfg.sentinel2_mpc:
-        result = query_sentinel2_mpc(
-            date_from=date_from, date_to=date_to,
-            max_cloud_cover=max_cloud_cover, result_number=result_number,
-            name_filter=name_filter, coordinate_list=coordinate_list,
-            progress_message=progress_message, proxy_host=proxy_host,
-            proxy_port=proxy_port, proxy_user=proxy_user,
-            proxy_password=proxy_password
-        )
-    elif product == cfg.landsat_mpc:
-        result = query_landsat_mpc(
-            date_from=date_from, date_to=date_to,
-            max_cloud_cover=max_cloud_cover, result_number=result_number,
-            name_filter=name_filter, coordinate_list=coordinate_list,
-            progress_message=progress_message, proxy_host=proxy_host,
-            proxy_port=proxy_port, proxy_user=proxy_user,
-            proxy_password=proxy_password
-        )
-    elif product == cfg.modis_09q1_mpc:
-        result = query_modis_09q1_mpc(
-            date_from=date_from, date_to=date_to,
-            max_cloud_cover=max_cloud_cover, result_number=result_number,
-            name_filter=name_filter, coordinate_list=coordinate_list,
-            progress_message=progress_message, proxy_host=proxy_host,
-            proxy_port=proxy_port, proxy_user=proxy_user,
-            proxy_password=proxy_password
-        )
-    elif product == cfg.modis_11a2_mpc:
-        result = query_modis_11a2_mpc(
-            date_from=date_from, date_to=date_to,
-            max_cloud_cover=max_cloud_cover, result_number=result_number,
-            name_filter=name_filter, coordinate_list=coordinate_list,
-            progress_message=progress_message, proxy_host=proxy_host,
-            proxy_port=proxy_port, proxy_user=proxy_user,
-            proxy_password=proxy_password
-        )
-    elif product == cfg.aster_l1t_mpc:
-        result = query_aster_l1t_mpc(
-            date_from=date_from, date_to=date_to,
-            max_cloud_cover=max_cloud_cover, result_number=result_number,
-            name_filter=name_filter, coordinate_list=coordinate_list,
-            progress_message=progress_message, proxy_host=proxy_host,
-            proxy_port=proxy_port, proxy_user=proxy_user,
-            proxy_password=proxy_password
-        )
-    elif product == cfg.cop_dem_glo_30_mpc:
-        result = query_cop_dem_glo_30_mpc(
-            date_from=date_from, date_to=date_to,
-            max_cloud_cover=max_cloud_cover, result_number=result_number,
-            name_filter=name_filter, coordinate_list=coordinate_list,
-            progress_message=progress_message, proxy_host=proxy_host,
-            proxy_port=proxy_port, proxy_user=proxy_user,
-            proxy_password=proxy_password
-        )
-    elif product == cfg.landsat_hls or product == cfg.sentinel2_hls:
-        result = query_nasa_cmr(
-            product=product, date_from=date_from, date_to=date_to,
-            max_cloud_cover=max_cloud_cover, result_number=result_number,
-            name_filter=name_filter, coordinate_list=coordinate_list,
-            progress_message=progress_message, proxy_host=proxy_host,
-            proxy_port=proxy_port, proxy_user=proxy_user,
-            proxy_password=proxy_password
-        )
+    if not mpi_module or (mpi_module and cfg.mpi_rank == 0):
+        if product == cfg.sentinel2:
+            result = query_sentinel_2_database(
+                date_from=date_from, date_to=date_to,
+                max_cloud_cover=max_cloud_cover,
+                result_number=result_number, name_filter=name_filter,
+                coordinate_list=coordinate_list,
+                progress_message=progress_message,
+                proxy_host=proxy_host, proxy_port=proxy_port,
+                proxy_user=proxy_user, proxy_password=proxy_password,
+                copernicus_user=copernicus_user,
+                copernicus_password=copernicus_password
+            )
+        elif product == cfg.sentinel2_mpc:
+            result = query_sentinel2_mpc(
+                date_from=date_from, date_to=date_to,
+                max_cloud_cover=max_cloud_cover, result_number=result_number,
+                name_filter=name_filter, coordinate_list=coordinate_list,
+                progress_message=progress_message, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+        elif product == cfg.landsat_mpc:
+            result = query_landsat_mpc(
+                date_from=date_from, date_to=date_to,
+                max_cloud_cover=max_cloud_cover, result_number=result_number,
+                name_filter=name_filter, coordinate_list=coordinate_list,
+                progress_message=progress_message, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+        elif product == cfg.modis_09q1_mpc:
+            result = query_modis_09q1_mpc(
+                date_from=date_from, date_to=date_to,
+                max_cloud_cover=max_cloud_cover, result_number=result_number,
+                name_filter=name_filter, coordinate_list=coordinate_list,
+                progress_message=progress_message, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+        elif product == cfg.modis_11a2_mpc:
+            result = query_modis_11a2_mpc(
+                date_from=date_from, date_to=date_to,
+                max_cloud_cover=max_cloud_cover, result_number=result_number,
+                name_filter=name_filter, coordinate_list=coordinate_list,
+                progress_message=progress_message, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+        elif product == cfg.aster_l1t_mpc:
+            result = query_aster_l1t_mpc(
+                date_from=date_from, date_to=date_to,
+                max_cloud_cover=max_cloud_cover, result_number=result_number,
+                name_filter=name_filter, coordinate_list=coordinate_list,
+                progress_message=progress_message, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+        elif product == cfg.cop_dem_glo_30_mpc:
+            result = query_cop_dem_glo_30_mpc(
+                date_from=date_from, date_to=date_to,
+                max_cloud_cover=max_cloud_cover, result_number=result_number,
+                name_filter=name_filter, coordinate_list=coordinate_list,
+                progress_message=progress_message, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+        elif product == cfg.landsat_hls or product == cfg.sentinel2_hls:
+            result = query_nasa_cmr(
+                product=product, date_from=date_from, date_to=date_to,
+                max_cloud_cover=max_cloud_cover, result_number=result_number,
+                name_filter=name_filter, coordinate_list=coordinate_list,
+                progress_message=progress_message, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+    result = mpi_bcast(result)
     return result
 
 
@@ -649,6 +654,8 @@ def download(
             - extra={'directory_paths': list of output directory paths}
 
     """  # noqa: E501
+    output = OutputManager(check=False)
+    return_check = True
     cfg.logger.log.info('start')
     if progress_message:
         cfg.progress.update(
@@ -696,16 +703,18 @@ def download(
                     output_path, image_name, str(acquisition_date))
                 metadata_file = base_output_dir + '/MTD_MSIL1C.xml'
                 metadata_url = (
-                        '%s/Products(%s)/Nodes(%s.SAFE)/Nodes(MTD_MSIL1C.xml)'
-                        '/$value' % (top_url, uid, product_name)
+                        '%s/Products(%s)/Nodes(%s.SAFE)/'
+                        'Nodes(MTD_MSIL1C.xml)/$value'
+                        % (top_url, uid, product_name)
                 )
             else:
                 base_output_dir = '%s/%s_%s' % (
                     output_path, image_name, str(acquisition_date))
                 metadata_file = base_output_dir + '/MTD_MSIL2A.xml'
                 metadata_url = (
-                        '%s/Products(%s)/Nodes(%s.SAFE)/Nodes(MTD_MSIL2A.xml)'
-                        '/$value' % (top_url, uid, product_name)
+                        '%s/Products(%s)/Nodes(%s.SAFE)/'
+                        'Nodes(MTD_MSIL2A.xml)/$value'
+                        % (top_url, uid, product_name)
                 )
             output_directory_list.append(base_output_dir)
             # check connection downloading metadata xml
@@ -805,12 +814,11 @@ def download(
                 metadata_tl_url = '%s%s/GRANULE/%s.xml' % (
                     base_url, image_name,
                     image_name[0:-7].replace('_MSI_L1C_', '_MTD_L1C_'))
-                cloud_mask_gml_url = \
-                    '%s%s/GRANULE/QI_DATA/%s_B00_MSIL1C.gml' % (
-                        base_url, image_name,
-                        image_name[0:-7].replace(
-                            '_MSI_L1C_TL_', '_MSK_CLOUDS_'
-                        ))
+                cloud_mask_gml_url = (
+                        '%s%s/GRANULE/QI_DATA/%s_B00_MSIL1C.gml' % (
+                    base_url, image_name, image_name[0:-7].replace(
+                    '_MSI_L1C_TL_', '_MSK_CLOUDS_'))
+                )
             output_directory_list.append(base_output_dir)
             # check connection downloading metadata xml
             temp_file = cfg.temp.temporary_file_path(name_suffix='.xml')
@@ -832,8 +840,7 @@ def download(
                     )
                     cfg.multiprocess.multi_download_file(
                         url_list=[metadata_tl_url],
-                        output_path_list=[metadata_tl],
-                        proxy_host=proxy_host,
+                        output_path_list=[metadata_tl], proxy_host=proxy_host,
                         proxy_port=proxy_port, proxy_user=proxy_user,
                         proxy_password=proxy_password, progress=False,
                         timeout=2, ignore_errors=ignore_errors
@@ -855,8 +862,7 @@ def download(
                     image_name=image_name, output_path=base_output_dir,
                     output_list=output_file_list,
                     output_raster_list=output_raster_dic[cfg.satSentinel2],
-                    exporter=exporter,
-                    progress=progress_message,
+                    exporter=exporter, progress=progress_message,
                     virtual_download=virtual_download,
                     extent_coordinate_list=extent_coordinate_list,
                     proxy_host=proxy_host, proxy_port=proxy_port,
@@ -929,7 +935,8 @@ def download(
                         )
                         if files_directories.is_file(output_file):
                             output_file_list.append(output_file)
-                            if product_table['product'][i] == cfg.landsat_hls:
+                            if (product_table['product'][i] ==
+                                    cfg.landsat_hls):
                                 output_raster_dic[cfg.satLandsat89].append(
                                     output_file)
                             else:
@@ -960,8 +967,7 @@ def download(
                                         + cfg.new_line
                                         + str(
                                             product_table[
-                                                'acquisition_date'
-                                            ][i]
+                                                'acquisition_date'][i]
                                         )
                                     )
                             except Exception as err:
@@ -975,8 +981,8 @@ def download(
               or product_table['product'][i] == cfg.modis_11a2_mpc
               or product_table['product'][i] == cfg.aster_l1t_mpc
               or product_table['product'][i] == cfg.cop_dem_glo_30_mpc):
-            sign_url = ('https://planetarycomputer.microsoft.com/api/sas/v1'
-                        '/sign?href=')
+            sign_url = ('https://planetarycomputer.microsoft.com/'
+                        'api/sas/v1/sign?href=')
             ref_url = product_table['ref_url'][i]
             response, stac_data = download_tools.request_stac(
                 url=ref_url, proxy_host=proxy_host,
@@ -1023,7 +1029,8 @@ def download(
                     )
                 # exclude MODIS metadata
                 if (product_table['product'][i] == cfg.modis_09q1_mpc
-                        or product_table['product'][i] == cfg.modis_11a2_mpc
+                        or product_table['product'][i]
+                        == cfg.modis_11a2_mpc
                         or product_table['product'][i]
                         == cfg.cop_dem_glo_30_mpc):
                     response_2 = True
@@ -1060,7 +1067,8 @@ def download(
                         else:
                             if check:
                                 files_directories.move_file(
-                                    in_path=temp_file, out_path=metadata_file
+                                    in_path=temp_file,
+                                    out_path=metadata_file
                                 )
                     # download bands
                     output_raster_dic = {}
@@ -1087,9 +1095,9 @@ def download(
                             if 'LC08' in image_name or 'LC09' in image_name:
                                 band_names = {
                                     '01': 'coastal', '02': 'blue',
-                                    '03': 'green', '04': 'red', '05': 'nir08',
-                                    '06': 'swir16', '07': 'swir22',
-                                    '10': 'lwir11'
+                                    '03': 'green', '04': 'red',
+                                    '05': 'nir08', '06': 'swir16',
+                                    '07': 'swir22', '10': 'lwir11'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
@@ -1098,9 +1106,8 @@ def download(
                             elif 'LE07' in image_name:
                                 band_names = {
                                     '01': 'blue', '02': 'green',
-                                    '03': 'red',
-                                    '04': 'nir08', '05': 'swir16',
-                                    '06': 'lwir11', '07': 'swir22'
+                                    '03': 'red', '04': 'nir08', '05': 'swir16',
+                                    '06': 'lwir', '07': 'swir22'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
@@ -1109,22 +1116,23 @@ def download(
                             else:
                                 band_names = {
                                     '01': 'blue', '02': 'green',
-                                    '03': 'red',
-                                    '04': 'nir08', '05': 'swir16',
-                                    '06': 'lwir11', '07': 'swir22'
+                                    '03': 'red', '04': 'nir08', '05': 'swir16',
+                                    '06': 'lwir', '07': 'swir22'
                                 }
                                 if band in band_names:
                                     band_name = band_names[band]
                                 else:
                                     band = None
-                        elif product_table['product'][i] == cfg.sentinel2_mpc:
+                        elif (product_table['product'][i]
+                              == cfg.sentinel2_mpc):
                             if '10' in str(band):
                                 band = None
                             elif 'scl' in str(band).lower():
                                 band_name = 'SCL'
                             else:
                                 band_name = 'B%s' % band
-                        elif product_table['product'][i] == cfg.aster_l1t_mpc:
+                        elif (product_table['product'][i]
+                              == cfg.aster_l1t_mpc):
                             band_names = {
                                 '01': 'VNIR', '04': 'SWIR', '10': 'TIR'
                             }
@@ -1132,14 +1140,16 @@ def download(
                                 band_name = band_names[band]
                             else:
                                 band = None
-                        elif product_table['product'][i] == cfg.modis_09q1_mpc:
+                        elif (product_table['product'][i]
+                              == cfg.modis_09q1_mpc):
                             if '01' in str(band):
                                 band_name = 'sur_refl_b01'
                             elif '02' in str(band):
                                 band_name = 'sur_refl_b02'
                             else:
                                 band = None
-                        elif product_table['product'][i] == cfg.modis_11a2_mpc:
+                        elif (product_table['product'][i]
+                              == cfg.modis_11a2_mpc):
                             if '01' in str(band):
                                 band_name = 'LST_Day_1km'
                             elif '02' in str(band):
@@ -1186,7 +1196,8 @@ def download(
                                         url_list=[band_data['href']],
                                         output_path_list=[output_file],
                                         authentication_uri=authentication_uri,
-                                        user=nasa_user, password=nasa_password,
+                                        user=nasa_user,
+                                        password=nasa_password,
                                         proxy_host=proxy_host,
                                         proxy_port=proxy_port,
                                         proxy_user=proxy_user,
@@ -1222,11 +1233,13 @@ def download(
                                     elif product_table['product'][
                                         i] == cfg.aster_l1t_mpc:
                                         output_raster_dic[
-                                            cfg.satASTER].append(output_file)
+                                            cfg.satASTER].append(
+                                            output_file)
                                     elif product_table['product'][
                                         i] == cfg.modis_09q1_mpc:
                                         output_raster_dic[
-                                            cfg.satMODIS2].append(output_file)
+                                            cfg.satMODIS2].append(
+                                            output_file)
                                     cfg.logger.log.debug(
                                         'downloaded file %s' % output_file
                                     )
@@ -1244,33 +1257,37 @@ def download(
                     output_raster_lists.append(output_raster_dic)
             else:
                 if not ignore_errors:
-                    return OutputManager(check=False)
-    if access_token is not None:
-        delete_copernicus_token(
-            access_token, session_state, proxy_host=proxy_host,
-            proxy_port=proxy_port, proxy_user=proxy_user,
-            proxy_password=proxy_password
-        )
-    if exporter:
-        output_csv_file = '%s/links%s%s' % (
-            output_path, dates_times.get_time_string(), cfg.csv_suffix)
-        text = cfg.new_line.join(output_file_list)
-        read_write_files.write_file(data=text, output_path=output_csv_file)
-        cfg.progress.update(end=True)
-        cfg.logger.log.info('end')
-        return OutputManager(path=output_csv_file)
-    else:
-        if len(output_file_list) > 0:
+                    return_check = False
+    if return_check:
+        if access_token is not None:
+            delete_copernicus_token(
+                access_token, session_state, proxy_host=proxy_host,
+                proxy_port=proxy_port, proxy_user=proxy_user,
+                proxy_password=proxy_password
+            )
+        if exporter:
+            output_csv_file = '%s/links%s%s' % (
+                output_path, dates_times.get_time_string(), cfg.csv_suffix)
+            text = cfg.new_line.join(output_file_list)
+            read_write_files.write_file(data=text,
+                                        output_path=output_csv_file)
             cfg.progress.update(end=True)
             cfg.logger.log.info('end')
-            return OutputManager(
-                paths=output_file_list,
-                extra={'directory_paths': output_directory_list,
-                       'output_raster_lists': output_raster_lists}
-            )
+            output = OutputManager(path=output_csv_file)
         else:
-            cfg.logger.log.error('unable to download')
-            return OutputManager(check=False)
+            if len(output_file_list) > 0:
+                cfg.progress.update(end=True)
+                cfg.logger.log.info('end')
+                output = OutputManager(
+                    paths=output_file_list,
+                    extra={'directory_paths': output_directory_list,
+                           'output_raster_lists': output_raster_lists}
+                )
+            else:
+                cfg.logger.log.error('unable to download')
+    # synch bcast
+    output = mpi_bcast(output)
+    return output
 
 
 def _check_sentinel_2_bands(
@@ -2513,3 +2530,15 @@ def import_as_xml(xml_path):
                 )
             }
         )
+
+
+def mpi_bcast(value):
+    if cfg.mpi_comm:
+        cfg.mpi_bcast_id += 1
+        frame = inspect.stack()[1]
+        func_name = frame.function
+        line = frame.lineno
+        cfg.logger.log.debug(f'bcast {cfg.mpi_bcast_id} {func_name}[{line}]: '
+                             f'rank {cfg.mpi_rank}, {value}')
+        value = cfg.mpi_comm.bcast(value, root=0)
+    return value

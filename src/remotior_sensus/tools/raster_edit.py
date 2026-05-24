@@ -113,7 +113,6 @@ def raster_edit(
     raster_info = prepared['raster_info']
     input_raster_list = prepared['input_raster_list']
     vector_raster = None
-    print('vector_path', vector_path)
     if vector_path is not None:
         # get vector info
         vector, raster, mask_crs = raster_vector.raster_or_vector_input(

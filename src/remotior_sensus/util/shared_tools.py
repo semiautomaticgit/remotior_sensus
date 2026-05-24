@@ -20,6 +20,7 @@ Shared tools
 """
 
 import re
+import inspect
 from os import path
 from random import randint
 from typing import Union, Optional
@@ -213,7 +214,7 @@ def prepare_process_files(
                                                extension=cfg.vrt_suffix)
                 for _r in name_list
             ]
-        if type(output_path) is not list:
+        if type(output_path) is not list and type(output_path) is not tuple:
             if not files_directories.is_directory(output_path):
                 files_directories.create_directory(output_path)
             for _r in name_list:
@@ -293,6 +294,7 @@ def prepare_process_files(
         'n_processes': n_processes, 'output_list': output_list,
         'vrt_list': vrt_list, 'same_geotransformation': same_geotransformation
     }
+    prepared = mpi_bcast(prepared)
     return prepared
 
 
@@ -692,3 +694,15 @@ def random_points_grid(sample_number, x_min, x_max, y_min, y_max):
 def check_nan(array):
     check = np.isnan(np.sum(array))
     return check
+
+
+def mpi_bcast(value):
+    if cfg.mpi_comm:
+        cfg.mpi_bcast_id += 1
+        frame = inspect.stack()[1]
+        func_name = frame.function
+        line = frame.lineno
+        cfg.logger.log.debug(f'bcast {cfg.mpi_bcast_id} {func_name}[{line}]: '
+                             f'rank {cfg.mpi_rank}, {value}')
+        value = cfg.mpi_comm.bcast(value, root=0)
+    return value

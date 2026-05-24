@@ -72,6 +72,12 @@ memory_unit_array_4 = 0.000006
 n_processes = 2
 # available RAM that should be used by processes
 available_ram = 2048
+# optional MPI
+mpi_comm = None
+mpi_rank = None
+mpi_size = None
+mpi_lor = None
+mpi_bcast_id = 0
 # parameters for raster files
 raster_data_type = 'Float32'
 raster_compression = True

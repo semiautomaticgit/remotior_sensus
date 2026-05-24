@@ -197,8 +197,11 @@ def band_combination(
         cfg.logger.log.error('unable to calculate')
         cfg.messages.error('unable to calculate')
         cfg.progress.update(failed=True)
+        # synch bcast
+        _output = shared_tools.mpi_bcast(None)
         return OutputManager(check=False)
     cmb = cfg.multiprocess.output
+
     cfg.logger.log.debug('len(cmb): %s; cmb[0]: %s' % (len(cmb), str(cmb[0])))
     # random variable list
     rnd_var_list = None
@@ -321,6 +324,8 @@ def band_combination(
         else:
             cfg.logger.log.error('cancel')
             cfg.progress.update(failed=True)
+            # synch bcast
+            _output = shared_tools.mpi_bcast(None)
             return OutputManager(check=False)
     if (maximum_value_type == np.int64 or maximum_value_type == np.uint64
             or maximum_value_type == np.float64):
@@ -348,6 +353,9 @@ def band_combination(
         output_raster_path = out_path
     # dummy bands for memory calculation
     dummy_bands = 3
+    (vrt_path, reclassification_list,
+     joined_expression) = shared_tools.mpi_bcast([
+        vrt_path, reclassification_list,  joined_expression])
     # combination calculation
     cfg.multiprocess.run(
         raster_path=vrt_path, function=cross_rasters,
@@ -369,22 +377,28 @@ def band_combination(
         cfg.logger.log.error('unable to calculate')
         cfg.messages.error('unable to calculate')
         cfg.progress.update(failed=True)
+        # synch bcast
+        _output = shared_tools.mpi_bcast(None)
         return OutputManager(check=False)
     sum_val = cfg.multiprocess.output
+    tbl_out = None
     if not output_table:
-        return OutputManager(
+        r_out = OutputManager(
             paths=[vrt_path], extra={
                 'combinations': rec_combinations_array, 'sums': sum_val
             }
         )
+        # synch bcast
+        _output = shared_tools.mpi_bcast(r_out)
+        return r_out
     else:
         # get pixel unit from input raster
         if type(vrt_path) is list:
             raster_i = vrt_path[0]
         else:
             raster_i = vrt_path
-        (gt, crs, un, xy_count, nd, number_of_bands, block_size, scale_offset,
-         data_type) = raster_vector.raster_info(raster_i)
+        (gt, crs, un, xy_count, nd, number_of_bands, block_size,
+         scale_offset, data_type) = raster_vector.raster_info(raster_i)
         p_x = gt[1]
         p_y = abs(gt[5])
         joined_table = tm.join_tables(
@@ -393,6 +407,7 @@ def band_combination(
             nodata_value=cfg.nodata_val_UInt64, join_type='left',
             progress_message=False, min_progress=90, max_progress=100
         )
+        joined_table = shared_tools.mpi_bcast(joined_table)
         # name of combination field in output table
         combination_name_list = []
         p = 0
@@ -411,25 +426,30 @@ def band_combination(
             joined_table[joined_table['sum'] != cfg.nodata_val_UInt64],
             combination_name_list, un, p_x, p_y, separator
         )
-        # save combination to table
-        tbl_out = shared_tools.join_path(
-            files_directories.parent_directory(out_path), '{}{}'.format(
-                files_directories.file_name(
-                    out_path, suffix=False
-                ), cfg.csv_suffix
+        if (not cfg.mpi_comm) or (cfg.mpi_rank == 0):
+            # save combination to table
+            tbl_out = shared_tools.join_path(
+                files_directories.parent_directory(out_path), '{}{}'.format(
+                    files_directories.file_name(
+                        out_path, suffix=False
+                    ), cfg.csv_suffix
+                )
+            ).replace('\\', '/')
+            read_write_files.write_file(table, tbl_out)
+            cfg.progress.update(end=True)
+            cfg.logger.log.info(
+                'end; band combination: %s; table: %s'
+                % (str(out_path), str(tbl_out))
             )
-        ).replace('\\', '/')
-        read_write_files.write_file(table, tbl_out)
-        cfg.progress.update(end=True)
-        cfg.logger.log.info(
-            'end; band combination: %s; table: %s'
-            % (str(out_path), str(tbl_out))
-        )
-        return OutputManager(
-            paths=[out_path, tbl_out], extra={
-                'combinations': rec_combinations_array, 'sums': sum_val
-            }
-        )
+            r_out = OutputManager(
+                paths=[out_path, tbl_out], extra={
+                    'combinations': rec_combinations_array, 'sums': sum_val
+                }
+            )
+        else:
+            r_out = None
+        r_out = shared_tools.mpi_bcast(r_out)
+        return r_out
 
 
 def _combination_table(
@@ -473,9 +493,13 @@ def _combination_table(
         matrix=cross_class, input_field_names=input_field_names,
         output_field_names=output_field_names, progress_message=False
     )
-    # create stream handler
-    stream1 = io.StringIO()
-    np.savetxt(stream1, redefined, delimiter=separator, fmt='%1.2f')
-    matrix_value = stream1.getvalue().replace('.00', '')
-    header = separator.join(output_field_names)
-    return f'{header}{cfg.new_line}{matrix_value}{cfg.new_line}'
+    if (not cfg.mpi_comm) or (cfg.mpi_rank == 0):
+        # create stream handler
+        stream1 = io.StringIO()
+        np.savetxt(stream1, redefined, delimiter=separator, fmt='%1.2f')
+        matrix_value = stream1.getvalue().replace('.00', '')
+        header = separator.join(output_field_names)
+        output = f'{header}{cfg.new_line}{matrix_value}{cfg.new_line}'
+    else:
+        output = None
+    return output

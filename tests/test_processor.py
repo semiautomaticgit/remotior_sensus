@@ -59,7 +59,7 @@ class TestProcessor(TestCase):
         output_parameters = [[temp], [cfg.raster_data_type],
                              compress, compress_format, any_nodata_mask,
                              [output_nodata_value], [1],
-                             keep_output_array, keep_output_argument]
+                             keep_output_array, keep_output_argument, None]
         dtype_list = [(cfg.old_value, 'U1024'), (cfg.new_value, 'U1024')]
         function = reclassify_raster
         function_argument = np.array(
@@ -70,8 +70,7 @@ class TestProcessor(TestCase):
          logger) = processor.function_initiator(
             process_parameters, input_parameters, output_parameters,
             function, [function_argument], [function_variable],
-            False, False, False,
-            False,
+            False, False, False, False, None
         )
         self.assertEqual(output_array_list[0][0][0, 0], output_nodata_value)
         self.assertTrue(rs.files_directories.is_file(out_files[0][0]))
@@ -83,8 +82,7 @@ class TestProcessor(TestCase):
          logger) = processor.function_initiator(
             process_parameters, input_parameters, output_parameters,
             function, [function_argument], [function_variable],
-            False, False, False,
-            False
+            False, False, False, False, None
         )
         self.assertEqual(output_array_list[0][0][0, 0], output_nodata_value)
         self.assertTrue(rs.files_directories.is_file(out_files[0][0]))

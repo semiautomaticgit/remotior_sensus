@@ -1,6 +1,17 @@
 Changelog
 ===============
 
+v0.7.0
+________
+
+* New optional dependency mpi4py for MPI bindings.
+* Implementation of MPI in several tools for parallel processing.
+
+v0.6.3
+________
+
+* Fix band name for several products in download_products by Cemu0.
+
 v0.6.2
 ________
 

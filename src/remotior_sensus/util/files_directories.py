@@ -20,6 +20,7 @@ Tools to manage files and directories
 """
 
 import os
+import inspect
 import shutil
 import zipfile
 from pathlib import Path
@@ -130,8 +131,11 @@ def create_directory(path):
                 cfg.logger.log.debug('path: %s' % path)
                 return path
     except Exception as err:
-        cfg.logger.log.error(str(err))
-        return False
+        if is_directory(path):
+            return path
+        else:
+            cfg.logger.log.error(str(err))
+            return False
 
 
 # file list in directory
@@ -261,9 +265,11 @@ def raster_output_path(path, virtual_output=False, overwrite=False):
             )
         cfg.logger.log.debug('o_path: %s:; virtual: %s' % (o_path, virtual))
         create_parent_directory(o_path)
+        o_path, virtual = mpi_bcast((o_path, virtual))
         return o_path, virtual
     except Exception as err:
         cfg.logger.log.error(str(err))
+        _output = mpi_bcast((False, False))
         return False, False
 
 
@@ -286,13 +292,22 @@ def move_file(in_path, out_path):
 
 
 # copy file
-def copy_file(in_path, out_path):
-    create_parent_directory(out_path)
-    try:
-        shutil.copy(in_path, out_path)
-    except Exception as err:
-        cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('out_path: %s' % out_path)
+def copy_file(in_path, out_path, rank=None):
+    if rank:
+        if cfg.mpi_comm and cfg.mpi_rank == 0:
+            create_parent_directory(out_path)
+            try:
+                shutil.copy(in_path, out_path)
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+            cfg.logger.log.debug('out_path: %s' % out_path)
+    else:
+        create_parent_directory(out_path)
+        try:
+            shutil.copy(in_path, out_path)
+        except Exception as err:
+            cfg.logger.log.error(str(err))
+        cfg.logger.log.debug('out_path: %s' % out_path)
     return out_path
 
 
@@ -331,3 +346,15 @@ def unzip_file(in_path, out_dir_path):
     except Exception as err:
         cfg.logger.log.error(str(err))
     return file_list
+
+
+def mpi_bcast(value):
+    if cfg.mpi_comm:
+        cfg.mpi_bcast_id += 1
+        frame = inspect.stack()[1]
+        func_name = frame.function
+        line = frame.lineno
+        cfg.logger.log.debug(f'bcast {cfg.mpi_bcast_id} {func_name}[{line}]: '
+                             f'rank {cfg.mpi_rank}, {value}')
+        value = cfg.mpi_comm.bcast(value, root=0)
+    return value

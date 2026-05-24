@@ -40,6 +40,18 @@ import logging
 from types import FunctionType
 from typing import Optional
 
+try:
+    # noinspection PyPackageRequirements
+    from mpi4py import MPI
+
+    mpi_comm = MPI.COMM_WORLD
+    mpi_rank = mpi_comm.Get_rank()
+    mpi_size = mpi_comm.Get_size()
+    mpi_lor = MPI.LOR
+except Exception as error:
+    str(error)
+    mpi_comm = mpi_rank = mpi_size = mpi_lor = None
+
 from remotior_sensus.core import configurations, messages, table_manager
 from remotior_sensus.core.bandset_catalog import BandSet, BandSetCatalog
 from remotior_sensus.core.log import Log
@@ -55,7 +67,7 @@ from remotior_sensus.tools import (
     band_calc, band_classification, band_clip, band_combination, band_dilation,
     band_erosion, band_neighbor_pixels, band_pca, band_sieve, band_resample,
     band_stack, band_mask, raster_split, band_clustering,
-    band_spectral_distance,
+    band_spectral_distance, band_super_resolution,
     cross_classification, download_products, mosaic, preprocess_products,
     raster_edit, raster_label, raster_reclassification, raster_report,
     raster_to_vector, raster_zonal_stats, vector_to_raster
@@ -121,7 +133,7 @@ class Session(object):
 
         Start a session defining number of parallel processes. and available RAM
             >>> import remotior_sensus
-            >>> rs = remotior_sensus.Session(n_processes=4,available_ram=4096)
+            >>> rs = remotior_sensus.Session(n_processes=4,available_ram=8)
 
         Create a :func:`~remotior_sensus.core.bandset_catalog.BandSetCatalog`
             >>> catalog = rs.bandset_catalog()
@@ -137,14 +149,15 @@ class Session(object):
     """  # noqa: E501
 
     def __init__(
-            self, n_processes: Optional[int] = 2, available_ram: int = 2048,
+            self, n_processes: Optional[int] = 2, available_ram: int = 2,
             temporary_directory: str = None,
             directory_prefix: str = None, log_level: int = 20,
             log_time: bool = True, progress_callback=None,
             multiprocess_module=None, messages_callback=None,
             smtp_server=None, smtp_user=None, smtp_password=None,
             smtp_recipients=None, smtp_notification=None,
-            sound_notification=None, log_stream_handler=True
+            sound_notification=None, log_stream_handler=True,
+            mpi_module=None
     ):
         """Starts a session.
 
@@ -167,7 +180,7 @@ class Session(object):
 
         Args:
             n_processes: number of parallel processes.
-            available_ram: number of megabytes of RAM available to processes.
+            available_ram: number of megabytes of RAM available to processes; if value < 1000 then available RAM is evaulated as gigabytes.
             temporary_directory: path to a temporary directory.
             directory_prefix: prefix of the name of the temporary directory.
             log_level: level of logging (10 for DEBUG, 20 for INFO).
@@ -182,6 +195,7 @@ class Session(object):
             smtp_notification: optional, if True send SMTP notification.
             sound_notification: optional, if True play sound notification.
             log_stream_handler: optional, if True create stream handler.
+            mpi_module: optional mpi module, if None or False then multiprocess is used. In case mpi_module is True, n_processes should be the number of tasks per node and available_ram should be the available be node RAM.
 
         Examples:
             Start a session
@@ -192,7 +206,16 @@ class Session(object):
         if sys.stderr is None:
             sys.stderr = open(os.devnull, 'w')
         configurations.n_processes = n_processes
+        if available_ram < 1000:
+            available_ram *= 1024
         configurations.available_ram = available_ram
+        if mpi_module:
+            configurations.mpi_comm = mpi_comm
+        else:
+            configurations.mpi_comm = None
+        configurations.mpi_rank = mpi_rank
+        configurations.mpi_size = mpi_size
+        configurations.mpi_lor = mpi_lor
         if sound_notification is not None:
             configurations.sound_notification = sound_notification
         if smtp_notification is not None:
@@ -206,9 +229,17 @@ class Session(object):
         temp = Temporary()
         if directory_prefix is None:
             directory_prefix = configurations.root_name
-        configurations.temp = temp.create_root_temporary_directory(
-            prefix=directory_prefix, directory=temporary_directory
-        )
+        if configurations.mpi_comm:
+            if configurations.mpi_rank == 0:
+                temp = temp.create_root_temporary_directory(
+                    prefix=directory_prefix, directory=temporary_directory
+                )
+            temp_dir = configurations.mpi_comm.bcast(temp.dir, root=0)
+            configurations.temp = Temporary(temp_dir=temp_dir)
+        else:
+            configurations.temp = temp.create_root_temporary_directory(
+                prefix=directory_prefix, directory=temporary_directory
+            )
         # create logger
         if log_level is None:
             log_level = logging.INFO
@@ -232,7 +263,7 @@ class Session(object):
             self.configurations = configurations
             # create multiprocess instance
             self.configurations.multiprocess = Multiprocess(
-                n_processes, multiprocess_module
+                n_processes, multiprocess_module, mpi_module
             )
             atexit.register(self.close)
             # available core tools
@@ -251,6 +282,11 @@ class Session(object):
             self.band_classification = band_classification.band_classification
             self.configurations.band_classification = (
                 band_classification.band_classification
+            )
+            self.band_super_resolution = (
+                band_super_resolution.band_super_resolution)
+            self.configurations.band_super_resolution = (
+                band_super_resolution.band_super_resolution
             )
             self.classifier = band_classification.Classifier
             self.band_clustering = band_clustering.band_clustering
@@ -338,12 +374,20 @@ class Session(object):
                 >>> rs.set(log_level=10)
         """
         if log_path:
+            if configurations.mpi_comm:
+                base_directory = (files_directories.parent_directory(log_path))
+                log_path = '%s/%s_%s' % (
+                    base_directory, configurations.mpi_rank,
+                    files_directories.get_base_name(log_path)
+                )
             try:
                 files_directories.copy_file(
                     self.configurations.logger.file_path, log_path
                 )
             except Exception as err:
                 str(err)
+        if configurations.mpi_comm:
+            configurations.mpi_comm.Barrier()
         self.configurations.temp.clear()
         self.configurations.multiprocess.stop()
 
@@ -363,7 +407,7 @@ class Session(object):
 
         Args:
             n_processes: number of parallel processes.
-            available_ram: number of megabytes of RAM available to processes.
+            available_ram: number of megabytes of RAM available to processes; if value < 1000 then available RAM is evaulated as gigabytes.
             temporary_directory: path to a temporary directory.
             directory_prefix: prefix of the name of the temporary directory.
             log_level: level of logging (10 for DEBUG, 20 for INFO).
@@ -398,6 +442,8 @@ class Session(object):
                 self.configurations = None
                 return
         if available_ram:
+            if available_ram < 1000:
+                available_ram *= 1024
             self.configurations.available_ram = available_ram
         if temporary_directory:
             self.configurations.temp.clear()

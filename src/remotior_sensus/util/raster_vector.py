@@ -1855,7 +1855,7 @@ def reproject_vector(
     while i_feature:
         if cfg.action:
             # get geometry
-            geom = i_feature.GetGeometryRef()
+            geom = i_feature.GetGeometryRef().Clone()
             # project feature
             geom.Transform(c_t)
             o_feature = ogr.Feature(o_layer_definition)
@@ -2359,7 +2359,7 @@ def merge_all_layers(
         i_feature = i_layer.GetNextFeature()
         while i_feature:
             if cfg.action:
-                geometry = i_feature.GetGeometryRef()
+                geometry = i_feature.GetGeometryRef().Clone()
                 o_feature = ogr.Feature(output_layer_def)
                 o_feature.SetGeometry(geometry)
                 if not dissolve_output:
@@ -2474,7 +2474,7 @@ def merge_dissolve_layer(
         if unique_features is not None:
             uv_features = unique_features.GetNextFeature()
             field_value = uv_features.GetField(0)
-            geometry_ref = uv_features.GetGeometryRef()
+            geometry_ref = uv_features.GetGeometryRef().Clone()
             if geometry_ref is not None:
                 if not geometry_ref.IsValid():
                     # try to fix invalid geometry with buffer
@@ -2559,7 +2559,7 @@ def merge_dissolve_layer(
             i_fid = str(i_feature.GetFID())
             v_field = i_feature.GetField(column)
             if str(i_fid) not in id_list:
-                i_geom = i_feature.GetGeometryRef()
+                i_geom = i_feature.GetGeometryRef().Clone()
                 o_feature = ogr.Feature(o_layer_def)
                 o_feature.SetGeometry(i_geom)
                 o_feature.SetField(column, v_field)
@@ -2603,7 +2603,7 @@ def split_layer_geometries_old(
             i_d = ogr.GetDriverByName('GPKG')
             temp = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
             output_source = i_d.CreateDataSource(temp)
-            geometry = i_feature.GetGeometryRef()
+            geometry = i_feature.GetGeometryRef().Clone()
             output_name = files_directories.file_name(temp)
             o_layer = output_source.CreateLayer(
                 str(output_name), i_layer_sr, ogr.wkbMultiPolygon
@@ -2662,7 +2662,7 @@ def split_layer_geometries(
             mem_ds = mem_drv.CreateDataSource('in_memory')
             mem_layer = mem_ds.CreateLayer('temp', i_layer_sr,
                                            geom_type=ogr.wkbMultiPolygon)
-            geometry = i_feature.GetGeometryRef()
+            geometry = i_feature.GetGeometryRef().Clone()
             field_count = i_layer_definition.GetFieldCount()
             for f_c in range(field_count):
                 field_def = i_layer_definition.GetFieldDefn(f_c)
@@ -2722,7 +2722,7 @@ def merge_polygons(
     output_values = _input_source.ExecuteSQL(sql, dialect='SQLITE')
     if output_values is not None:
         uv_features = output_values.GetNextFeature()
-        geometry_ref = uv_features.GetGeometryRef()
+        geometry_ref = uv_features.GetGeometryRef().Clone()
         if geometry_ref is not None:
             if not geometry_ref.IsValid():
                 # try to fix invalid geometry with buffer
@@ -2813,7 +2813,7 @@ def save_polygons(
         uv_feature = output_values.GetNextFeature()
         while uv_feature:
             if cfg.action:
-                geometry_ref = uv_feature.GetGeometryRef()
+                geometry_ref = uv_feature.GetGeometryRef().Clone()
                 if geometry_ref is not None:
                     if not geometry_ref.IsValid():
                         # try to fix invalid geometry with buffer

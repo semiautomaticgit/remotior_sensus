@@ -656,7 +656,7 @@ class SpectralSignaturesCatalog(object):
             while i_feature:
                 if cfg.action:
                     # get geometry
-                    geom = i_feature.GetGeometryRef()
+                    geom = i_feature.GetGeometryRef().Clone()
                     if coord_transform is not None:
                         # project feature
                         geom.Transform(coord_transform)
@@ -710,7 +710,7 @@ class SpectralSignaturesCatalog(object):
             macroclass_name=None, class_name=None, macroclass_field=None,
             class_field=None, macroclass_name_field=None,
             class_name_field=None, calculate_signature=True,
-            color_string=None
+            color_string=None, rank=None
     ):
         cfg.logger.log.debug('start')
         if files_directories.is_file(file_path):
@@ -768,7 +768,7 @@ class SpectralSignaturesCatalog(object):
                 if cfg.action:
                     signature_id = generate_signature_id()
                     # get geometry
-                    geom = i_feature.GetGeometryRef()
+                    geom = i_feature.GetGeometryRef().Clone()
                     if coord_transform is not None:
                         # project feature
                         geom.Transform(coord_transform)
@@ -814,7 +814,8 @@ class SpectralSignaturesCatalog(object):
                         try:
                             (value_list, standard_deviation_list,
                              wavelength_list,
-                             pixel_count) = self.calculate_signature(temp_path)
+                             pixel_count) = self.calculate_signature(
+                                temp_path, rank=rank)
                         except Exception as err:
                             cfg.logger.log.error(str(err))
                             self.signature_to_catalog(
@@ -861,7 +862,7 @@ class SpectralSignaturesCatalog(object):
             return False
 
     # calculate spectral signatures
-    def calculate_signature(self, roi_path, n_processes: int = None):
+    def calculate_signature(self, roi_path, n_processes: int = None, rank=None):
         cfg.logger.log.debug('calculate_signature: %s' % roi_path)
         if n_processes is None:
             n_processes = cfg.n_processes
@@ -887,7 +888,7 @@ class SpectralSignaturesCatalog(object):
             function_argument=roi_paths, function_variable=virtual_path_list,
             n_processes=n_processes, keep_output_argument=True,
             progress_message='calculate signature', min_progress=1,
-            max_progress=80
+            max_progress=80, rank=rank
         )
         wavelength_list = self.bandset.get_wavelengths()
         cfg.multiprocess.multiprocess_spectral_signature()

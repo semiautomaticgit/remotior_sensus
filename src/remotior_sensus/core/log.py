@@ -59,7 +59,11 @@ class Log(object):
             if directory is None:
                 raise Exception('file path or directory missing')
             else:
-                file_path = '{}/{}.log'.format(directory, cfg.root_name)
+                if cfg.mpi_comm:
+                    file_path = '{}/{}_{}.log'.format(
+                        directory, cfg.root_name, cfg.mpi_rank)
+                else:
+                    file_path = '{}/{}.log'.format(directory, cfg.root_name)
         # create logger
         logger = logging.getLogger(__name__)
         logging.basicConfig(level=logging.DEBUG)
@@ -69,9 +73,14 @@ class Log(object):
             # create file handler
             fh = logging.FileHandler(file_path)
             fh.setLevel(level)
+            if cfg.mpi_comm:
+                rank = str(cfg.mpi_rank)
+            else:
+                rank = ''
             fhf = logging.Formatter(
-                '%(levelname)s|%(asctime)s.%(msecs)03d|%(module)s|%(funcName)s'
-                '|%(lineno)s|%(message)s', '%Y-%m-%dT%H:%M:%S'
+                '%(levelname)s|%(asctime)s.%(msecs)03d|r'
+                + rank + '-%(module)s|%(funcName)s|%(lineno)s|%(message)s',
+                '%Y-%m-%dT%H:%M:%S'
             )
             fh.setFormatter(fhf)
             if logger.hasHandlers():
@@ -89,8 +98,8 @@ class Log(object):
                 ch.setLevel(level)
                 if time:
                     chf = logging.Formatter(
-                        '%(levelname)s[%(asctime)s.%(msecs)03d] '
-                        '%(module)s.%(funcName)s[%(lineno)s] %(message)s',
+                        '%(levelname)s[%(asctime)s.%(msecs)03d] ' + rank +
+                        '-%(module)s.%(funcName)s[%(lineno)s] %(message)s',
                         '%Y-%m-%dT%H:%M:%S'
                     )
                 else:

@@ -17,6 +17,7 @@
 
 import random
 import tempfile
+import inspect
 
 from remotior_sensus.core import configurations as cfg
 from remotior_sensus.util import files_directories, dates_times, shared_tools
@@ -38,23 +39,35 @@ class Temporary(object):
 
     # clear root temporary directory
     def clear(self):
-        if self.dir is not None:
-            remove_root_temporary_directory(self.dir)
-            self.dir = None
+        if cfg.mpi_comm and cfg.mpi_rank == 0:
+            if self.dir is not None:
+                remove_root_temporary_directory(self.dir)
+                self.dir = None
+        else:
+            if self.dir is not None:
+                remove_root_temporary_directory(self.dir)
+                self.dir = None
         return self.dir
 
     # create temporary directory
-    def create_temporary_directory(self):
+    def create_temporary_directory(self, rank=None):
         times = dates_times.get_time_string()
         directory = shared_tools.join_path(
             self.dir, '{}{}'.format('t', times)
         ).replace('\\', '/')
-        files_directories.create_directory(directory)
+        if rank and cfg.mpi_comm:
+            directory = mpi_bcast(directory)
+            if (cfg.mpi_rank == 0 and
+                    not files_directories.is_directory(directory)):
+                files_directories.create_directory(directory)
+        if not files_directories.is_directory(directory):
+            files_directories.create_directory(directory)
         return directory
 
     # create temporary file path
     def temporary_file_path(self, name_suffix=None, name_prefix=None,
-                            name=None, directory=None):
+                            name=None, directory=None, rank=None,
+                            synch_ranks=None):
         times = dates_times.get_time_string()
         if name is None:
             r = str(random.randint(0, 10000))
@@ -71,15 +84,20 @@ class Temporary(object):
         if directory is None:
             directory = self.dir
         path = shared_tools.join_path(directory, name).replace('\\', '/')
+        if synch_ranks and cfg.mpi_comm:
+            cfg.mpi_comm.Barrier()
+        if rank and cfg.mpi_comm:
+            path = mpi_bcast(path)
         return path
 
     # create temporary raster file path
     def temporary_raster_path(
             self, name=None, name_suffix=None, name_prefix=None,
-            extension='.tif'
+            extension='.tif', rank=None
     ):
         file_path = self.temporary_file_path(
-            name_suffix=name_suffix, name_prefix=name_prefix, name=name
+            name_suffix=name_suffix, name_prefix=name_prefix, name=name,
+            rank=rank
         )
         path = '%s%s' % (file_path, extension)
         return path
@@ -99,3 +117,15 @@ def remove_root_temporary_directory(directory):
         str(err)
     files_directories.remove_directory(directory)
     return directory
+
+
+def mpi_bcast(value):
+    if cfg.mpi_comm:
+        cfg.mpi_bcast_id += 1
+        frame = inspect.stack()[1]
+        func_name = frame.function
+        line = frame.lineno
+        cfg.logger.log.debug(f'bcast {cfg.mpi_bcast_id} {func_name}[{line}]: '
+                             f'rank {cfg.mpi_rank}, {value}')
+        value = cfg.mpi_comm.bcast(value, root=0)
+    return value
