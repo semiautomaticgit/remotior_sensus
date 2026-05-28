@@ -284,7 +284,8 @@ class Classifier(object):
             self, algorithm_name, spectral_signatures, covariance_matrices,
             model_classifier, input_normalization, normalization_values,
             additional_algorithm_name, pretrained_model_path,
-            pretrained_model_replace, n_processes, num_classes
+            pretrained_model_replace, n_processes, num_classes,
+            feature_importance=None
     ):
         """Initializes a classifier.
 
@@ -310,6 +311,7 @@ class Classifier(object):
             pretrained_model_replace: pretrained model replace list
             n_processes: number of processes
             num_classes: number of classes for pretrained model
+            feature_importance: optional feature importance for some algorithms
         """  # noqa: E501
         self.algorithm_name = algorithm_name
         self.additional_algorithm_name = additional_algorithm_name
@@ -324,6 +326,7 @@ class Classifier(object):
         self.framework_name = None
         self.classification_function = None
         self.n_processes = None
+        self.feature_importance = feature_importance
         additional_algorithm = None
         # replace algorithm with additional algorithm
         if self.additional_algorithm_name is None:
@@ -458,6 +461,14 @@ class Classifier(object):
             with open(file_path, 'wb') as file:
                 pickle.dump(self.covariance_matrices, file, protocol=4)
             files.append(file_path)
+        if self.feature_importance is not None:
+            file_path = cfg.temp.temporary_file_path(
+                name=cfg.feature_importance_framework, name_suffix='.pickle'
+            )
+            # save model using pickle
+            with open(file_path, 'wb') as file:
+                pickle.dump(self.feature_importance, file, protocol=4)
+            files.append(file_path)
         if self.framework_name == cfg.scikit_framework:
             file_path = cfg.temp.temporary_file_path(
                 name=cfg.model_classifier_framework, name_suffix='.pickle'
@@ -492,7 +503,8 @@ class Classifier(object):
             covariance_matrices=None, model_classifier=None,
             input_normalization=None, normalization_values=None,
             additional_algorithm_name=None, pretrained_model_path=None,
-            pretrained_model_replace=None, n_processes=None, num_classes=None
+            pretrained_model_replace=None, n_processes=None, num_classes=None,
+            feature_importance=None
     ):
         """Loads a classifier.
 
@@ -517,7 +529,7 @@ class Classifier(object):
             pretrained_model_replace: pretrained model replace keys
             num_classes: number of classes for pretrained model
             n_processes: number of processes
-                
+
         Returns:
             :func:`Classifier` object.
 
@@ -543,9 +555,9 @@ class Classifier(object):
             normalization_values=normalization_values,
             additional_algorithm_name=additional_algorithm_name,
             pretrained_model_path=pretrained_model_path,
-            pretrained_model_replace = pretrained_model_replace,
-            num_classes=num_classes,
-            n_processes=n_processes
+            pretrained_model_replace=pretrained_model_replace,
+            num_classes=num_classes, n_processes=n_processes,
+            feature_importance=feature_importance
         )
 
     # noinspection PyTypeChecker
@@ -568,8 +580,7 @@ class Classifier(object):
             pytorch_optimization_n_iter_no_change=None,
             pytorch_optimization_tol=None, pytorch_device=None,
             pretrained_model_path=None, pretrained_model_replace=None,
-            num_classes=None,
-            min_progress=1, max_progress=100
+            num_classes=None, min_progress=1, max_progress=100
     ):
         """Trains a classifier.
 
@@ -681,7 +692,7 @@ class Classifier(object):
         """  # noqa: E501
         cfg.logger.log.info('start')
         # classification parameters
-        model_classifier = None
+        model_classifier = feature_importance = None
         if n_processes is None:
             n_processes = cfg.n_processes
         if available_ram is None:
@@ -780,12 +791,14 @@ class Classifier(object):
                 model_classifier.n_jobs = n_processes
                 cfg.progress.update(message='fitting')
                 model_classifier.fit(x_matrix, y)
+                feature_importance = model_classifier.feature_importances_
                 cfg.logger.log.info(
                     'best parameters: %s; feature importance: %s; '
                     'accuracy score: %s' % (
                         str(model_classifier.get_params()), str(
-                        model_classifier.feature_importances_
-                    ), str(model_classifier.oob_score_))
+                            model_classifier.feature_importances_
+                        ), str(model_classifier.oob_score_)
+                    )
                 )
             else:
                 if rf_min_samples_split is None:
@@ -833,6 +846,7 @@ class Classifier(object):
                 cfg.progress.update(message='fitting')
                 model_classifier.fit(x_matrix, y)
                 model_classifier.n_jobs = 1
+                feature_importance = model_classifier.feature_importances_
                 cfg.logger.log.info(
                     'feature importance: %s; accuracy score: %s' % (
                         str(model_classifier.feature_importances_),
@@ -1242,12 +1256,9 @@ class Classifier(object):
                 mlp_max_iter = 200
             if mlp_batch_size is None or mlp_batch_size == 'auto':
                 mlp_batch_size = int(
-                    min(
-                        2000, min(
-                            x_matrix.shape[0],
-                            max(200, x_matrix.shape[0] / 100)
+                    min(2000, min(
+                        x_matrix.shape[0], max(200, x_matrix.shape[0] / 100))
                         )
-                    )
                 )
             cfg.progress.update(message='fitting')
             if train_pytorch_model is not None:
@@ -1275,6 +1286,7 @@ class Classifier(object):
             spectral_signatures=spectral_signatures,
             covariance_matrices=covariance_matrices,
             model_classifier=model_classifier,
+            feature_importance=feature_importance,
             input_normalization=input_normalization,
             normalization_values=normalization_values,
             additional_algorithm_name=additional_algorithm_name,
@@ -1559,7 +1571,7 @@ def band_classification(
     fit_classifiers = True
     ravel = True
     buffer = 0
-    model_path_list = pretrained_model_replace = num_classes= None
+    model_path_list = pretrained_model_replace = num_classes = None
     if algorithm_name in cfg.class_framework_dict[cfg.pretrained_framework]:
         model_variant = None
         input_normalization = None
@@ -1568,14 +1580,16 @@ def band_classification(
         buffer = 4
         # limit number of processes to reduce raster pieces
         n_processes = 1
-        if (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base or
+        if (
+                algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base or
                 algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_a or
                 algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base or
                 algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base_a
         ):
             model_variant = cfg.variant_base
-        elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny or
-              algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny_a
+        elif (
+                algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny or
+                algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny_a
         ):
             model_variant = cfg.variant_tiny
         if additional_algorithm_name not in cfg.classification_algorithms:
@@ -1655,7 +1669,7 @@ def band_classification(
                 pretrained_model_replace = cfg.pretrained_model_replace_dict[
                     cfg.pytorch_pretrained_s2_swin_v2_base_seg]
                 num_classes = len(cfg.segmentation_model_class_dict[
-                    cfg.pytorch_pretrained_s2_swin_v2_base_seg])
+                                      cfg.pytorch_pretrained_s2_swin_v2_base_seg])
             elif (
                     algorithm_name ==
                     cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg
@@ -1665,7 +1679,7 @@ def band_classification(
                 pretrained_model_replace = cfg.pretrained_model_replace_dict[
                     cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg]
                 num_classes = len(cfg.segmentation_model_class_dict[
-                    cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg])
+                                      cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg])
             if model_variant == cfg.variant_base_seg:
                 model_path_list = [segmentation_pytorch_model_swin2.__name__,
                                    pretrained_model_path, model_variant]
@@ -1724,7 +1738,8 @@ def band_classification(
                 return OutputManager(check=False)
             x_matrix = x_y_matrices.extra['x']
             y = x_y_matrices.extra['y']
-            covariance_matrices_dict = x_y_matrices.extra['covariance_matrices']
+            covariance_matrices_dict = x_y_matrices.extra[
+                'covariance_matrices']
             normalization = x_y_matrices.extra['normalization_values']
             # fit classifier
             classifier = Classifier.train(
@@ -1799,6 +1814,21 @@ def band_classification(
             except Exception as err:
                 str(err)
                 sig_rasters = None
+            # save feature importance
+            cfg.logger.log.info('end; feature_importance: %s' % str(
+                classifier.feature_importance))
+            if classifier.feature_importance is not None:
+                dir_path = files_directories.parent_directory(out_path)
+                f_name = files_directories.file_name(out_path, False)
+                out_r = f'{dir_path}/{f_name}_imp.txt'
+                sorted_indices = np.argsort(classifier.feature_importance)
+                with open(out_r, 'w') as file:
+                    file.write('feature importance\n')
+                    n = 1
+                    for i in reversed(sorted_indices):
+                        file.write(f'{n}) band {int(i + 1)}:'
+                                   f' {classifier.feature_importance[i]}\n')
+                        n += 1
             return OutputManager(
                 path=prediction.path,
                 extra={
@@ -1919,8 +1949,9 @@ def _get_x_y_arrays_from_rois(
         for sig_index, signature_i in enumerate(signature_ids_index_list):
             # signature ids
             signature_id_list = signature_ids[
-                signature_ids_index_list[sig_index - 1]: signature_i
-            ]
+                                signature_ids_index_list[
+                                    sig_index - 1]: signature_i
+                                ]
             argument_list.append(
                 {
                     'signature_id_list': signature_id_list,
@@ -2213,28 +2244,33 @@ def check_pretrained_model_path(algorithm_name, pretrained_model_path=None):
         '_check_pretrained_model_path %s %s' %
         (str(algorithm_name), str(pretrained_model_path))
     )
-    if (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base or
+    if (
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base or
             algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_a
     ):
         model_url = cfg.pretrained_model_url_dict[
             cfg.pytorch_pretrained_s2_swin_v2_base]
-    elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny or
-          algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny_a
+    elif (
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny or
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_tiny_a
     ):
         model_url = cfg.pretrained_model_url_dict[
             cfg.pytorch_pretrained_s2_swin_v2_tiny]
-    elif (algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base or
-          algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base_a
+    elif (
+            algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base or
+            algorithm_name == cfg.pytorch_pretrained_l89_swin_v2_base_a
     ):
         model_url = cfg.pretrained_model_url_dict[
             cfg.pytorch_pretrained_l89_swin_v2_base]
-    elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg or
-          algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg_a
+    elif (
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg or
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_seg_a
     ):
         model_url = cfg.pretrained_model_url_dict[
             cfg.pytorch_pretrained_s2_swin_v2_base_seg]
-    elif (algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg or
-          algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg_a
+    elif (
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg or
+            algorithm_name == cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg_a
     ):
         model_url = cfg.pretrained_model_url_dict[
             cfg.pytorch_pretrained_s2_swin_v2_base_rgb_seg]

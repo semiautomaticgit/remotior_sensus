@@ -2022,14 +2022,14 @@ def vector_to_raster_iter(
                     )
                 if _grid is None:
                     cfg.logger.log.error('error output raster')
-                    logger = cfg.logger.stream.getvalue()
-                    return None, 'error grid', logger
+                    results.append([None])
+                    raise 'error grid'
                 try:
                     _band = _grid.GetRasterBand(1)
                 except Exception as err:
                     cfg.logger.log.error(err)
-                    logger = cfg.logger.stream.getvalue()
-                    return None, str(err), logger
+                    results.append([None])
+                    raise err
                 # set raster projection from reference
                 _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
                 _grid.SetProjection(reference_crs)
@@ -2111,7 +2111,10 @@ def vector_to_raster_iter(
             if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
-            errors = str(err)
+            #errors = str(err)
+            feature = d['feature']
+            idx = feature[3]
+            results.append([idx])
     return [results, errors, str(process)]
 
 

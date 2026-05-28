@@ -247,7 +247,7 @@ def vector_to_raster(
                     geom = feature_geom.ExportToWkt()
                     attrs = [feature.GetField(i) for i in
                              range(layer_defn.GetFieldCount())]
-                    feature_list.append([field_definitions, geom, attrs])
+                    feature_list.append([field_definitions, geom, attrs, idx])
             except Exception as err:
                 cfg.logger.log.error(str(err))
         _vector_source.Destroy()
@@ -289,7 +289,17 @@ def vector_to_raster(
             min_progress=10, max_progress=75, message='converting to raster'
         )
         results = cfg.multiprocess.output
-        output_raster_list = [r[0] for result in results for r in result]
+        output_raster_list = []
+        feature_error_list = []
+        for result in results:
+            for r in result:
+                if type(r[0]) is str:
+                    output_raster_list.append(r[0])
+                else:
+                    feature_error_list.append(feature_list[r[0]])
+        if len(feature_error_list) > 0:
+            cfg.logger.log.info('features with error: %s'
+                                % str(feature_error_list))
         output_data_type = 'Int32'
         virtual_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix,
                                                     rank=True,

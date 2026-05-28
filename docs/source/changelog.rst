@@ -1,6 +1,13 @@
 Changelog
 ===============
 
+v0.7.1
+________
+
+* In "Band classification" tool added feature importance output when using
+  Random Forest with scikit framework.
+* Minor bug fixing.
+
 v0.7.0
 ________
 
