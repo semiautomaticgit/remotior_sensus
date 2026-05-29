@@ -399,6 +399,7 @@ model_reclass_framework = 'model_reclass'
 n_processes_framework = 'n_processes'
 num_classes_framework = 'num_classes'
 input_normalization_framework = 'input_normalization'
+feature_importance_framework = 'feature_importance'
 # classification algorithm names
 minimum_distance = 'minimum distance'
 minimum_distance_a = 'md'
