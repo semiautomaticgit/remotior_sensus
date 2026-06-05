@@ -38,7 +38,21 @@ class Temporary(object):
         return cls(t_dir)
 
     # clear root temporary directory
-    def clear(self):
+    def clear(self, keep_log=None):
+        log_path = None
+        # copy the log file
+        if keep_log:
+            if cfg.mpi_comm:
+                log_path = '%s/%s_%s' % (
+                    cfg.temporary_directory, cfg.mpi_rank,
+                    files_directories.get_base_name(cfg.logger.file_path)
+                )
+            else:
+                log_path = '%s/%s' % (
+                    cfg.temporary_directory,
+                    files_directories.get_base_name(cfg.logger.file_path)
+                )
+            files_directories.move_file(cfg.logger.file_path, log_path)
         if cfg.mpi_comm and cfg.mpi_rank == 0:
             if self.dir is not None:
                 remove_root_temporary_directory(self.dir)
@@ -47,6 +61,9 @@ class Temporary(object):
             if self.dir is not None:
                 remove_root_temporary_directory(self.dir)
                 self.dir = None
+        # copy the log back
+        if keep_log:
+            files_directories.move_file(log_path, cfg.logger.file_path)
         return self.dir
 
     # create temporary directory

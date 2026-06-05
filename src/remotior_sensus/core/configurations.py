@@ -72,6 +72,8 @@ memory_unit_array_4 = 0.000006
 n_processes = 2
 # available RAM that should be used by processes
 available_ram = 2048
+temporary_directory = None
+keep_log = None
 # optional MPI
 mpi_comm = None
 mpi_rank = None

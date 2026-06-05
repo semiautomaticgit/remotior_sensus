@@ -157,7 +157,7 @@ class Session(object):
             smtp_server=None, smtp_user=None, smtp_password=None,
             smtp_recipients=None, smtp_notification=None,
             sound_notification=None, log_stream_handler=True,
-            mpi_module=None
+            mpi_module=None, keep_log=None
     ):
         """Starts a session.
 
@@ -196,6 +196,7 @@ class Session(object):
             sound_notification: optional, if True play sound notification.
             log_stream_handler: optional, if True create stream handler.
             mpi_module: optional mpi module, if None or False then multiprocess is used. In case mpi_module is True, n_processes should be the number of tasks per node and available_ram should be the available be node RAM.
+            keep_log: optional, if True keep log file in temporary directory
 
         Examples:
             Start a session
@@ -240,6 +241,8 @@ class Session(object):
             configurations.temp = temp.create_root_temporary_directory(
                 prefix=directory_prefix, directory=temporary_directory
             )
+        configurations.temporary_directory = temporary_directory
+        configurations.keep_log = keep_log
         # create logger
         if log_level is None:
             log_level = logging.INFO
@@ -388,7 +391,7 @@ class Session(object):
                 str(err)
         if configurations.mpi_comm:
             configurations.mpi_comm.Barrier()
-        self.configurations.temp.clear()
+        self.configurations.temp.clear(configurations.keep_log)
         self.configurations.multiprocess.stop()
 
     def set(
@@ -447,6 +450,7 @@ class Session(object):
             self.configurations.available_ram = available_ram
         if temporary_directory:
             self.configurations.temp.clear()
+            self.configurations.temporary_directory = temporary_directory
             # create temporary directory
             temp = Temporary()
             if directory_prefix is None:

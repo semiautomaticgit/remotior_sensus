@@ -120,6 +120,8 @@ def mosaic(
                 input_bands[0], bandset_catalog
             )
             band_list_list.append(band_list)
+        elif files_directories.is_file(input_bands[0]):
+            band_list_list.append(input_bands[0])
         else:
             cfg.logger.log.error('band list')
             cfg.messages.error('band list')
