@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.7.4
+________
+
+* Minor update to vector to raster with parameter for output data type such as
+  Int32, UInt32, Int16, UInt16, or Byte.
+
 v0.7.3
 ________
 

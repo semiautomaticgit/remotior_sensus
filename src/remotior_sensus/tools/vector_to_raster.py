@@ -51,11 +51,12 @@ def vector_to_raster(
         vector_path: str, align_raster: Union[str, BandSet, int],
         vector_field: Optional[str] = None,
         constant: Optional[int] = None,
-        pixel_size: Optional[int] = None,
+        pixel_size: Optional[Union[int, float]] = None,
         output_path: Optional[str] = None,
         method: Optional[str] = None,
         area_precision: Optional[int] = 3, resampling='mode',
         nodata_value: Optional[int] = None,
+        output_data_type: Optional[str] = 'Int32',
         minimum_extent: Optional[bool] = True,
         extent_list: Optional[list] = None, output_format='GTiff',
         compress=None, compress_format=None,
@@ -91,6 +92,8 @@ def vector_to_raster(
         compress: if True, compress the output raster.
         compress_format: compress format.
         nodata_value: value to be considered as nodata.
+        output_data_type: optional raster output data type, such as 
+            Int32, UInt32, Int16, UInt16, or Byte.
         n_processes: number of parallel processes.
         available_ram: number of megabytes of RAM available to processes.
         bandset_catalog: BandSetCatalog object.
@@ -300,7 +303,6 @@ def vector_to_raster(
         if len(feature_error_list) > 0:
             cfg.logger.log.info('features with error: %s'
                                 % str(feature_error_list))
-        output_data_type = 'Int32'
         virtual_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix,
                                                     rank=True,
                                                     synch_ranks=True)
