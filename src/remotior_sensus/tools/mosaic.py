@@ -100,143 +100,169 @@ def mosaic(
             >>> mosaic_bands = rs.mosaic(input_bands=[1, 2, 3],
             ... output_path='output_directory', bandset_catalog=catalog)
     """  # noqa: E501
-    cfg.logger.log.info('start')
-    cfg.progress.update(
-        process=__name__.split('.')[-1].replace('_', ' '), message='starting',
-        start=progress_message
-    )
-    cfg.logger.log.debug('input_bands: %s' % str(input_bands))
-    if n_processes is None:
-        n_processes = cfg.n_processes
-    # list of band lists to mosaic
-    band_list_list = []
-    if len(input_bands) == 1:
-        # single BandSet of bands to mosaic
-        if type(input_bands[0]) is BandSet or type(
-                input_bands[0]
-        ) is int:
-            # get input list
-            band_list = BandSetCatalog.get_band_list(
-                input_bands[0], bandset_catalog
-            )
-            band_list_list.append(band_list)
-        elif files_directories.is_file(input_bands[0]):
-            band_list_list.append(input_bands[0])
-        else:
-            cfg.logger.log.error('band list')
-            cfg.messages.error('band list')
-            cfg.progress.update(failed=True)
-            return OutputManager(check=False)
-    else:
-        combination_band_list = []
-        raster_list = []
-        for i in input_bands:
-            # list of band sets
-            if type(i) is BandSet or type(i) is int:
-                # get input list
-                if i is None:
-                    cfg.logger.log.error('input None:%s' % str(i))
-                else:
-                    band_list = BandSetCatalog.get_band_list(
-                        i, bandset_catalog
-                    )
-                    combination_band_list.append(band_list)
-            # list of raster paths
-            else:
-                raster_list.append(i)
-        if len(raster_list) > 0:
-            if type(raster_list[0]) is list:
-                band_list_list = raster_list
-            else:
-                band_list_list.append(raster_list)
-        elif len(combination_band_list) > 0:
-            # combine corresponding bands
-            try:
-                size = len(combination_band_list[0])
-                for s in range(size):
-                    new_list = []
-                    for c in combination_band_list:
-                        new_list.append(c[s])
-                    band_list_list.append(new_list)
-            except Exception as err:
-                cfg.logger.log.error(str(err))
-                cfg.messages.error(str(err))
-                cfg.progress.update(failed=True)
-                return OutputManager(check=False)
-    # mosaic every list of bands
-    n = 0
-    output_list = []
-    for mosaic_list in band_list_list:
-        cfg.logger.log.debug('mosaic_list: %s' % str(mosaic_list))
+    check = True
+    output = None
+    if (not cfg.mpi_comm) or (cfg.mpi_rank == 0):
+        cfg.logger.log.info('start')
         cfg.progress.update(
-            step=n, steps=len(band_list_list), minimum=10, maximum=99,
-            message='processing list %s' % str(n + 1),
-            percentage=n / len(band_list_list)
+            process=__name__.split('.')[-1].replace('_', ' '),
+            message='starting', start=progress_message
         )
-        # list of inputs
-        prepared = shared_tools.prepare_input_list(
-            mosaic_list, reference_raster_crs, n_processes=n_processes
-        )
-        input_raster_list = prepared['input_list']
-        raster_info = prepared['information_list']
-        nodata_list = prepared['nodata_list']
-        warped = prepared['warped']
-        try:
-            output_data_type = raster_info[0][8]
-        except Exception as err:
-            str(err)
-            output_data_type = None
-        if nodata_value is None:
-            nodata_value = nodata_list[0]
-        if warped:
-            virtual_output = False
-        # check output path
-        if output_name is None:
-            p = shared_tools.join_path(
-                output_path, '{}{}'.format(
-                    prefix, files_directories.file_name(input_raster_list[0])
+        cfg.logger.log.debug('input_bands: %s' % str(input_bands))
+        if n_processes is None:
+            n_processes = cfg.n_processes
+        # list of band lists to mosaic
+        band_list_list = []
+        if len(input_bands) == 1:
+            # single BandSet of bands to mosaic
+            if type(input_bands[0]) is BandSet or type(
+                    input_bands[0]
+            ) is int:
+                # get input list
+                band_list = BandSetCatalog.get_band_list(
+                    input_bands[0], bandset_catalog
                 )
-            ).replace('\\', '/')
-        else:
-            p = shared_tools.join_path(
-                output_path, '{}{}{}'.format(prefix, output_name, n)
-            ).replace('\\', '/')
-        out_path, vrt_r = files_directories.raster_output_path(
-            p, overwrite=overwrite
-        )
-        output_list.append(out_path)
-        if virtual_output:
-            try:
-                # create virtual raster
-                raster_vector.create_virtual_raster_2_mosaic(
-                    input_raster_list=input_raster_list, output=out_path,
-                    dst_nodata=nodata_value, data_type=output_data_type
-                )
-            except Exception as err:
-                cfg.logger.log.error(str(err))
-                cfg.messages.error(str(err))
+                band_list_list.append(band_list)
+            elif files_directories.is_file(input_bands[0]):
+                band_list_list.append(input_bands)
+            else:
+                cfg.logger.log.error('band list')
+                cfg.messages.error('band list')
                 cfg.progress.update(failed=True)
-                return OutputManager(check=False)
+                output = OutputManager(check=False)
+                check = False
         else:
-            vrt_file = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
-            try:
-                # create virtual raster
-                raster_vector.create_virtual_raster_2_mosaic(
-                    input_raster_list=input_raster_list, output=vrt_file,
-                    dst_nodata=nodata_value, data_type=output_data_type
-                )
-                # copy raster
-                cfg.multiprocess.gdal_copy_raster(
-                    vrt_file, out_path, 'GTiff', cfg.raster_compression, 'LZW',
-                    additional_params='-ot %s' % str(output_data_type),
-                    n_processes=n_processes, available_ram=available_ram
-                )
-            except Exception as err:
-                cfg.logger.log.error(str(err))
-                cfg.messages.error(str(err))
-                cfg.progress.update(failed=True)
-                return OutputManager(check=False)
-        n = n + 1
-    cfg.progress.update(end=True)
-    cfg.logger.log.info('end; mosaic: %s' % str(output_list))
-    return OutputManager(paths=output_list)
+            combination_band_list = []
+            raster_list = []
+            for i in input_bands:
+                # list of band sets
+                if type(i) is BandSet or type(i) is int:
+                    # get input list
+                    if i is None:
+                        cfg.logger.log.error('input None:%s' % str(i))
+                    else:
+                        band_list = BandSetCatalog.get_band_list(
+                            i, bandset_catalog
+                        )
+                        combination_band_list.append(band_list)
+                # list of raster paths
+                else:
+                    raster_list.append(i)
+            if len(raster_list) > 0:
+                if type(raster_list[0]) is list:
+                    band_list_list = raster_list
+                else:
+                    band_list_list.append(raster_list)
+            elif len(combination_band_list) > 0:
+                # combine corresponding bands
+                try:
+                    size = len(combination_band_list[0])
+                    for s in range(size):
+                        new_list = []
+                        for c in combination_band_list:
+                            new_list.append(c[s])
+                        band_list_list.append(new_list)
+                except Exception as err:
+                    cfg.logger.log.error(str(err))
+                    cfg.messages.error(str(err))
+                    cfg.progress.update(failed=True)
+                    output = OutputManager(check=False)
+                    check = False
+        if check:
+            # mosaic every list of bands
+            n = 0
+            output_list = []
+            check_2 = True
+            for mosaic_list in band_list_list:
+                if check_2:
+                    cfg.logger.log.debug('mosaic_list: %s' % str(mosaic_list))
+                    cfg.progress.update(
+                        step=n, steps=len(band_list_list),
+                        minimum=10, maximum=99,
+                        message='processing list %s' % str(n + 1),
+                        percentage=n / len(band_list_list)
+                    )
+                    # list of inputs
+                    prepared = shared_tools.prepare_input_list(
+                        mosaic_list, reference_raster_crs,
+                        n_processes=n_processes
+                    )
+                    input_raster_list = prepared['input_list']
+                    raster_info = prepared['information_list']
+                    nodata_list = prepared['nodata_list']
+                    warped = prepared['warped']
+                    try:
+                        output_data_type = raster_info[0][8]
+                    except Exception as err:
+                        str(err)
+                        output_data_type = None
+                    if nodata_value is None:
+                        nodata_value = nodata_list[0]
+                    if warped:
+                        virtual_output = False
+                    # check output path
+                    if output_name is None:
+                        p = shared_tools.join_path(
+                            output_path, '{}{}'.format(
+                                prefix, files_directories.file_name(
+                                    input_raster_list[0])
+                            )
+                        ).replace('\\', '/')
+                    else:
+                        p = shared_tools.join_path(
+                            output_path,
+                            '{}{}{}'.format(prefix, output_name, n)
+                        ).replace('\\', '/')
+                    out_path, vrt_r = files_directories.raster_output_path(
+                        p, overwrite=overwrite, skip_bcast=True
+                    )
+                    output_list.append(out_path)
+                    if virtual_output:
+                        try:
+                            # create virtual raster
+                            raster_vector.create_virtual_raster_2_mosaic(
+                                input_raster_list=input_raster_list,
+                                output=out_path, dst_nodata=nodata_value,
+                                data_type=output_data_type
+                            )
+                        except Exception as err:
+                            cfg.logger.log.error(str(err))
+                            cfg.messages.error(str(err))
+                            cfg.progress.update(failed=True)
+                            output = OutputManager(check=False)
+                            check_2 = False
+                    else:
+                        vrt_file = cfg.temp.temporary_raster_path(
+                            extension=cfg.vrt_suffix)
+                        try:
+                            # create virtual raster
+                            raster_vector.create_virtual_raster_2_mosaic(
+                                input_raster_list=input_raster_list,
+                                output=vrt_file, dst_nodata=nodata_value,
+                                data_type=output_data_type
+                            )
+                            # copy raster
+                            cfg.multiprocess.gdal_copy_raster(
+                                vrt_file, out_path, 'GTiff',
+                                cfg.raster_compression, 'LZW',
+                                additional_params='-ot %s'
+                                                  % str(output_data_type),
+                                n_processes=n_processes,
+                                available_ram=available_ram,
+                                skip_bcast=True
+                            )
+                        except Exception as err:
+                            cfg.logger.log.error(str(err))
+                            cfg.messages.error(str(err))
+                            cfg.progress.update(failed=True)
+                            output = OutputManager(check=False)
+                            check_2 = False
+                    n = n + 1
+            if check_2:
+                cfg.progress.update(end=True)
+                cfg.logger.log.info('end; mosaic: %s' % str(output_list))
+                output = OutputManager(paths=output_list)
+
+    output = shared_tools.mpi_bcast(output)
+    cfg.logger.log.debug('mosaic output: %s' % str(output))
+    return output

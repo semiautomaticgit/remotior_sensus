@@ -44,12 +44,13 @@ def prepare_input_list(
         n_processes: int = None, src_nodata=None, dst_nodata=None,
         raster_bands=None
 ):
-    cfg.logger.log.debug('start')
-    cfg.logger.log.debug('band_list: %s' % str(band_list))
+    log = cfg.logger.log
+    log.debug('start')
+    log.debug('band_list: %s' % str(band_list))
     information_list = []
     nodata_list = []
     if band_list is None or len(band_list) == 0:
-        cfg.logger.log.error('empty list')
+        log.error('empty list')
         return {
             'input_list': [], 'information_list': [], 'nodata_list': [],
             'name_list': [], 'warped': None, 'same_geotransformation': None,
@@ -62,8 +63,8 @@ def prepare_input_list(
         elif files_directories.is_file(reference_raster_crs):
             reference_raster_crs = raster_vector.get_crs(reference_raster_crs)
     except Exception as err:
-        cfg.logger.log.error(str(err))
-        cfg.logger.log.error(
+        log.error(str(err))
+        log.error(
             'unable to get raster: %s' % band_list[0]
         )
         return {
@@ -83,7 +84,7 @@ def prepare_input_list(
             (gt, crs, un, xy_count, nd, number_of_bands, block_size,
              scale_offset, data_type) = info
         else:
-            cfg.logger.log.error(
+            log.error(
                 'unable to get raster info: %s' % band_i
             )
             return {
@@ -147,7 +148,7 @@ def prepare_input_list(
         same_geotransformation = True
     else:
         same_geotransformation = False
-    cfg.logger.log.debug('end; input_list: %s' % str(input_list))
+    log.debug('end; input_list: %s' % str(input_list))
     prepared = {
         'input_list': input_list, 'information_list': information_list,
         'nodata_list': nodata_list, 'name_list': name_list,
@@ -167,7 +168,8 @@ def prepare_process_files(
         multiple_input=False, multiple_resolution=False,
         virtual_output=None, box_coordinate_list: Optional[list] = None
 ):
-    cfg.logger.log.debug('input_bands: %s' % str(input_bands))
+    log = cfg.logger.log
+    log.debug('input_bands: %s' % str(input_bands))
     if n_processes is None:
         n_processes = cfg.n_processes
     # get input list
@@ -246,7 +248,7 @@ def prepare_process_files(
                 output_path, virtual_output, overwrite=overwrite
             )
         except Exception as err:
-            cfg.logger.log.error(str(err))
+            log.error(str(err))
             if not overwrite and 'existing path' in str(err):
                 raise Exception(str(err))
     # create virtual raster of input
@@ -378,7 +380,8 @@ def region_growing_polygon(
         max_spectral_distance=None, minimum_size=None, bandset_catalog=None,
         n_processes=None
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     box_coordinate_list = tmp_vrt = None
     if type(input_bands) is BandSet:
         coord_list = input_bands.box_coordinate_list
@@ -392,7 +395,7 @@ def region_growing_polygon(
             box_coordinate_list = coord_list
     # get input list
     band_list = BandSetCatalog.get_band_list(input_bands, bandset_catalog)
-    cfg.logger.log.debug('band_list: %s' % str(band_list))
+    log.debug('band_list: %s' % str(band_list))
     # get input files
     prepared = prepare_input_list(
         band_list=band_list, n_processes=n_processes
@@ -437,7 +440,7 @@ def region_growing_polygon(
         region_max_y = top
     seed_x = abs(int((abs(coordinate_x) - region_min_x) / p_x))
     seed_y = abs(int((region_max_y - abs(coordinate_y)) / p_y))
-    cfg.logger.log.debug('seed_x: %s; seed_y: %s' % (seed_x, seed_y))
+    log.debug('seed_x: %s; seed_y: %s' % (seed_x, seed_y))
     # extract each virtual band and apply extent from max_width and coordinates
     extent_list = [region_min_x, region_max_y, region_max_x, region_min_y]
     function_variable = []
@@ -475,7 +478,7 @@ def region_growing_polygon(
     )
     cfg.multiprocess.multiprocess_region_growing()
     if cfg.multiprocess.output is False:
-        cfg.logger.log.error('unable to calculate')
+        log.error('unable to calculate')
         return False
     regions = cfg.multiprocess.output
     if len(regions) > 0:
@@ -496,10 +499,10 @@ def region_growing_polygon(
                 new_region = (region_label == region_seed_value).astype(int)
             except Exception as err:
                 str(err)
-                cfg.logger.log.error('region growing label')
+                log.error('region growing label')
                 return False
         else:
-            cfg.logger.log.error('region growing empty')
+            log.error('region growing empty')
             return False
     else:
         new_region = regions[0]
@@ -513,10 +516,10 @@ def region_growing_polygon(
             input_array=new_region, reference_raster=tmp_vrt,
             output=output_vector
         )
-        cfg.logger.log.debug('end; roi vector: %s' % str(output_vector))
+        log.debug('end; roi vector: %s' % str(output_vector))
         return output_vector
     else:
-        cfg.logger.log.error('region growing empty')
+        log.error('region growing empty')
         return False
 
 
@@ -534,7 +537,8 @@ def calculate_2d_histogram(x_values, y_values, decimal_round=None):
         x_max = np.amax(x_values)
         y_max = np.amax(y_values)
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log = cfg.logger.log
+        log.error(str(err))
         return False
     precision = np.power(10, -float(decimal_round))
     x_min = np.amin(x_values)
@@ -550,7 +554,8 @@ def calculate_2d_histogram(x_values, y_values, decimal_round=None):
             x_values, y_values, bins=(x_steps, y_steps)
         )
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log = cfg.logger.log
+        log.error(str(err))
         return None
     return [histogram, x_edges, y_edges]
 
@@ -628,7 +633,8 @@ def project_point_coordinates(
         )
     else:
         coordinates = False
-        cfg.logger.log.error('no coordinates')
+        log = cfg.logger.log
+        log.error('no coordinates')
     return coordinates
 
 
@@ -702,7 +708,8 @@ def mpi_bcast(value):
         frame = inspect.stack()[1]
         func_name = frame.function
         line = frame.lineno
-        cfg.logger.log.debug(f'bcast {cfg.mpi_bcast_id} {func_name}[{line}]: '
-                             f'rank {cfg.mpi_rank}, {value}')
+        log = cfg.logger.log
+        log.debug(f'bcast {cfg.mpi_bcast_id} {func_name}[{line}]: '
+                  f'rank {cfg.mpi_rank}, {value}')
         value = cfg.mpi_comm.bcast(value, root=0)
     return value

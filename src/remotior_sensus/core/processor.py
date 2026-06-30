@@ -120,11 +120,12 @@ def function_initiator(
         str(err)
     # required for sklearn
     import sys
+    log = cfg.logger.log
     if sys.stderr is None:
         sys.stderr = open(os.devnull, 'w')
-        cfg.logger.log.debug('sys.stderr')
-    cfg.logger.log.debug('start')
-    cfg.logger.log.debug(
+        log.debug('sys.stderr')
+    log.debug('start')
+    log.debug(
         'keep_output_array: %s; keep_output_argument: %s; any_nodata_mask: %s;'
         ' input_nodata_as_value: %s'
         % (keep_output_array, keep_output_argument, any_nodata_mask,
@@ -143,7 +144,7 @@ def function_initiator(
     # raster counter
     raster_count = 0
     start_time = datetime.datetime.now()
-    cfg.logger.log.debug(
+    log.debug(
         'raster_list: %s; x_size_piece: %s; y_size_piece: %s:'
         % (raster_list, x_size_piece, y_size_piece)
     )
@@ -155,7 +156,7 @@ def function_initiator(
         count_section_progress = 1
         prev_count_section_progress = 0
         calculation_datatype = calc_datatype[raster_count]
-        cfg.logger.log.debug(
+        log.debug(
             'process raster: %s; calculation_datatype: %s'
             % (str(raster), calculation_datatype)
         )
@@ -169,7 +170,7 @@ def function_initiator(
             info_raster = raster
         (r_gt, r_crs, r_un, r_xy_count, r_nd, band_number, r_block_size,
          r_scale_offset, r_data_type) = raster_vector.raster_info(info_raster)
-        cfg.logger.log.debug('r_gt: {}'.format(str(r_gt)))
+        log.debug('r_gt: {}'.format(str(r_gt)))
         # pixel size and origin from reference
         t_lx, t_ly, p_sx, p_sy = r_gt[0], r_gt[3], r_gt[1], r_gt[5]
         # scale and offset
@@ -197,7 +198,7 @@ def function_initiator(
                 x_block=r_x, y_block=r_y, available_ram=memory,
                 memory_unit=cfg.memory_unit_array_12, dummy_bands=dummy_bands
             )
-            cfg.logger.log.debug('list_range_y: %s' % str(list_range_y))
+            log.debug('list_range_y: %s' % str(list_range_y))
             sections = [
                 RasterSection(
                     x_min=0, y_min=range_y, x_max=block_size_x,
@@ -206,7 +207,7 @@ def function_initiator(
                     y_size=min(block_size_y, r_y - range_y)
                 ) for range_y in list_range_y
             ]
-        cfg.logger.log.debug('sections: %s' % str(sections))
+        log.debug('sections: %s' % str(sections))
         # classification rasters
         classification_rasters = []
         # algorithm rasters
@@ -310,7 +311,7 @@ def function_initiator(
                     )
                 # super-resolution raster
 
-                cfg.logger.log.debug(
+                log.debug(
                     'output_classification_raster_list: %s'
                     % str(output_classification_raster_list)
                 )
@@ -386,7 +387,7 @@ def function_initiator(
                     geo_transform=geo_transform, x_size=x_size_piece_s,
                     y_size=y_size_piece_s
                 )
-                cfg.logger.log.debug('specific_output: %s' % file_output)
+                log.debug('specific_output: %s' % file_output)
             # generic output
             else:
                 out_generic = cfg.temp.temporary_raster_path(
@@ -398,7 +399,7 @@ def function_initiator(
                     geo_transform=geo_transform, x_size=x_size_piece,
                     y_size=y_size_piece
                 )
-                cfg.logger.log.debug('file_output: %s' % file_output)
+                log.debug('file_output: %s' % file_output)
         # iterate over sections
         for sec in sections:
             # list of bands
@@ -424,7 +425,7 @@ def function_initiator(
                 for band_counter, single_raster in enumerate(raster):
                     # open input_raster with GDAL
                     _r_d = gdal.Open(single_raster, gdal.GA_ReadOnly)
-                    cfg.logger.log.debug('single_raster: %s' % single_raster)
+                    log.debug('single_raster: %s' % single_raster)
                     if single_band_number is None:
                         _r_b = _r_d.GetRasterBand(1)
                     else:
@@ -467,12 +468,12 @@ def function_initiator(
                     _input_array_mask = _input_array > 0
                 else:
                     _input_array[:] = 0
-                cfg.logger.log.debug(
+                log.debug(
                     '_input_array.shape: %s' % str(_input_array.shape)
                 )
                 # open input_raster with GDAL
                 _r_d = gdal.Open(raster, gdal.GA_ReadOnly)
-                cfg.logger.log.debug(
+                log.debug(
                     'raster: %s; band_number: %s' % (raster, band_number)
                 )
                 # all bands
@@ -528,7 +529,7 @@ def function_initiator(
                     _r_b.FlushCache()
                     _r_b = None
                 _r_d = None
-            cfg.logger.log.debug(
+            log.debug(
                 'calculation_datatype: %s' % calculation_datatype
             )
             # apply any NoData mask for axis=2 that is band axis
@@ -539,7 +540,7 @@ def function_initiator(
                 nodata_mask = _input_array_mask.all(axis=2)
             else:
                 nodata_mask = None
-            cfg.logger.log.debug(
+            log.debug(
                 '_input_array.shape: %s' % str(_input_array.shape)
             )
             # get function variable
@@ -591,10 +592,10 @@ def function_initiator(
                     [classification_rasters, algorithm_rasters,
                      output_signature_raster_dic]
                 )
-                cfg.logger.log.debug('classification: %s' % function_output[0])
+                log.debug('classification: %s' % function_output[0])
                 if not function_output[0] and function_output[0] is not None:
                     proc_error = 'error classification'
-                    cfg.logger.log.error('classification failed')
+                    log.error('classification failed')
             # keep output array and output argument
             elif keep_output_array and keep_output_array is not None and (
                     keep_output_argument is True and keep_output_argument is
@@ -607,7 +608,7 @@ def function_initiator(
             elif keep_output_argument and keep_output_argument is not None:
                 output_array_list.append([None, output_argument])
             # output files
-            cfg.logger.log.debug('output_raster_list: %s' % output_raster_list)
+            log.debug('output_raster_list: %s' % output_raster_list)
             # write output array
             if super_resolution:
                 # output minimum y (section of piece)
@@ -675,9 +676,9 @@ def function_initiator(
                                 )
                     except Exception as err:
                         proc_error = 'error output'
-                        cfg.logger.log.error(str(err))
+                        log.error(str(err))
                 elif skip_output is True:
-                    cfg.logger.log.debug('skip_output')
+                    log.debug('skip_output')
                     output_array_list.append(function_output[1])
                 else:
                     try:
@@ -697,7 +698,7 @@ def function_initiator(
                                                    + sec.y_size_no_boundary),
                                            0:sec.x_max
                                            ]
-                        cfg.logger.log.debug('out_generic: %s' % out_generic)
+                        log.debug('out_generic: %s' % out_generic)
                         write_out = raster_vector.write_raster(
                             out_generic, 0, out_y_min, output_array,
                             out_no_data, scl, offs
@@ -711,7 +712,7 @@ def function_initiator(
                                 )
                     except Exception as err:
                         proc_error = 'error output'
-                        cfg.logger.log.error(str(err))
+                        log.error(str(err))
             # progress
             now_time = datetime.datetime.now()
             elapsed_time = (now_time - start_time).total_seconds()
@@ -756,7 +757,7 @@ def function_initiator(
                     [output_raster_list[raster_count], output_argument]
                 )
         raster_count += 1
-    cfg.logger.log.debug('end')
+    log.debug('end')
     if cfg.logger.stream:
         logger = cfg.logger.stream.getvalue()
     else:
@@ -842,7 +843,8 @@ def _calculate_block_size(
     ram_blocks = int(single_block_size / available_ram)
     if ram_blocks == 0:
         ram_blocks = 1
-    cfg.logger.log.debug('ram_blocks: %s' % str(ram_blocks))
+    log = cfg.logger.log
+    log.debug('ram_blocks: %s' % str(ram_blocks))
     # for reference block_size_x is fixed
     block_size_x = x_block
     list_range_x = list(range(0, x_block, block_size_x))
@@ -873,11 +875,12 @@ def table_join(
     cfg.logger = Log(
         directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
     )
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     output_part = None
     output_parts = []
     start_time = datetime.datetime.now()
-    cfg.logger.log.debug('join_type: %s' % join_type)
+    log.debug('join_type: %s' % join_type)
     table1_index = {feature: i for i, feature in enumerate(table1_features)}
     table2_index = {feature: i for i, feature in enumerate(table2_features)}
     for c, feature in enumerate(features, start=1):
@@ -905,7 +908,7 @@ def table_join(
                         new_field = np.full(output_part.shape[0], nodata_value,
                                             dtype=table2_dtypes[col2])
                     except Exception as err:
-                        cfg.logger.log.debug('possible error: %s' % str(err))
+                        log.debug('possible error: %s' % str(err))
                         new_field = np.full(output_part.shape[0], nodata_value,
                                             dtype=np.uint64)
                 else:
@@ -914,7 +917,7 @@ def table_join(
                             row_table_2[table2_names[col2]],
                             output_part.shape[0]).astype(table2_dtypes[col2])
                     except Exception as err:
-                        cfg.logger.log.debug('possible error: %s' % str(err))
+                        log.debug('possible error: %s' % str(err))
                         new_field = np.repeat(
                             row_table_2[table2_names[col2]],
                             output_part.shape[0]).astype(np.uint64)
@@ -993,7 +996,7 @@ def table_join(
         matrix=output, input_field_names=output_names,
         output_field_names=output_names, progress_message=False
     )
-    cfg.logger.log.debug('end')
+    log.debug('end')
     logger = cfg.logger.stream.getvalue()
     return output, None, proc_error, logger
 
@@ -1009,7 +1012,8 @@ def gdal_translate(
     (process_id, cfg.temp, memory, gdal_path, progress_queue, log_level,
      disable_warnings) = process_parameters[:7]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     if gdal_path is not None:
         for d in gdal_path.split(';'):
             try:
@@ -1028,8 +1032,9 @@ def gdal_translate(
         gdal.DontUseExceptions()
     except Exception as err:
         str(err)
+    log = cfg.logger.log
     try:
-        cfg.logger.log.debug('option_string: %s' % option_string)
+        log.debug('option_string: %s' % option_string)
         if disable_warnings is True:
             gdal.PushErrorHandler('CPLQuietErrorHandler')
         if int(process_id) == 0:
@@ -1046,8 +1051,8 @@ def gdal_translate(
         if disable_warnings is True:
             gdal.PopErrorHandler()
     except Exception as err:
-        cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end; output: %s' % output)
+        log.error(str(err))
+    log.debug('end; output: %s' % output)
     logger = cfg.logger.stream.getvalue()
     return False, output, False, logger
 
@@ -1064,7 +1069,8 @@ def gdal_vector_translate(
     (process_id, cfg.temp, memory, gdal_path, progress_queue,
      log_level) = process_parameters[:6]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     if gdal_path is not None:
         for d in gdal_path.split(';'):
             try:
@@ -1102,30 +1108,22 @@ def gdal_vector_translate(
                 output_drive = 'ESRI Shapefile'
             else:
                 output_drive = 'GPKG'
-        geometry = 'geometry'
-        # get unique values
+        if files_directories.file_extension(
+                input_file, lower=True) == cfg.shp_suffix:
+            geometry = 'geometry'
+        else:
+            geometry = 'geom'
         sql = 'SELECT ST_Union(%s), %s FROM %s  GROUP BY %s' % (
             geometry, attribute_field, i_layer_name, attribute_field)
         to = gdal.VectorTranslateOptions(
             format=output_drive, SQLDialect='SQLITE', SQLStatement=sql,
+            layerName=i_layer_name,
             explodeCollections=explode_collections, callback=progress_gdal
         )
-        try:
-            gdal.VectorTranslate(output, input_file, options=to)
-        except Exception as err:
-            str(err)
-            geometry = 'geom'
-            # get unique values
-            sql = 'SELECT ST_Union(%s), %s FROM %s  GROUP BY %s' % (
-                geometry, attribute_field, i_layer_name, attribute_field)
-            to = gdal.VectorTranslateOptions(
-                format=output_drive, SQLDialect='SQLITE', SQLStatement=sql,
-                explodeCollections=explode_collections, callback=progress_gdal
-            )
-            gdal.VectorTranslate(output, input_file, options=to)
+        gdal.VectorTranslate(output, input_file, options=to)
     except Exception as err:
-        cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end; output: %s' % output)
+        log.error(str(err))
+    log.debug('end; output: %s' % output)
     logger = cfg.logger.stream.getvalue()
     return False, output, False, logger
 
@@ -1145,7 +1143,8 @@ def gdal_vector_translate_rank(
     from remotior_sensus.util import files_directories
     (process_id, cfg.temp, memory, gdal_path, progress_queue,
      log_level) = process_parameters[:6]
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     from osgeo import gdal, ogr
     # GDAL config
     try:
@@ -1195,15 +1194,363 @@ def gdal_vector_translate_rank(
             )
             gdal.VectorTranslate(output, input_file, options=to)
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
     _i_layer = None
     _input_source = None
-    cfg.logger.log.debug('end; output: %s' % output)
+    log.debug('end; output: %s' % output)
     if cfg.logger.stream:
         logger = cfg.logger.stream.getvalue()
     else:
         logger = None
     return False, output, False, logger
+
+
+# gdal cluster by distance
+def gdal_cluster(
+        input_file=None, attribute_field=None,
+        threshold=None, process_parameters=None):
+    from collections import deque
+    from remotior_sensus.core import configurations as cfg
+    from remotior_sensus.core.log import Log
+    (process_id, cfg.temp, memory, gdal_path, progress_queue,
+     log_level) = process_parameters[:6]
+    cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
+    log = cfg.logger.log
+    log.debug('start')
+    if gdal_path is not None:
+        for d in gdal_path.split(';'):
+            try:
+                os.add_dll_directory(d)
+                cfg.gdal_path = d
+            except Exception as err:
+                str(err)
+    from osgeo import gdal, ogr
+    # GDAL config
+    try:
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
+        gdal.DontUseExceptions()
+    except Exception as err:
+        str(err)
+    _vector_source = ogr.Open(input_file)
+    _v_layer = _vector_source.GetLayer()
+    # check projection
+    v_sr = _v_layer.GetSpatialRef()
+    vector_crs = v_sr.ExportToWkt()
+    vector_crs = vector_crs.replace(' ', '')
+    if len(vector_crs) == 0:
+        vector_crs = None
+    _v_layer.ResetReading()
+    # get feature geometries and envelope
+    features = []
+    geoms = []
+    envelopes = []
+    for feat in _v_layer:
+        geom = feat.GetGeometryRef()
+        if geom is None:
+            continue
+        features.append(feat.Clone())
+        geoms.append(geom.Clone())
+        envelopes.append(geom.GetEnvelope())
+    # create cluster index gpkg in memory
+    gpkg_driver = ogr.GetDriverByName('GPKG')
+    index_path = '/vsimem/cluster_index.gpkg'
+    gpkg_driver.DeleteDataSource(index_path)
+    index_source = gpkg_driver.CreateDataSource(index_path)
+    index_layer = index_source.CreateLayer(
+        'idx', v_sr, geom_type=ogr.wkbMultiPolygon,
+        options=['SPATIAL_INDEX=YES']
+    )
+    index_layer_defn = index_layer.GetLayerDefn()
+    for i, feat in enumerate(features):
+        f = ogr.Feature(index_layer_defn)
+        # set fid same as i
+        f.SetFID(i)
+        f.SetGeometry(feat.GetGeometryRef())
+        index_layer.CreateFeature(f)
+    index_source.FlushCache()
+    index_layer = index_source.GetLayer()
+    # find clusters
+    n = len(features)
+    # avoid checking previous polygons
+    visited = [False] * n
+    clusters = []
+    for i in range(n):
+        if visited[i]:
+            continue
+        # add to queue
+        queue = deque([i])
+        visited[i] = True
+        cluster = []
+        while queue:
+            # remove from queue
+            f_1 = queue.popleft()
+            cluster.append(f_1)
+            f_1_geom = geoms[f_1]
+            envelope = envelopes[f_1]
+            # check envelope distance
+            index_layer.SetSpatialFilterRect(
+                envelope[0] - threshold, envelope[2] - threshold,
+                envelope[1] + threshold, envelope[3] + threshold
+            )
+            index_layer.ResetReading()
+            for f_2 in index_layer:
+                f_2_id = f_2.GetFID()
+                if visited[f_2_id]:
+                    continue
+                if f_1_geom.Distance(geoms[f_2_id]) <= threshold:
+                    visited[f_2_id] = True
+                    # add to queue
+                    queue.append(f_2_id)
+            index_layer.SetSpatialFilter(None)
+        clusters.append(cluster)
+    # copy clusters in memory and dissolve
+    v_layer_defn = _v_layer.GetLayerDefn()
+    feature_list = []
+    for c_id, cluster in enumerate(clusters):
+        temp_cluster_path = f'/vsimem/cluster_{c_id}.gpkg'
+        # remove if exists
+        gpkg_driver.DeleteDataSource(temp_cluster_path)
+        _temp_cluster_source = gpkg_driver.CreateDataSource(temp_cluster_path)
+        _temp_cluster_layer = _temp_cluster_source.CreateLayer(
+            'cluster', v_sr,  geom_type=ogr.wkbMultiPolygon
+        )
+        # copy features
+        for i in range(v_layer_defn.GetFieldCount()):
+            _temp_cluster_layer.CreateField(v_layer_defn.GetFieldDefn(i))
+        # write features
+        temp_cluster_defn = _temp_cluster_layer.GetLayerDefn()
+        for f_id in cluster:
+            src = features[f_id]
+            f = ogr.Feature(temp_cluster_defn)
+            for i in range(v_layer_defn.GetFieldCount()):
+                f.SetField(i, src.GetField(i))
+            f.SetGeometry(src.GetGeometryRef())
+            _temp_cluster_layer.CreateFeature(f)
+        _temp_cluster_layer = None
+        _temp_cluster_source = None
+        # dissolve by attributes
+        temp_dissolve_path = f'/vsimem/dissolve_{c_id}.gpkg'
+        # remove if exists
+        gpkg_driver.DeleteDataSource(temp_dissolve_path)
+        sql_statement = f"""
+        SELECT
+            ST_Union(geom) AS geom,
+            {attribute_field}
+        FROM cluster
+        GROUP BY {attribute_field}
+        """
+        options = gdal.VectorTranslateOptions(
+            format='GPKG', SQLDialect='SQLITE', SQLStatement=sql_statement,
+            layerName=f'cluster_{c_id}'
+        )
+        gdal.VectorTranslate(temp_dissolve_path, temp_cluster_path,
+                             options=options)
+        gpkg_driver.DeleteDataSource(temp_cluster_path)
+        _dissolve_source = ogr.Open(temp_dissolve_path)
+        _dissolve_layer = _dissolve_source.GetLayer()
+        dissolve_layer_defn = _dissolve_layer.GetLayerDefn()
+        field_definitions = [
+            {'name': dissolve_layer_defn.GetFieldDefn(i).GetName(),
+             'type': dissolve_layer_defn.GetFieldDefn(i).GetType(),
+             'width': dissolve_layer_defn.GetFieldDefn(i).GetWidth(),
+             'precision': dissolve_layer_defn.GetFieldDefn(i).GetPrecision()
+             } for i in range(dissolve_layer_defn.GetFieldCount())
+        ]
+        for idx, feature in enumerate(_dissolve_layer):
+            try:
+                feature_geom = feature.GetGeometryRef().Clone()
+                if feature_geom is not None:
+                    geom = feature_geom.ExportToWkt()
+                    attrs = [feature.GetField(i) for i in
+                             range(dissolve_layer_defn.GetFieldCount())]
+                    feature_list.append([[field_definitions, geom, attrs, idx],
+                                         vector_crs])
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+    log.debug('end')
+    logger = cfg.logger.stream.getvalue()
+    return feature_list, False, False, logger
+
+
+# gdal cluster by distance
+def gdal_cluster_rank(
+        input_file=None, attribute_field=None,
+        threshold=None, process_parameters=None, configuration_module=None):
+    if configuration_module is None:
+        from remotior_sensus.core import configurations as cfg
+        from remotior_sensus.core.log import Log
+    else:
+        cfg = configuration_module
+    from collections import deque
+    (process_id, cfg.temp, memory, gdal_path, progress_queue,
+     log_level) = process_parameters[:6]
+    log = cfg.logger.log
+    log.debug('start')
+    if gdal_path is not None:
+        for d in gdal_path.split(';'):
+            try:
+                os.add_dll_directory(d)
+                cfg.gdal_path = d
+            except Exception as err:
+                str(err)
+    from osgeo import gdal, ogr
+    # GDAL config
+    try:
+        gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
+        gdal.SetConfigOption('GDAL_CACHEMAX', str(int(memory) * 1000000))
+        gdal.SetConfigOption('VSI_CACHE', 'FALSE')
+        gdal.SetConfigOption('CHECK_DISK_FREE_SPACE', 'FALSE')
+        gdal.SetConfigOption('GTIFF_SRS_SOURCE', 'EPSG')
+        gdal.DontUseExceptions()
+    except Exception as err:
+        str(err)
+    _vector_source = ogr.Open(input_file)
+    _v_layer = _vector_source.GetLayer()
+    # check projection
+    v_sr = _v_layer.GetSpatialRef()
+    vector_crs = v_sr.ExportToWkt()
+    vector_crs = vector_crs.replace(' ', '')
+    if len(vector_crs) == 0:
+        vector_crs = None
+    _v_layer.ResetReading()
+    # get feature geometries and envelope
+    features = []
+    geoms = []
+    envelopes = []
+    for feat in _v_layer:
+        geom = feat.GetGeometryRef()
+        if geom is None:
+            continue
+        features.append(feat.Clone())
+        geoms.append(geom.Clone())
+        envelopes.append(geom.GetEnvelope())
+    # create cluster index gpkg in memory
+    gpkg_driver = ogr.GetDriverByName('GPKG')
+    index_path = '/vsimem/cluster_index.gpkg'
+    gpkg_driver.DeleteDataSource(index_path)
+    index_source = gpkg_driver.CreateDataSource(index_path)
+    index_layer = index_source.CreateLayer(
+        'idx', v_sr, geom_type=ogr.wkbMultiPolygon,
+        options=['SPATIAL_INDEX=YES']
+    )
+    index_layer_defn = index_layer.GetLayerDefn()
+    for i, feat in enumerate(features):
+        f = ogr.Feature(index_layer_defn)
+        # set fid same as i
+        f.SetFID(i)
+        f.SetGeometry(feat.GetGeometryRef())
+        index_layer.CreateFeature(f)
+    index_source.FlushCache()
+    index_layer = index_source.GetLayer()
+    # find clusters
+    n = len(features)
+    # avoid checking previous polygons
+    visited = [False] * n
+    clusters = []
+    for i in range(n):
+        if visited[i]:
+            continue
+        # add to queue
+        queue = deque([i])
+        visited[i] = True
+        cluster = []
+        while queue:
+            # remove from queue
+            f_1 = queue.popleft()
+            cluster.append(f_1)
+            f_1_geom = geoms[f_1]
+            envelope = envelopes[f_1]
+            # check envelope distance
+            index_layer.SetSpatialFilterRect(
+                envelope[0] - threshold, envelope[2] - threshold,
+                envelope[1] + threshold, envelope[3] + threshold
+            )
+            index_layer.ResetReading()
+            for f_2 in index_layer:
+                f_2_id = f_2.GetFID()
+                if visited[f_2_id]:
+                    continue
+                if f_1_geom.Distance(geoms[f_2_id]) <= threshold:
+                    visited[f_2_id] = True
+                    # add to queue
+                    queue.append(f_2_id)
+            index_layer.SetSpatialFilter(None)
+        clusters.append(cluster)
+    # copy clusters in memory and dissolve
+    v_layer_defn = _v_layer.GetLayerDefn()
+    feature_list = []
+    for c_id, cluster in enumerate(clusters):
+        temp_cluster_path = f'/vsimem/cluster_{c_id}.gpkg'
+        # remove if exists
+        gpkg_driver.DeleteDataSource(temp_cluster_path)
+        _temp_cluster_source = gpkg_driver.CreateDataSource(temp_cluster_path)
+        _temp_cluster_layer = _temp_cluster_source.CreateLayer(
+            'cluster', v_sr,  geom_type=ogr.wkbMultiPolygon
+        )
+        # copy features
+        for i in range(v_layer_defn.GetFieldCount()):
+            _temp_cluster_layer.CreateField(v_layer_defn.GetFieldDefn(i))
+        # write features
+        temp_cluster_defn = _temp_cluster_layer.GetLayerDefn()
+        for f_id in cluster:
+            src = features[f_id]
+            f = ogr.Feature(temp_cluster_defn)
+            for i in range(v_layer_defn.GetFieldCount()):
+                f.SetField(i, src.GetField(i))
+            f.SetGeometry(src.GetGeometryRef())
+            _temp_cluster_layer.CreateFeature(f)
+        _temp_cluster_layer = None
+        _temp_cluster_source = None
+        # dissolve by attributes
+        temp_dissolve_path = f'/vsimem/dissolve_{c_id}.gpkg'
+        # remove if exists
+        gpkg_driver.DeleteDataSource(temp_dissolve_path)
+        sql_statement = f"""
+        SELECT
+            ST_Union(geom) AS geom,
+            {attribute_field}
+        FROM cluster
+        GROUP BY {attribute_field}
+        """
+        options = gdal.VectorTranslateOptions(
+            format='GPKG', SQLDialect='SQLITE', SQLStatement=sql_statement,
+            layerName=f'cluster_{c_id}'
+        )
+        gdal.VectorTranslate(temp_dissolve_path, temp_cluster_path,
+                             options=options)
+        gpkg_driver.DeleteDataSource(temp_cluster_path)
+        _dissolve_source = ogr.Open(temp_dissolve_path)
+        _dissolve_layer = _dissolve_source.GetLayer()
+        dissolve_layer_defn = _dissolve_layer.GetLayerDefn()
+        field_definitions = [
+            {'name': dissolve_layer_defn.GetFieldDefn(i).GetName(),
+             'type': dissolve_layer_defn.GetFieldDefn(i).GetType(),
+             'width': dissolve_layer_defn.GetFieldDefn(i).GetWidth(),
+             'precision': dissolve_layer_defn.GetFieldDefn(i).GetPrecision()
+             } for i in range(dissolve_layer_defn.GetFieldCount())
+        ]
+        for idx, feature in enumerate(_dissolve_layer):
+            try:
+                feature_geom = feature.GetGeometryRef().Clone()
+                if feature_geom is not None:
+                    geom = feature_geom.ExportToWkt()
+                    attrs = [feature.GetField(i) for i in
+                             range(dissolve_layer_defn.GetFieldCount())]
+                    feature_list.append([[field_definitions, geom, attrs, idx],
+                                         vector_crs])
+            except Exception as err:
+                cfg.logger.log.error(str(err))
+    log.debug('end')
+    if cfg.logger.stream:
+        logger = cfg.logger.stream.getvalue()
+    else:
+        logger = None
+    return feature_list, False, False, logger
+
 
 # gdal warp processor
 # noinspection PyPackageRequirements
@@ -1216,7 +1563,8 @@ def gdal_warp(
     (process_id, cfg.temp, gdal_path, progress_queue, memory,
      log_level) = process_parameters[:6]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     if gdal_path is not None:
         for d in gdal_path.split(';'):
             try:
@@ -1236,7 +1584,7 @@ def gdal_warp(
     except Exception as err:
         str(err)
     try:
-        cfg.logger.log.debug('option_string: %s' % option_string)
+        log.debug('option_string: %s' % option_string)
         if int(process_id) == 0:
             progress_gdal = (lambda percentage, m, c: progress_queue.put(
                 100 if int(percentage * 100) > 100 else int(percentage * 100),
@@ -1249,8 +1597,8 @@ def gdal_warp(
         )
         gdal.Warp(output, input_file, options=to)
     except Exception as err:
-        cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end; output: %s' % output)
+        log.error(str(err))
+    log.debug('end; output: %s' % output)
     logger = cfg.logger.stream.getvalue()
     return False, output, False, logger
 
@@ -1280,7 +1628,7 @@ def raster_to_vector_process(
             except Exception as err:
                 str(err)
     output_vector_path, min_y, max_y = raster_to_vector_process_sub(
-        raster_path, output_vector_path, field_name,process_parameters,
+        raster_path, output_vector_path, field_name, process_parameters,
         connected, cfg, Log
     )
     logger = cfg.logger.stream.getvalue()
@@ -1316,13 +1664,14 @@ def raster_to_vector_process_sub(
             gdal.DontUseExceptions()
         except Exception as err:
             str(err)
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     # open input with GDAL
     try:
         _r_d = gdal.Open(raster_path, gdal.GA_ReadOnly)
         assert _r_d.RasterXSize
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         if cfg.logger.stream:
             logger = cfg.logger.stream.getvalue()
         else:
@@ -1330,15 +1679,15 @@ def raster_to_vector_process_sub(
         return None, str(err), logger
     # create output vector
     d = ogr.GetDriverByName('GPKG')
-    cfg.logger.log.debug('output_vector_path: %s' % str(output_vector_path))
+    log.debug('output_vector_path: %s' % str(output_vector_path))
     _output_source = d.CreateDataSource(output_vector_path)
 
     if _output_source is None:
-        cfg.logger.log.error('error: %s' % str(output_vector_path))
+        log.error('error: %s' % str(output_vector_path))
         return None, None, None
     else:
         sr = osr.SpatialReference()
-        cfg.logger.log.debug('sr: %s' % str(sr))
+        log.debug('sr: %s' % str(sr))
         sr.ImportFromWkt(_r_d.GetProjectionRef())
         p = Path(raster_path)
         name = p.stem
@@ -1351,7 +1700,7 @@ def raster_to_vector_process_sub(
         try:
             _output_layer.CreateField(field_def)
         except Exception as err:
-            cfg.logger.log.error(str(err))
+            log.error(str(err))
             if cfg.logger.stream:
                 logger = cfg.logger.stream.getvalue()
             else:
@@ -1399,7 +1748,7 @@ def raster_to_vector_process_sub(
         max_y = out_feature.GetField(0)
         # release SQL results
         o_vector.ReleaseResultSet(sql_output)
-        cfg.logger.log.debug('end')
+        log.debug('end')
         return output_vector_path, min_y, max_y
 
 
@@ -1430,7 +1779,8 @@ def raster_sieve_process(
     cfg.logger = Log(
         directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
     )
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
@@ -1444,18 +1794,17 @@ def raster_sieve_process(
     # open input with GDAL
     try:
         _r_d = gdal.Open(raster, gdal.GA_ReadOnly)
-        cfg.logger.log.debug('raster_path: %s' % raster)
+        log.debug('raster_path: %s' % raster)
         assert _r_d.RasterXSize
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         logger = cfg.logger.stream.getvalue()
         return None, str(err), logger
     # create output raster
     out_file = cfg.temp.temporary_raster_path(
-        name_suffix=process_id,
-        name_prefix=process_id
+        name_suffix=process_id, name_prefix=process_id
     )
-    cfg.logger.log.debug('out_file: %s' % str(out_file))
+    log.debug('out_file: %s' % str(out_file))
     # start progress
     progress_queue.put(1, False)
     _raster_band = _r_d.GetRasterBand(1)
@@ -1492,8 +1841,8 @@ def raster_sieve_process(
             import shutil
             shutil.move(out_file, output)
         except Exception as err:
-            cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end')
+            log.error(str(err))
+    log.debug('end')
     # end progress
     progress_queue.put(100, False)
     logger = cfg.logger.stream.getvalue()
@@ -1516,19 +1865,20 @@ def raster_sieve_process_rank(
     # output parameters
     (output, data_type, compress, compress_format,
      output_no_data) = output_parameters[:5]
+    log = cfg.logger.log
     # open input with GDAL
     try:
         _r_d = gdal.Open(raster, gdal.GA_ReadOnly)
-        cfg.logger.log.debug('raster_path: %s' % raster)
+        log.debug('raster_path: %s' % raster)
         assert _r_d.RasterXSize
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         return None, str(err), None
     # create output raster
     out_file = cfg.temp.temporary_raster_path(
         name_suffix=process_id, name_prefix=process_id
     )
-    cfg.logger.log.debug('out_file: %s' % str(out_file))
+    log.debug('out_file: %s' % str(out_file))
     _raster_band = _r_d.GetRasterBand(1)
     offs = _raster_band.GetOffset()
     scl = _raster_band.GetScale()
@@ -1547,7 +1897,7 @@ def raster_sieve_process_rank(
     sieve = gdal.SieveFilter(
         _raster_band, mask, _t_band, sieve_size, connected
     )
-    cfg.logger.log.debug('sieve: %s' % str(sieve))
+    log.debug('sieve: %s' % str(sieve))
     # close rasters
     _raster_band = _r_d = _t_band = _t_raster = None
     if os.path.isfile(out_file):
@@ -1555,8 +1905,8 @@ def raster_sieve_process_rank(
             import shutil
             shutil.move(out_file, output)
         except Exception as err:
-            cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end')
+            log.error(str(err))
+    log.debug('end')
     return [[out_file]], False, None
 
 
@@ -1567,7 +1917,7 @@ def vector_to_raster(
 ):
     from remotior_sensus.core import configurations as cfg
     from remotior_sensus.core.log import Log
-    from remotior_sensus.util import raster_vector
+    from remotior_sensus.util import raster_vector, files_directories
     # process parameters
     (process_id, cfg.temp, gdal_path, progress_queue, memory,
      log_level) = process_parameters[:6]
@@ -1595,7 +1945,8 @@ def vector_to_raster(
     cfg.logger = Log(
         directory=cfg.temp.dir, multiprocess=str(process_id), level=log_level
     )
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
@@ -1607,7 +1958,7 @@ def vector_to_raster(
     except Exception as err:
         str(err)
     # open input with GDAL
-    cfg.logger.log.debug('vector_path: %s' % vector_path)
+    log.debug('vector_path: %s' % vector_path)
     try:
         _vector = ogr.Open(vector_path)
         _v_layer = _vector.GetLayer()
@@ -1619,42 +1970,41 @@ def vector_to_raster(
             crs = None
         vector_crs = crs
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         logger = cfg.logger.stream.getvalue()
         return None, str(err), logger
     # create output file
     out_file = cfg.temp.temporary_file_path(
-        name_suffix=cfg.tif_suffix,
-        name_prefix=process_id
+        name_suffix=cfg.tif_suffix, name_prefix=process_id
     )
-    cfg.logger.log.debug('out_file: %s' % str(out_file))
+    log.debug('out_file: %s' % str(out_file))
     (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_vector.raster_info(
         reference_raster_path
     )
     orig_x = gt[0]
     orig_y = gt[3]
-    cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
+    log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
     if x_y_size is not None:
         x_size = x_y_size[0]
         y_size = x_y_size[1]
     else:
         x_size = gt[1]
         y_size = abs(gt[5])
-    cfg.logger.log.debug('x_size, y_size: %s,%s' % (x_size, y_size))
+    log.debug('x_size, y_size: %s,%s' % (x_size, y_size))
     # number of x pixels
     grid_columns = int(round(xy_count[0] * gt[1] / x_size))
     # number of y pixels
     grid_rows = int(round(xy_count[1] * abs(gt[5]) / y_size))
-    cfg.logger.log.debug(
+    log.debug(
         'grid_columns, grid_rows: %s,%s'
         % (grid_columns, grid_rows)
     )
     # check crs
     same_crs = raster_vector.compare_crs(reference_crs, vector_crs)
-    cfg.logger.log.debug('same_crs: %s' % str(same_crs))
+    log.debug('same_crs: %s' % str(same_crs))
     if not same_crs:
-        cfg.logger.log.error('different crs')
+        log.error('different crs')
         logger = cfg.logger.stream.getvalue()
         return None, 'different crs', logger
     # calculate minimum extent
@@ -1662,10 +2012,10 @@ def vector_to_raster(
         min_x, max_x, min_y, max_y = _v_layer.GetExtent()
         orig_x = orig_x + x_size * int(round((min_x - orig_x) / x_size))
         orig_y = orig_y + y_size * int(round((max_y - orig_y) / y_size))
-        cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
+        log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
         grid_columns = abs(int(round((max_x - min_x) / x_size)))
         grid_rows = abs(int(round((max_y - min_y) / y_size)))
-        cfg.logger.log.debug(
+        log.debug(
             'grid_columns, grid_rows: %s,%s'
             % (grid_columns, grid_rows)
         )
@@ -1674,21 +2024,23 @@ def vector_to_raster(
     # create raster _grid
     _grid = driver.Create(
         temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Float32,
-        options=['COMPRESS=LZW', 'BIGTIFF=YES']
+        options=['COMPRESS=LZW', 'BIGTIFF=YES', 'TILED=YES',
+                 'BLOCKXSIZE=512', 'BLOCKYSIZE=512']
     )
     if _grid is None:
         _grid = driver.Create(
             temporary_grid, grid_columns, grid_rows, 1, gdal.GDT_Int16,
-            options=['COMPRESS=LZW', 'BIGTIFF=YES']
+            options=['COMPRESS=LZW', 'BIGTIFF=YES', 'TILED=YES',
+                     'BLOCKXSIZE=512', 'BLOCKYSIZE=512']
         )
     if _grid is None:
-        cfg.logger.log.error('error output raster')
+        log.error('error output raster')
         logger = cfg.logger.stream.getvalue()
         return None, 'error grid', logger
     try:
         _grid.GetRasterBand(1)
     except Exception as err:
-        cfg.logger.log.error(err)
+        log.error(err)
         logger = cfg.logger.stream.getvalue()
         return None, str(err), logger
     # set raster projection from reference
@@ -1703,14 +2055,7 @@ def vector_to_raster(
         ))
     else:
         progress_gdal = None
-    # create output raster
-    raster_vector.create_raster_from_reference(
-        path=temporary_grid, band_number=1,
-        output_raster_list=[out_file],
-        nodata_value=nodata_value, driver='GTiff',
-        gdal_format='Int32', compress=compress,
-        compress_format=compress_format, constant_value=background_value
-    )
+    files_directories.move_file(temporary_grid, out_file)
     # convert reference layer to raster
     _output_raster = gdal.Open(out_file, gdal.GA_Update)
     if all_touched is False or all_touched is None:
@@ -1721,7 +2066,6 @@ def vector_to_raster(
                     'PREDICTOR=2', 'ZLEVEL=1'],
                 callback=progress_gdal
             )
-
         else:
             _o_c = gdal.RasterizeLayer(
                 _output_raster, [1], _v_layer, burn_values=[burn_values],
@@ -1744,12 +2088,8 @@ def vector_to_raster(
             )
     _output_raster = None
     if os.path.isfile(out_file):
-        try:
-            import shutil
-            shutil.move(out_file, output_path)
-        except Exception as err:
-            cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end')
+        files_directories.move_file(out_file, output_path)
+    log.debug('end')
     # end progress
     progress_queue.put(100, False)
     logger = cfg.logger.stream.getvalue()
@@ -1788,7 +2128,8 @@ def vector_to_raster_rank(
             except Exception as err:
                 str(err)
     from osgeo import gdal, ogr
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     # GDAL config
     try:
         gdal.SetConfigOption('GDAL_DISABLE_READDIR_ON_OPEN', 'TRUE')
@@ -1800,7 +2141,7 @@ def vector_to_raster_rank(
     except Exception as err:
         str(err)
     # open input with GDAL
-    cfg.logger.log.debug('vector_path: %s' % vector_path)
+    log.debug('vector_path: %s' % vector_path)
     try:
         _vector = ogr.Open(vector_path)
         _v_layer = _vector.GetLayer()
@@ -1812,51 +2153,51 @@ def vector_to_raster_rank(
             crs = None
         vector_crs = crs
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         return None, str(err), None
     # create output file
     out_file = cfg.temp.temporary_file_path(
         name_suffix=cfg.tif_suffix,
         name_prefix=process_id
     )
-    cfg.logger.log.debug('out_file: %s' % str(out_file))
+    log.debug('out_file: %s' % str(out_file))
     (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_vector.raster_info(
         reference_raster_path
     )
     orig_x = gt[0]
     orig_y = gt[3]
-    cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
+    log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
     if x_y_size is not None:
         x_size = x_y_size[0]
         y_size = x_y_size[1]
     else:
         x_size = gt[1]
         y_size = abs(gt[5])
-    cfg.logger.log.debug('x_size, y_size: %s,%s' % (x_size, y_size))
+    log.debug('x_size, y_size: %s,%s' % (x_size, y_size))
     # number of x pixels
     grid_columns = int(round(xy_count[0] * gt[1] / x_size))
     # number of y pixels
     grid_rows = int(round(xy_count[1] * abs(gt[5]) / y_size))
-    cfg.logger.log.debug(
+    log.debug(
         'grid_columns, grid_rows: %s,%s'
         % (grid_columns, grid_rows)
     )
     # check crs
     same_crs = raster_vector.compare_crs(reference_crs, vector_crs)
-    cfg.logger.log.debug('same_crs: %s' % str(same_crs))
+    log.debug('same_crs: %s' % str(same_crs))
     if not same_crs:
-        cfg.logger.log.error('different crs')
+        log.error('different crs')
         return None, 'different crs', None
     # calculate minimum extent
     if minimum_extent:
         min_x, max_x, min_y, max_y = _v_layer.GetExtent()
         orig_x = orig_x + x_size * int(round((min_x - orig_x) / x_size))
         orig_y = orig_y + y_size * int(round((max_y - orig_y) / y_size))
-        cfg.logger.log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
+        log.debug('orig_x, orig_y: %s,%s' % (orig_x, orig_y))
         grid_columns = abs(int(round((max_x - min_x) / x_size)))
         grid_rows = abs(int(round((max_y - min_y) / y_size)))
-        cfg.logger.log.debug(
+        log.debug(
             'grid_columns, grid_rows: %s,%s'
             % (grid_columns, grid_rows)
         )
@@ -1873,12 +2214,12 @@ def vector_to_raster_rank(
             options=['COMPRESS=LZW', 'BIGTIFF=YES']
         )
     if _grid is None:
-        cfg.logger.log.error('error output raster')
+        log.error('error output raster')
         return None, 'error grid', None
     try:
         _grid.GetRasterBand(1)
     except Exception as err:
-        cfg.logger.log.error(err)
+        log.error(err)
         return None, str(err), None
     # set raster projection from reference
     _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
@@ -1937,8 +2278,8 @@ def vector_to_raster_rank(
             import shutil
             shutil.move(out_file, output_path)
         except Exception as err:
-            cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end')
+            log.error(str(err))
+    log.debug('end')
     # end progress
     progress_queue.put(100, False)
     return [[output_path]], False, None
@@ -1952,12 +2293,13 @@ def download_file_processor(input_parameters, process_parameters=None):
     (process_id, cfg.temp, progress_queue, refresh_time,
      log_level) = process_parameters[:5]
     cfg.logger = Log(directory=cfg.temp.dir, multiprocess='0', level=log_level)
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     (url_list, output_path_list, authentication_uri, user, password,
      proxy_host, proxy_port, proxy_user, proxy_password, retried, timeout,
      copernicus, access_token) = input_parameters[:13]
     start_time = datetime.datetime.now()
-    cfg.logger.log.debug('url_list: %s' % str(url_list))
+    log.debug('url_list: %s' % str(url_list))
     len_url_list = len(url_list)
     for a, url_x in enumerate(url_list):
         now_time = datetime.datetime.now()
@@ -1972,7 +2314,7 @@ def download_file_processor(input_parameters, process_parameters=None):
                 proxy_host=proxy_host, proxy_port=proxy_port,
                 proxy_user=proxy_user, proxy_password=proxy_password,
                 progress=True, retried=retried, timeout=timeout,
-                callback=progress_queue.put, log=cfg.logger.log,
+                callback=progress_queue.put, log=log,
                 access_token=access_token
             )
         else:
@@ -1983,7 +2325,7 @@ def download_file_processor(input_parameters, process_parameters=None):
                 proxy_port=proxy_port,
                 proxy_user=proxy_user, proxy_password=proxy_password,
                 progress=True, retried=retried, timeout=timeout,
-                callback=progress_queue.put, log=cfg.logger.log
+                callback=progress_queue.put, log=log
             )
         if downloaded is None or downloaded[0] is False:
             # second try
@@ -1994,7 +2336,7 @@ def download_file_processor(input_parameters, process_parameters=None):
                     proxy_host=proxy_host, proxy_port=proxy_port,
                     proxy_user=proxy_user, proxy_password=proxy_password,
                     progress=True, retried=retried, timeout=timeout,
-                    callback=progress_queue.put, log=cfg.logger.log,
+                    callback=progress_queue.put, log=log,
                     access_token=access_token
                 )
             else:
@@ -2005,10 +2347,10 @@ def download_file_processor(input_parameters, process_parameters=None):
                     proxy_port=proxy_port,
                     proxy_user=proxy_user, proxy_password=proxy_password,
                     progress=True, retried=retried, timeout=timeout,
-                    callback=progress_queue.put, log=cfg.logger.log
+                    callback=progress_queue.put, log=log
                 )
             if downloaded is None or downloaded[0] is False:
-                cfg.logger.log.debug('error downloading: %s' % url_x)
+                log.debug('error downloading: %s' % url_x)
                 logger = cfg.logger.stream.getvalue()
                 return (
                     False, output_path_list,
@@ -2019,13 +2361,13 @@ def download_file_processor(input_parameters, process_parameters=None):
         else:
             check, output_path = downloaded
         if check is False:
-            cfg.logger.log.debug('error downloading: %s' % output_path)
+            log.debug('error downloading: %s' % output_path)
             logger = cfg.logger.stream.getvalue()
             return (
                 False, output_path_list,
                 'error downloading: %s' % output_path, logger
             )
-    cfg.logger.log.debug('end; output_path_list: %s' % output_path_list)
+    log.debug('end; output_path_list: %s' % output_path_list)
     logger = cfg.logger.stream.getvalue()
     return False, output_path_list, False, logger
 
@@ -2037,12 +2379,13 @@ def download_file_processor_rank(input_parameters, process_parameters=None,
     cfg = configuration_module
     (process_id, cfg.temp, progress_queue, refresh_time,
      log_level) = process_parameters[:5]
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     (url_list, output_path_list, authentication_uri, user, password,
      proxy_host, proxy_port, proxy_user, proxy_password, retried, timeout,
      copernicus, access_token) = input_parameters[:13]
     start_time = datetime.datetime.now()
-    cfg.logger.log.debug('url_list: %s' % str(url_list))
+    log.debug('url_list: %s' % str(url_list))
     len_url_list = len(url_list)
     for a, url_x in enumerate(url_list):
         now_time = datetime.datetime.now()
@@ -2057,7 +2400,7 @@ def download_file_processor_rank(input_parameters, process_parameters=None,
                 proxy_host=proxy_host, proxy_port=proxy_port,
                 proxy_user=proxy_user, proxy_password=proxy_password,
                 progress=True, retried=retried, timeout=timeout,
-                callback=progress_queue.put, log=cfg.logger.log,
+                callback=progress_queue.put, log=log,
                 access_token=access_token
             )
         else:
@@ -2068,7 +2411,7 @@ def download_file_processor_rank(input_parameters, process_parameters=None,
                 proxy_port=proxy_port,
                 proxy_user=proxy_user, proxy_password=proxy_password,
                 progress=True, retried=retried, timeout=timeout,
-                callback=progress_queue.put, log=cfg.logger.log
+                callback=progress_queue.put, log=log
             )
         if downloaded is None or downloaded[0] is False:
             # second try
@@ -2079,7 +2422,7 @@ def download_file_processor_rank(input_parameters, process_parameters=None,
                     proxy_host=proxy_host, proxy_port=proxy_port,
                     proxy_user=proxy_user, proxy_password=proxy_password,
                     progress=True, retried=retried, timeout=timeout,
-                    callback=progress_queue.put, log=cfg.logger.log,
+                    callback=progress_queue.put, log=log,
                     access_token=access_token
                 )
             else:
@@ -2090,10 +2433,10 @@ def download_file_processor_rank(input_parameters, process_parameters=None,
                     proxy_port=proxy_port,
                     proxy_user=proxy_user, proxy_password=proxy_password,
                     progress=True, retried=retried, timeout=timeout,
-                    callback=progress_queue.put, log=cfg.logger.log
+                    callback=progress_queue.put, log=log
                 )
             if downloaded is None or downloaded[0] is False:
-                cfg.logger.log.debug('error downloading: %s' % url_x)
+                log.debug('error downloading: %s' % url_x)
                 logger = cfg.logger.stream.getvalue()
                 return (
                     False, output_path_list,
@@ -2104,13 +2447,13 @@ def download_file_processor_rank(input_parameters, process_parameters=None,
         else:
             check, output_path = downloaded
         if check is False:
-            cfg.logger.log.debug('error downloading: %s' % output_path)
+            log.debug('error downloading: %s' % output_path)
             logger = cfg.logger.stream.getvalue()
             return (
                 False, output_path_list,
                 'error downloading: %s' % output_path, logger
             )
-    cfg.logger.log.debug('end; output_path_list: %s' % output_path_list)
+    log.debug('end; output_path_list: %s' % output_path_list)
     return False, output_path_list, False, None
 
 

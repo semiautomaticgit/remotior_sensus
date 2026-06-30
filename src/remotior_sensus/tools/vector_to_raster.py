@@ -54,7 +54,8 @@ def vector_to_raster(
         pixel_size: Optional[Union[int, float]] = None,
         output_path: Optional[str] = None,
         method: Optional[str] = None,
-        area_precision: Optional[int] = 3, resampling='mode',
+        area_precision: Optional[int] = 3,
+        subpixel_precision: Optional[Union[int, float]] = None, resampling='mode',
         nodata_value: Optional[int] = None,
         output_data_type: Optional[str] = 'Int32',
         minimum_extent: Optional[bool] = True,
@@ -85,9 +86,13 @@ def vector_to_raster(
             all_touched for burning all pixels touched or area_based for 
             burning values based on area proportion inside the pixel (warning: 
             using area_based method, a pixel covered by multiple polygons 
-            each covering less than 50% of the area may be incorrectly assigned).
+            each covering less than 50% of the area may be incorrectly assigned;
+            field value 0 will be ignored).
         area_precision: for area_based method, the higher the value, the more 
             is the precision in area proportion calculation.
+        subpixel_precision: for area_based method, alternative to
+            area_precision, set directly the subpixel size for area proportion 
+            calculation.
         resampling: type for resampling when method is area_based.
         compress: if True, compress the output raster.
         compress_format: compress format.
@@ -160,22 +165,25 @@ def vector_to_raster(
         all_touched = None
         compress = True
         max_progress = 50
-        # calculate pixel size precision
-        size_precision = round(x_y_size[0] / area_precision, 2)
-        if size_precision == 0:
-            size_precision = 0.1
-        ratio = size_precision.as_integer_ratio()
-        # greatest common divisor
-        try:
-            area_precision = numpy.gcd(
-                ratio[1], x_y_size[0]) * 10 ** (len(str(area_precision)) - 1)
-        except Exception as err:
-            str(err)
-            area_precision = numpy.gcd(
-                ratio[1], int(x_y_size[0] * 100)
-            ) * 10 ** (len(str(area_precision)) - 1)
-        temp_px_size = x_y_size[0] / area_precision
-        t_pixel_size = [temp_px_size, temp_px_size]
+        if subpixel_precision is None:
+            # calculate pixel size precision
+            size_precision = round(x_y_size[0] / area_precision, 2)
+            if size_precision == 0:
+                size_precision = 0.1
+            ratio = size_precision.as_integer_ratio()
+            # greatest common divisor
+            try:
+                area_precision = numpy.gcd(
+                    ratio[1], x_y_size[0]) * 10 ** (len(str(area_precision)) - 1)
+            except Exception as err:
+                str(err)
+                area_precision = numpy.gcd(
+                    ratio[1], int(x_y_size[0] * 100)
+                ) * 10 ** (len(str(area_precision)) - 1)
+            temp_px_size = x_y_size[0] / area_precision
+            t_pixel_size = [temp_px_size, temp_px_size]
+        else:
+            t_pixel_size = [subpixel_precision, subpixel_precision]
     else:
         all_touched = None
         max_progress = 100
@@ -205,70 +213,26 @@ def vector_to_raster(
                 output_epsg=reference_crs
             )
     if method is not None and method.lower() == 'area_based':
-        # force nodata value (workaround for later gdal copy issue)
-        nodata_value_set = cfg.nodata_val_Int32
-        temp_vector = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix,
-                                                   rank=True)
-        # dissolve vector
-        cfg.multiprocess.gdal_vector_translate(
-            input_file=vector_path, output_file=temp_vector,
-            explode_collections=True,
-            attribute_field=vector_field, min_progress=1, max_progress=10
+        # cluster by proximity then pass them for iteration
+        output = cfg.multiprocess.gdal_vector_cluster(
+            input_file=vector_path, attribute_field=vector_field,
+            threshold=x_y_size[0]*2, min_progress=1, max_progress=10
         )
-        """
-        # probably not needed
-        if cfg.mpi_rank:
-            # copy file to avoid opening issues
-            temp_vector_2 = cfg.temp.temporary_file_path(
-                name_suffix=cfg.gpkg_suffix
-            )
-            files_directories.copy_file(temp_vector, temp_vector_2)
-            temp_vector = temp_vector_2
-        """
-        _vector_source = ogr.Open(temp_vector)
-        _vector_layer = _vector_source.GetLayer()
-        layer_defn = _vector_layer.GetLayerDefn()
-        field_definitions = [
-            {'name': layer_defn.GetFieldDefn(i).GetName(),
-             'type': layer_defn.GetFieldDefn(i).GetType(),
-             'width': layer_defn.GetFieldDefn(i).GetWidth(),
-             'precision': layer_defn.GetFieldDefn(i).GetPrecision()
-             } for i in range(layer_defn.GetFieldCount())
-        ]
-        # check projection
-        proj = _vector_layer.GetSpatialRef()
-        crs = proj.ExportToWkt()
-        crs = crs.replace(' ', '')
-        if len(crs) == 0:
-            crs = None
-        vector_crs = crs
-        feature_list = []
-        for idx, feature in enumerate(_vector_layer):
-            try:
-                feature_geom = feature.GetGeometryRef().Clone()
-                if feature_geom is not None:
-                    geom = feature_geom.ExportToWkt()
-                    attrs = [feature.GetField(i) for i in
-                             range(layer_defn.GetFieldCount())]
-                    feature_list.append([field_definitions, geom, attrs, idx])
-            except Exception as err:
-                cfg.logger.log.error(str(err))
-        _vector_source.Destroy()
-        _vector_layer = None
-        _vector_source = None
+        features = [f for sub_list in output for f in sub_list]
         function_list = []
         argument_list = []
         ram = int(available_ram / n_processes)
+        cfg.logger.log.debug(f'len features:{len(features)}')
         # create virtual raster
         virtual_raster_list = []
-        for i, feature in enumerate(feature_list):
+        for i, feature in enumerate(features):
             temporary_raster = cfg.temp.temporary_raster_path(
-                name_prefix=str(feature[2][0]), extension=cfg.tif_suffix
+                name_prefix=f'v{i}', extension=cfg.tif_suffix
             )
             argument_list.append(
                 {
-                    'feature': feature,
-                    'vector_crs': vector_crs,
+                    'feature': feature[0],
+                    'vector_crs': feature[1],
                     'field_name': vector_field,
                     'reference_raster_path': reference_path,
                     'background_value': nodata_value_set,
@@ -278,18 +242,19 @@ def vector_to_raster(
                     'available_ram': ram,
                     'output': temporary_raster,
                     'src_nodata': None,
-                    'dst_nodata': nodata_value_set,
+                    'dst_nodata': None,
                     'resample_method': resampling,
                     'gdal_path': cfg.gdal_path,
                     'compress': True,
-                    'compress_format': 'LZW'
+                    'compress_format': 'LZW',
+                    'output_data_type': output_data_type
                 }
             )
             function_list.append(vector_to_raster_iter)
             virtual_raster_list.append(temporary_raster)
         cfg.multiprocess.run_iterative_process(
             function_list=function_list, argument_list=argument_list,
-            min_progress=10, max_progress=75, message='converting to raster'
+            min_progress=10, max_progress=70, message='converting to raster'
         )
         results = cfg.multiprocess.output
         output_raster_list = []
@@ -299,10 +264,11 @@ def vector_to_raster(
                 if type(r[0]) is str:
                     output_raster_list.append(r[0])
                 else:
-                    feature_error_list.append(feature_list[r[0]])
+                    feature_error_list.append(features[r[0]])
+        cfg.logger.log.debug(f'output_raster_list:{str(output_raster_list)}')
         if len(feature_error_list) > 0:
-            cfg.logger.log.info('features with error: %s'
-                                % str(feature_error_list))
+            cfg.logger.log.error('features with error: %s'
+                                 % str(feature_error_list))
         virtual_path = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix,
                                                     rank=True,
                                                     synch_ranks=True)

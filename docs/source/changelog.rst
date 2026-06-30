@@ -1,6 +1,12 @@
 Changelog
 ===============
 
+v0.7.5
+________
+
+* Improved vector to raster process based on area.
+* Minor bug fixing.
+
 v0.7.4
 ________
 

@@ -2937,6 +2937,83 @@ class Multiprocess(object):
         output_file = mpi_bcast(output_file)
         return output_file
 
+    # vector cluster with GDAL
+    def gdal_vector_cluster(
+            self, input_file, attribute_field, threshold,
+            available_ram: int = None, min_progress=None, max_progress=None
+    ):
+        process_result = None
+        if self.manager is not None:
+            cfg.logger.log.debug('start')
+            # progress queue
+            p_mq = self.manager.Queue()
+            p = 0
+            if available_ram is None:
+                available_ram = cfg.available_ram
+            available_ram = str(int(available_ram) * 1000000)
+            process_parameters = [p, cfg.temp, available_ram, cfg.gdal_path,
+                                  p_mq, cfg.log_level]
+            cfg.logger.log.debug(str(process_parameters))
+            results = []
+            if cfg.mpi_comm:
+                output = processor.gdal_cluster_rank(
+                    input_file, attribute_field,
+                    threshold, process_parameters, configuration_module=cfg)
+                process_result = mpi_bcast([output[0]])
+            else:
+                process_result = {}
+                c = self.pool.apply_async(
+                    processor.gdal_cluster, args=(
+                        input_file, attribute_field,
+                        threshold, process_parameters
+                    )
+                )
+                results.append([c, p])
+                refresh_time = cfg.refresh_time
+                while True:
+                    if cfg.action:
+                        # update progress
+                        if all(r[0].ready() for r in results):
+                            break
+                        time.sleep(refresh_time)
+                        # progress message
+                        try:
+                            p_m_qp = p_mq.get(False)
+                            progress = round(p_m_qp)
+                            cfg.progress.update(
+                                message='processing vector', step=progress,
+                                steps=100,
+                                minimum=min_progress, maximum=max_progress,
+                                percentage=progress
+                            )
+                        except Exception as err:
+                            str(err)
+                            cfg.progress.update(ping=True)
+                    else:
+                        cfg.logger.log.info('cancel')
+                        gc.collect()
+                        self.stop()
+                        self.start(self.n_processes, self.multiprocess_module)
+                        # synch bcast
+                        _ = mpi_bcast(None)
+                        return False
+                for r in results:
+                    res = r[0].get()
+                    process_result[r[1]] = res[0]
+                    # log
+                    cfg.logger.log.debug(res[3])
+                    # error
+                    if res[2] is not False:
+                        cfg.logger.log.error(
+                            'Error proc %s-%s' % (str(p), str(res[1]))
+                        )
+                        # synch bcast
+                        _ = mpi_bcast(None)
+                        return False
+                process_result = process_result.values()
+        return process_result
+
+
     # download file
     # noinspection PySimplifyBooleanCheck
     def multi_download_file(

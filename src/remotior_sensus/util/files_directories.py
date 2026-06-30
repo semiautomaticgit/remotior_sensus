@@ -233,7 +233,8 @@ def output_path(path, extension):
 
 
 # check raster output path
-def raster_output_path(path, virtual_output=False, overwrite=False):
+def raster_output_path(path, virtual_output=False, overwrite=False,
+                       skip_bcast=False):
     if path is None:
         path = cfg.temp.temporary_raster_path(extension=cfg.vrt_suffix)
     elif is_file(path) and not overwrite:
@@ -265,11 +266,13 @@ def raster_output_path(path, virtual_output=False, overwrite=False):
             )
         cfg.logger.log.debug('o_path: %s:; virtual: %s' % (o_path, virtual))
         create_parent_directory(o_path)
-        o_path, virtual = mpi_bcast((o_path, virtual))
+        if not skip_bcast:
+            o_path, virtual = mpi_bcast((o_path, virtual))
         return o_path, virtual
     except Exception as err:
         cfg.logger.log.error(str(err))
-        _output = mpi_bcast((False, False))
+        if not skip_bcast:
+            _output = mpi_bcast((False, False))
         return False, False
 
 

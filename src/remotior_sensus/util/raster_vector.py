@@ -61,7 +61,8 @@ def get_gdal_version():
 
 # check if file is raster or vector and return crs
 def raster_or_vector_input(path):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     vector = False
     raster = False
     crs = None
@@ -87,7 +88,7 @@ def raster_or_vector_input(path):
             except Exception as err:
                 crs = None
                 raster = False
-                cfg.logger.log.error(str(err))
+                log.error(str(err))
     # if vector
     else:
         vector = True
@@ -102,24 +103,26 @@ def raster_or_vector_input(path):
         except Exception as err:
             vector = False
             crs = None
-            cfg.logger.log.error(str(err))
+            log.error(str(err))
     return vector, raster, crs
 
 
 # number of raster bands
 def get_number_bands(path):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     try:
         r_d = gdal.Open(path, gdal.GA_ReadOnly)
         number = r_d.RasterCount
     except Exception as err:
         number = None
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
     return number
 
 
 # get CRS of a raster or vector
 def get_crs(path):
+    log = cfg.logger.log
     # try vector
     try:
         l_p = ogr.Open(path)
@@ -140,13 +143,13 @@ def get_crs(path):
                     crs = None
             except Exception as err:
                 crs = None
-                cfg.logger.log.error(str(err))
+                log.error(str(err))
     # if vector
     else:
         layer = l_p.GetLayer()
         # get projection
         crs = get_layer_crs(layer)
-    cfg.logger.log.debug('path: %s; crs: %s' % (path, crs))
+    log.debug('path: %s; crs: %s' % (path, crs))
     return crs
 
 
@@ -165,6 +168,7 @@ def auto_set_epsg(path):
 
 # get CRS of a vector layer
 def get_layer_crs(layer):
+    log = cfg.logger.log
     # check projection
     proj = layer.GetSpatialRef()
     try:
@@ -174,7 +178,7 @@ def get_layer_crs(layer):
             crs = None
     except Exception as err:
         crs = None
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
     return crs
 
 
@@ -186,8 +190,9 @@ def get_spatial_reference(input_projection):
 
 # compare two crs
 def compare_crs(first_crs, second_crs):
+    log = cfg.logger.log
     if cfg.logger is not None:
-        cfg.logger.log.debug(
+        log.debug(
             'first_crs: %s; second_crs: %s' % (first_crs, second_crs)
         )
     try:
@@ -200,23 +205,24 @@ def compare_crs(first_crs, second_crs):
         else:
             same = False
         if cfg.logger is not None:
-            cfg.logger.log.debug('same: %s' % same)
+            log.debug('same: %s' % same)
         return same
     except Exception as err:
         if cfg.logger is not None:
-            cfg.logger.log.error(str(err))
+            log.error(str(err))
         return False
 
 
 # raster information
 def raster_info(path):
+    log = cfg.logger.log
     if not files_directories.is_file(path):
         if cfg.logger is not None:
-            cfg.logger.log.warning('raster: %s' % path)
+            log.warning('raster: %s' % path)
     _r_d = gdal.Open(path, gdal.GA_ReadOnly)
     if _r_d is None:
         if cfg.logger is not None:
-            cfg.logger.log.error('raster: %s' % path)
+            log.error('raster: %s' % path)
         return False
     # x pixel count
     x_count = _r_d.RasterXSize
@@ -244,7 +250,7 @@ def raster_info(path):
     except Exception as err:
         crs = None
         if cfg.logger is not None:
-            cfg.logger.log.error(str(err))
+            log.error(str(err))
     # band number and block size
     number_of_bands = _r_d.RasterCount
     block_size = _band.GetBlockSize()
@@ -253,7 +259,7 @@ def raster_info(path):
     _band = None
     _r_d = None
     try:
-        cfg.logger.log.debug(
+        log.debug(
             '{} :{}'.format(
                 path, [gt, unit, [x_count, y_count], nd, number_of_bands,
                        block_size, [scale, offset], data_type, crs]
@@ -274,7 +280,8 @@ def raster_nodata_value(path):
 
 # get image geotransformation
 def image_geotransformation(path):
-    cfg.logger.log.debug('path: %s' % path)
+    log = cfg.logger.log
+    log.debug('path: %s' % path)
     # raster extent and pixel size
     (gt, r_p, unit, xy_count, nd, number_of_bands, block_size, scale_offset,
      data_type) = raster_info(path)
@@ -289,7 +296,7 @@ def image_geotransformation(path):
         un = c_rsr.GetAttrValue('unit')
     else:
         un = None
-    cfg.logger.log.debug(
+    log.debug(
         'left: %s; right: %s; top: %s; bottom: %s; p_x: %s; p_y: %s; r_p: '
         '%s; un: %s'
         % (left, top, right, bottom, p_x, p_y, r_p.replace(' ', ''), un)
@@ -311,7 +318,8 @@ def create_raster_from_reference(
         y_size=None, scale=None, offset=None
 ):
     if cfg.logger is not None:
-        cfg.logger.log.debug('path: %s' % path)
+        log = cfg.logger.log
+        log.debug('path: %s' % path)
     # list of rasters with same dimensions
     if type(path) is list:
         path = path[0]
@@ -403,7 +411,8 @@ def create_raster_from_reference(
                 _band = None
     _gdal_raster_ref = None
     if cfg.logger is not None:
-        cfg.logger.log.debug('output: %s' % str(output_raster_list))
+        log = cfg.logger.log
+        log.debug('output: %s' % str(output_raster_list))
     return output_raster_list
 
 
@@ -455,7 +464,8 @@ def create_raster_from_grid(
         _grid.GetRasterBand(1)
     except Exception as err:
         if cfg.logger is not None:
-            cfg.logger.log.error(err)
+            log = cfg.logger.log
+            log.error(err)
         return False
     # set raster projection from reference
     _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
@@ -479,7 +489,8 @@ def create_raster_from_grid(
         _band = None
     _grid = None
     if cfg.logger is not None:
-        cfg.logger.log.debug('output_raster: %s' % str(output_raster))
+        log = cfg.logger.log
+        log.debug('output_raster: %s' % str(output_raster))
     return output_raster
 
 
@@ -488,6 +499,7 @@ def read_array_block(
         gdal_band, pixel_start_column, pixel_start_row, block_columns,
         block_row, calc_data_type=None
 ):
+    log = cfg.logger.log
     if calc_data_type is None:
         calc_data_type = np.float32
     try:
@@ -506,7 +518,7 @@ def read_array_block(
         calc_data_type = np.float32
     offset = np.asarray(offset).astype(calc_data_type)
     scale = np.asarray(scale).astype(calc_data_type)
-    cfg.logger.log.debug(
+    log.debug(
         'pixel_start_column: %s; pixel_start_row: %s; block_columns: %s; '
         'block_row: %s; scale: %s; offset: %s; calc_data_type: %s'
         % (
@@ -520,7 +532,7 @@ def read_array_block(
             ) * scale + offset
         ).astype(calc_data_type)
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         return None
     return a
 
@@ -530,7 +542,8 @@ def band_read_array_block(
         gdal_band, pixel_start_column, pixel_start_row, block_columns,
         block_row, numpy_array=None
 ):
-    cfg.logger.log.debug(
+    log = cfg.logger.log
+    log.debug(
         'pixel_start_column: %s; pixel_start_row: %s; block_columns: %s; '
         'block_row: %s'
         % (pixel_start_column, pixel_start_row, block_columns, block_row)
@@ -541,7 +554,7 @@ def band_read_array_block(
             block_row, buf_obj=numpy_array
         )
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         return None
 
 
@@ -560,9 +573,11 @@ def read_raster(raster_path, band=1, calc_data_type=None):
 
 
 # open raster
-def open_raster(raster_path, access=None):
-    if access is None:
+def open_raster(raster_path, update=True):
+    if update:
         access = gdal.GA_Update
+    else:
+        access = gdal.GA_ReadOnly
     raster = gdal.Open(raster_path, access)
     return raster
 
@@ -611,6 +626,7 @@ def write_raster(
         raster_path, x, y, data_array, nodata_value=None, scale=None,
         offset=None
 ):
+    log = cfg.logger.log
     o_r = gdal.Open(raster_path, gdal.GA_Update)
     x_size = o_r.RasterXSize
     y_size = o_r.RasterYSize
@@ -625,14 +641,14 @@ def write_raster(
             b_o.SetScale(scale)
             b_o.SetOffset(offset)
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
     if nodata_value is not None:
         b_o.SetNoDataValue(int(nodata_value))
     try:
         data_array = data_array[::, ::, 0]
     except Exception as err:
         str(err)
-    cfg.logger.log.debug(
+    log.debug(
         'x_size: %s; y_size: %s; data_array.shape: %s; x: %s; y: %s'
         % (str(x_size), str(y_size), str(data_array.shape), str(x), str(y))
     )
@@ -641,15 +657,23 @@ def write_raster(
     return raster_path
 
 
+# edit raster
+def edit_raster_band(band, x, y, data_array):
+    band.WriteArray(data_array, x, y)
+    band.FlushCache()
+    return True
+
+
 # build band overview
 def build_band_overview(input_raster_list):
+    log = cfg.logger.log
     for input_raster in input_raster_list:
         try:
             _raster = gdal.Open(input_raster, gdal.GA_ReadOnly)
             _raster.BuildOverviews('NEAREST', [8, 16, 32, 64])
             _raster = None
         except Exception as err:
-            cfg.logger.log.error(str(err))
+            log.error(str(err))
 
 
 # create temporary virtual raster
@@ -659,8 +683,9 @@ def create_temporary_virtual_raster(
         data_type=None, pixel_size=None, override_box_coordinate_list=None,
         grid_reference=None
 ):
+    log = cfg.logger.log
     virtual_raster = cfg.temp.temporary_file_path(name_suffix=cfg.vrt_suffix)
-    cfg.logger.log.debug(
+    log.debug(
         'virtual_raster: %s; data_type: %s'
         % (virtual_raster, data_type)
     )
@@ -710,7 +735,8 @@ def create_virtual_raster(
 
     """
 
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     lefts = []
     rights = []
     tops = []
@@ -739,17 +765,17 @@ def create_virtual_raster(
                         v_epsg = osr.SpatialReference()
                         v_epsg.ImportFromWkt(r_p)
                         if v_epsg.IsSame(r_epsg) != 1:
-                            cfg.logger.log.error(
+                            log.error(
                                 'v_epsg.IsSame(r_epsg): %s' % v_epsg.IsSame(
                                     r_epsg
                                 )
                             )
                             return False
                 else:
-                    cfg.logger.log.error('error projection is None')
+                    log.error('error projection is None')
                     return False
             except Exception as err:
-                cfg.logger.log.error(err)
+                log.error(err)
                 return False
             # set band number list
             if band_number_list is None:
@@ -790,18 +816,18 @@ def create_virtual_raster(
                         v_epsg = osr.SpatialReference()
                         v_epsg.ImportFromWkt(r_p)
                         if v_epsg.IsSame(r_epsg) != 1:
-                            cfg.logger.log.error(
+                            log.error(
                                 'v_epsg.IsSame(r_epsg): %s' % str(
                                     v_epsg.IsSame(r_epsg)
                                 )
                             )
-                            cfg.logger.log.error('error epsg')
+                            log.error('error epsg')
                             return False
                 else:
-                    cfg.logger.log.error('error projection is None')
+                    log.error('error projection is None')
                     return False
             except Exception as err:
-                cfg.logger.log.error(err)
+                log.error(err)
                 return False
         p_x_sizes = bandset.get_band_attributes('x_size')
         p_y_sizes = bandset.get_band_attributes('y_size')
@@ -848,13 +874,13 @@ def create_virtual_raster(
             new_band_number_list = [raster_band_number_list[i - 1]
                                     for i in band_number_list]
             band_number_list = new_band_number_list
-    cfg.logger.log.debug(
+    log.debug(
         'lefts: %s; rights: %s; tops: %s; bottoms: %s; p_x_sizes: %s; '
         'p_y_sizes: %s' % (
             str(lefts), str(rights), str(tops), str(bottoms), str(p_x_sizes),
             str(p_y_sizes))
     )
-    cfg.logger.log.debug('box_coordinate_list: %s;' % box_coordinate_list)
+    log.debug('box_coordinate_list: %s;' % box_coordinate_list)
     # calculate boundaries
     try:
         # minimum extent of intersection
@@ -870,9 +896,9 @@ def create_virtual_raster(
             i_right = max(rights)
             i_bottom = min(bottoms)
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         return False
-    cfg.logger.log.debug(
+    log.debug(
         '[i_left, i_top, i_right, i_bottom]: %s' % str(
             [i_left, i_top, i_right, i_bottom]
         )
@@ -901,7 +927,7 @@ def create_virtual_raster(
                 (i_bottom - i_top) / pixel_y_size
             ) * pixel_y_size
             i_bottom = i_top + diff_bottom
-            cfg.logger.log.debug(
+            log.debug(
                 '[pixel_x_size, pixel_y_size]: %s; [r_left, r_top]: %s; ['
                 'i_left, i_top, i_right, i_bottom]: %s'
                 % (str([pixel_x_size, pixel_y_size]), str([r_left, r_top]),
@@ -965,7 +991,7 @@ def create_virtual_raster(
                 (box_coordinate_list[3] - i_top) / pixel_y_size
             ) * pixel_y_size
             i_bottom = i_top + diff_bottom
-            cfg.logger.log.debug(
+            log.debug(
                 '[pixel_x_size, pixel_y_size]: %s; [r_left, r_top]: %s; ['
                 'i_left, i_top, i_right, i_bottom]: %s'
                 % (str([pixel_x_size, pixel_y_size]), str([r_left, r_top]),
@@ -1038,7 +1064,7 @@ def create_virtual_raster(
     # set band number list
     if band_number_list is None:
         band_number_list = all_band_number_list
-    cfg.logger.log.debug(
+    log.debug(
         '[r_x, r_y]: %s; band_number_list: %s' % (
             str([r_x, r_y]), str(band_number_list))
     )
@@ -1047,7 +1073,7 @@ def create_virtual_raster(
     for raster, input_raster_i in enumerate(input_raster_list):
         for band_number in band_number_list[raster]:
             n += 1
-            cfg.logger.log.debug(
+            log.debug(
                 'input_raster: %s' % str(input_raster_i)
             )
             if bandset is None:
@@ -1213,7 +1239,7 @@ def create_virtual_raster(
                 if relative_extent_list is not None:
                     s_off_x, s_off_y, s_r_x, s_r_y = relative_extent_list
                     d_off_x, d_off_y, d_r_x, d_r_y = relative_extent_list
-            cfg.logger.log.debug(
+            log.debug(
                 '[left, top, right, bottom]: %s; [s_off_x, s_off_y, s_r_x, '
                 's_r_y]: %s;[d_off_x, d_off_y, d_r_x, '
                 'd_r_y]: %s; data_type_s: %s; nodata_value: %s; no_data: %s'
@@ -1317,8 +1343,8 @@ def create_virtual_raster(
                 if scl is not None:
                     band.SetScale(scl)
             except Exception as err:
-                cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end; output: %s' % str(output))
+                log.error(str(err))
+    log.debug('end; output: %s' % str(output))
     return str(output)
 
 
@@ -1331,7 +1357,8 @@ def create_virtual_raster_2_mosaic(
         pixel_size=None, grid_reference=None, scale_offset_list=None,
         resampling=None
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     lefts = []
     rights = []
     tops = []
@@ -1360,13 +1387,13 @@ def create_virtual_raster_2_mosaic(
                     v_epsg = osr.SpatialReference()
                     v_epsg.ImportFromWkt(r_p)
                     if v_epsg.IsSame(r_epsg) != 1:
-                        cfg.logger.log.error('error epsg')
+                        log.error('error epsg')
                         return False
             else:
-                cfg.logger.log.error('error projection')
+                log.error('error projection')
                 return False
         except Exception as err:
-            cfg.logger.log.error(err)
+            log.error(err)
             return False
         left = gt[0]
         top = gt[3]
@@ -1389,7 +1416,7 @@ def create_virtual_raster_2_mosaic(
         i_right = max(rights)
         i_bottom = min(bottoms)
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         return False
     pixel_x_size, pixel_y_size = None, None
     if box_coordinate_list is None:
@@ -1650,7 +1677,7 @@ def create_virtual_raster_2_mosaic(
                 band.SetMetadataItem(
                     'ComplexSource', source, 'new_vrt_sources'
                 )
-            cfg.logger.log.debug(
+            log.debug(
                 'dst_nodata: %s; src_nodata: %s; no_data: %s'
                 % (str(dst_nodata), str(src_nodata), str(no_data))
             )
@@ -1687,16 +1714,16 @@ def create_virtual_raster_2_mosaic(
                                 if math.isnan(no_data):
                                     band.SetNoDataValue(int(no_data))
                                 else:
-                                    cfg.logger.log.error(str(err))
+                                    log.error(str(err))
                             except Exception as err:
-                                cfg.logger.log.error(str(err))
+                                log.error(str(err))
             if offs is not None:
                 band.SetOffset(offs)
             if scl is not None:
                 band.SetScale(scl)
         except Exception as err:
-            cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end; virtual raster: %s' % str(output))
+            log.error(str(err))
+    log.debug('end; virtual raster: %s' % str(output))
     return str(output)
 
 
@@ -1710,7 +1737,8 @@ def force_relative_to_vrt(file_path):
 
 # get spatial reference from EPSG code o wkt
 def get_projection_from_epsg_wkt(input_epsg):
-    cfg.logger.log.debug('input_epsg: %s' % str(input_epsg))
+    log = cfg.logger.log
+    log.debug('input_epsg: %s' % str(input_epsg))
     input_sr = osr.SpatialReference()
     try:
         input_sr.ImportFromEPSG(input_epsg)
@@ -1720,7 +1748,7 @@ def get_projection_from_epsg_wkt(input_epsg):
             input_sr.ImportFromWkt(input_epsg)
         except Exception as err:
             str(err)
-            cfg.logger.log.error(str(err))
+            log.error(str(err))
             input_sr = None
     return input_sr
 
@@ -1729,7 +1757,8 @@ def get_projection_from_epsg_wkt(input_epsg):
 def project_point_coordinates(
         point_x, point_y, input_coordinates, output_coordinates
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     try:
         # required by GDAL 3 coordinate order
         try:
@@ -1751,14 +1780,14 @@ def project_point_coordinates(
         point_t = ogr.Geometry(ogr.wkbPoint)
         point_t.AddPoint(point_x, point_y)
         point_t.Transform(c_t)
-        cfg.logger.log.debug(
+        log.debug(
             '[point_t.GetX(), point_t.GetY()]: %s' % str(
                 [point_t.GetX(), point_t.GetY()]
             )
         )
         return [point_t.GetX(), point_t.GetY()]
     except Exception as err:
-        cfg.logger.log.error(str(err))
+        log.error(str(err))
         return False
 
 
@@ -1768,7 +1797,8 @@ def reproject_vector(
         vector_type='wkbMultiPolygon', output_drive=None
 ):
     if cfg.logger is not None:
-        cfg.logger.log.debug('start')
+        log = cfg.logger.log
+        log.debug('start')
     # input spatial reference
     input_sr = osr.SpatialReference()
     if input_epsg is None:
@@ -1780,12 +1810,14 @@ def reproject_vector(
             crs_string = crs.replace(' ', '')
             if len(crs_string) == 0:
                 if cfg.logger is not None:
-                    cfg.logger.log.error('Error input vector')
+                    log = cfg.logger.log
+                    log.error('Error input vector')
                 return False
             input_sr.ImportFromWkt(crs_string)
         except Exception as err:
             if cfg.logger is not None:
-                cfg.logger.log.error(str(err))
+                log = cfg.logger.log
+                log.error(str(err))
             return False
     else:
         # input EPSG or projection
@@ -1840,7 +1872,8 @@ def reproject_vector(
         o_layer = o_source.CreateLayer(name, output_sr, ogr.wkbPoint)
     else:
         if cfg.logger is not None:
-            cfg.logger.log.error('Error vector type')
+            log = cfg.logger.log
+            log.error('Error vector type')
         return False
     i_layer_definition = i_layer.GetLayerDefn()
     # copy fields
@@ -1869,7 +1902,9 @@ def reproject_vector(
             i_feature.Destroy()
             i_feature = i_layer.GetNextFeature()
         else:
-            cfg.logger.log.error('cancel')
+            if cfg.logger is not None:
+                log = cfg.logger.log
+                log.error('cancel')
             # close files
             i_vector.Destroy()
             o_source.Destroy()
@@ -1878,7 +1913,8 @@ def reproject_vector(
     i_vector.Destroy()
     o_source.Destroy()
     if cfg.logger is not None:
-        cfg.logger.log.debug('output: %s' % output)
+        log = cfg.logger.log
+        log.debug('output: %s' % output)
     return output
 
 
@@ -1908,7 +1944,8 @@ def vector_to_raster(
         vector_layer=None, available_ram=None
 ):
     if cfg.logger is not None:
-        cfg.logger.log.debug('start')
+        log = cfg.logger.log
+        log.debug('start')
     # GDAL config
     try:
         if available_ram is None:
@@ -1926,7 +1963,8 @@ def vector_to_raster(
         vector_crs = get_layer_crs(vector_layer)
     else:
         if cfg.logger is not None:
-            cfg.logger.log.error('input vector')
+            log = cfg.logger.log
+            log.error('input vector')
         return False
     (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_info(reference_raster_path)
@@ -1965,12 +2003,14 @@ def vector_to_raster(
             v_layer = vector.GetLayer()
         except Exception as err:
             if cfg.logger is not None:
-                cfg.logger.log.error(err)
+                log = cfg.logger.log
+                log.error(err)
             return False
     elif vector_layer is not None:
         if not same_crs:
             if cfg.logger is not None:
-                cfg.logger.log.error('different crs')
+                log = cfg.logger.log
+                log.error('different crs')
             return False
         else:
             v_layer = vector_layer
@@ -2013,13 +2053,15 @@ def vector_to_raster(
         )
     if _grid is None:
         if cfg.logger is not None:
-            cfg.logger.log.error('error output raster')
+            log = cfg.logger.log
+            log.error('error output raster')
         return False
     try:
         _grid.GetRasterBand(1)
     except Exception as err:
         if cfg.logger is not None:
-            cfg.logger.log.error(err)
+            log = cfg.logger.log
+            log.error(err)
         return False
     # set raster projection from reference
     _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
@@ -2057,7 +2099,8 @@ def vector_to_raster(
                 options=['all_touched=TRUE']
             )
     if cfg.logger is not None:
-        cfg.logger.log.debug('gdal rasterize: %s' % str(o_c))
+        log = cfg.logger.log
+        log.debug('gdal rasterize: %s' % str(o_c))
     return output_path
 
 
@@ -2070,7 +2113,8 @@ def extract_vector_to_raster(
         vector_layer=None, available_ram=None, ravel=True, buffer=0
 ):
     if cfg.logger is not None:
-        cfg.logger.log.debug('start')
+        log = cfg.logger.log
+        log.debug('start')
     # GDAL config
     try:
         if available_ram is None:
@@ -2088,7 +2132,8 @@ def extract_vector_to_raster(
         vector_crs = get_layer_crs(vector_layer)
     else:
         if cfg.logger is not None:
-            cfg.logger.log.error('input vector')
+            log = cfg.logger.log
+            log.error('input vector')
         return False
     (gt, reference_crs, unit, xy_count, nd, number_of_bands, block_size,
      scale_offset, data_type) = raster_info(reference_raster_path)
@@ -2151,12 +2196,14 @@ def extract_vector_to_raster(
             v_layer = _vector.GetLayer()
         except Exception as err:
             if cfg.logger is not None:
-                cfg.logger.log.error(err)
+                log = cfg.logger.log
+                log.error(err)
             return False
     elif vector_layer is not None:
         if not same_crs:
             if cfg.logger is not None:
-                cfg.logger.log.error('different crs')
+                log = cfg.logger.log
+                log.error('different crs')
             return False
         else:
             v_layer = vector_layer
@@ -2164,7 +2211,8 @@ def extract_vector_to_raster(
         v_layer = None
     if attribute_filter is None:
         if cfg.logger is not None:
-            cfg.logger.log.error('attribute filter')
+            log = cfg.logger.log
+            log.error('attribute filter')
         return False
     if ravel is None:
         ravel = True
@@ -2208,13 +2256,15 @@ def extract_vector_to_raster(
     _grid = driver.Create('', grid_columns, grid_rows, 1, gdal_format)
     if _grid is None:
         if cfg.logger is not None:
-            cfg.logger.log.error('error output raster')
+            log = cfg.logger.log
+            log.error('error output raster')
         return False
     try:
         _band = _grid.GetRasterBand(1)
     except Exception as err:
         if cfg.logger is not None:
-            cfg.logger.log.error(err)
+            log = cfg.logger.log
+            log.error(err)
         return False
     # set raster projection from reference
     _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
@@ -2249,7 +2299,8 @@ def extract_vector_to_raster(
     )
     _grid = _r_d = None
     if cfg.logger is not None:
-        cfg.logger.log.debug('extract vector')
+        log = cfg.logger.log
+        log.debug('extract vector')
     if _a is None:
         return None, None, None
     if ravel:
@@ -2264,7 +2315,8 @@ def get_pixel_value(
         available_ram=None
 ):
     if cfg.logger is not None:
-        cfg.logger.log.debug('start')
+        log = cfg.logger.log
+        log.debug('start')
     # GDAL config
     try:
         if available_ram is None:
@@ -2304,7 +2356,8 @@ def get_pixel_value(
     pixel_value = float(pixel_value.item())
     _r_b = _r_d = None
     if cfg.logger is not None:
-        cfg.logger.log.debug('pixel value: %s' % str(pixel_value))
+        log = cfg.logger.log
+        log.debug('pixel value: %s' % str(pixel_value))
     return pixel_value
 
 
@@ -2314,7 +2367,8 @@ def merge_all_layers(
         input_layers_list, target_layer, min_progress=0, max_progress=100,
         dissolve_output=None
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     t_l = create_virtual_layer(input_layers_list)
     # open virtual layer
     input_source = ogr.Open(t_l)
@@ -2372,15 +2426,15 @@ def merge_all_layers(
                         field = i_feature.GetField(c)
                         o_feature.SetField(field_name, field)
                     except Exception as err:
-                        cfg.logger.log.error(err)
+                        log.error(err)
                 _output_layer.CreateFeature(o_feature)
                 i_feature = i_layer.GetNextFeature()
             else:
-                cfg.logger.log.error('cancel')
+                log.error('cancel')
                 _output_layer = None
                 return None
     _output_layer.CommitTransaction()
-    cfg.logger.log.debug('target_layer: %s' % target_layer)
+    log.debug('target_layer: %s' % target_layer)
     return target_layer
 
 
@@ -2416,7 +2470,8 @@ def merge_dissolve_layer(
         input_layer, target_layer, column, y_list_coordinates, min_progress=0,
         max_progress=100
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     # open virtual layer
     input_source = ogr.Open(input_layer)
     i_layer = input_source.GetLayer()
@@ -2461,7 +2516,7 @@ def merge_dissolve_layer(
             maximum=min_p + max_p * n, message='dissolving polygons',
             percentage=n / len(values)
         )
-        cfg.logger.log.debug('progress: %s' % str(n / len(values)))
+        log.debug('progress: %s' % str(n / len(values)))
         # get geometries to be dissolved
         sql = 'SELECT DISTINCT(ST_COLLECT(CastToMultiPolygon(geom))), ' \
               'GROUP_CONCAT(DISTINCT id) FROM (SELECT fid as ' \
@@ -2528,7 +2583,7 @@ def merge_dissolve_layer(
                             o_feature.SetField(cfg.area_field_name, area)
                             o_layer.CreateFeature(o_feature)
                             break
-                    cfg.logger.log.debug('added union geometries')
+                    log.debug('added union geometries')
                 # single geometry
                 else:
                     o_feature = ogr.Feature(o_layer_def)
@@ -2569,9 +2624,9 @@ def merge_dissolve_layer(
                 o_layer.CreateFeature(o_feature)
             i_feature = i_layer.GetNextFeature()
         else:
-            cfg.logger.log.error('cancel')
+            log.error('cancel')
             return None
-    cfg.logger.log.debug('end')
+    log.debug('end')
     return target_layer
 
 
@@ -2580,7 +2635,8 @@ def merge_dissolve_layer(
 def split_layer_geometries_old(
         input_layer, min_progress=0, max_progress=100
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     # open virtual layer
     input_source = ogr.Open(input_layer)
     i_layer = input_source.GetLayer()
@@ -2626,7 +2682,7 @@ def split_layer_geometries_old(
             output_source.Destroy()
             new_layers.append(temp)
             i_feature = i_layer.GetNextFeature()
-    cfg.logger.log.debug('end')
+    log.debug('end')
     return new_layers
 
 
@@ -2635,7 +2691,9 @@ def split_layer_geometries_old(
 def split_layer_geometries(
         input_layer, min_progress=0, max_progress=100
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    temp = cfg.temp
+    log.debug('start')
     # open virtual layer
     input_source = ogr.Open(input_layer)
     i_layer = input_source.GetLayer()
@@ -2677,16 +2735,16 @@ def split_layer_geometries(
                 field_value = i_feature.GetField(i)
                 o_feature.SetField(field_name, field_value)
             mem_layer.CreateFeature(o_feature)
-            temp = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
-            output_name = files_directories.file_name(temp)
+            tempo = temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
+            output_name = files_directories.file_name(tempo)
             gdal.VectorTranslate(
-                temp, mem_ds, format='GPKG', layerName=output_name
+                tempo, mem_ds, format='GPKG', layerName=output_name
             )
             o_feature.Destroy()
             mem_ds.Destroy()
-            new_layers.append(temp)
+            new_layers.append(tempo)
             i_feature = i_layer.GetNextFeature()
-    cfg.logger.log.debug('end')
+    log.debug('end')
     return new_layers
 
 
@@ -2694,7 +2752,8 @@ def split_layer_geometries(
 def merge_polygons(
         input_layer, value_list, target_layer
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     # open virtual layer
     _input_source = ogr.Open(input_layer)
     _i_layer = _input_source.GetLayer()
@@ -2728,7 +2787,7 @@ def merge_polygons(
                 # try to fix invalid geometry with buffer
                 geometry_ref = geometry_ref.Buffer(0.0)
             geometry_count = geometry_ref.GetGeometryCount()
-            cfg.logger.log.debug('geometry_count: %s' % str(geometry_count))
+            log.debug('geometry_count: %s' % str(geometry_count))
             _o_layer.StartTransaction()
             _o_feature = ogr.Feature(o_layer_def)
             _o_feature.SetGeometry(geometry_ref)
@@ -2741,7 +2800,7 @@ def merge_polygons(
     _o_layer = None
     _input_source = None
     _output_source = None
-    cfg.logger.log.debug('end; target_layer: %s' % target_layer)
+    log.debug('end; target_layer: %s' % target_layer)
     return target_layer
 
 
@@ -2749,7 +2808,8 @@ def merge_polygons(
 def dissolve_polygons(
         input_file, output_file, attribute_field, output_drive=None
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     # open layer
     _input_source = ogr.Open(input_file)
     _i_layer = _input_source.GetLayer()
@@ -2774,7 +2834,7 @@ def dissolve_polygons(
         explodeCollections=True
     )
     gdal.VectorTranslate(output_file, input_file, options=options)
-    cfg.logger.log.debug('end; output_file: %s' % output_file)
+    log.debug('end; output_file: %s' % output_file)
     return output_file
 
 
@@ -2782,7 +2842,8 @@ def dissolve_polygons(
 def save_polygons(
         input_layer, value_list, target_layer, vector_format=None
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     if vector_format is None:
         vector_format = 'GPKG'
     # open virtual layer
@@ -2833,7 +2894,7 @@ def save_polygons(
     _o_layer = None
     _input_source = None
     _output_source = None
-    cfg.logger.log.debug('end; target_layer: %s' % target_layer)
+    log.debug('end; target_layer: %s' % target_layer)
     return target_layer
 
 
@@ -2866,12 +2927,13 @@ def create_geometry_vector(
 
 # remove polygon from vector and return vector
 def remove_polygon_from_vector(vector_path, attribute_field, attribute_value):
+    log = cfg.logger.log
     _vector = ogr.Open(vector_path, 1)
     # get layer
     try:
         _v_layer = _vector.GetLayer()
     except Exception as err:
-        cfg.logger.log.error(err)
+        log.error(err)
         return False
     v_layer_name = _v_layer.GetName()
     sql = "DELETE FROM %s WHERE %s = '%s'" % (
@@ -2883,13 +2945,14 @@ def remove_polygon_from_vector(vector_path, attribute_field, attribute_value):
 
 # get polygon from vector and return memory layer
 def get_polygon_from_vector(vector_path, attribute_filter=None):
+    log = cfg.logger.log
     # open input vector
     vector = ogr.Open(vector_path)
     # get layer
     try:
         _v_layer = vector.GetLayer()
     except Exception as err:
-        cfg.logger.log.error(err)
+        log.error(err)
         return False
     # attribute filter
     _v_layer.SetAttributeFilter(attribute_filter)
@@ -2980,7 +3043,8 @@ def gdal_warping(
         n_processes: int = None, available_ram: int = None,
         src_nodata=None, dst_nodata=None, min_progress=0, max_progress=100
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     out_dir = files_directories.parent_directory(output)
     files_directories.create_directory(out_dir)
     if resample_method is None:
@@ -2988,7 +3052,7 @@ def gdal_warping(
     elif resample_method == 'sum':
         gdal_v = get_gdal_version()
         if float('%s.%s' % (gdal_v[0], gdal_v[1])) < 3.1:
-            cfg.logger.log.error('Error GDAL version')
+            log.error('Error GDAL version')
             return False
     if n_processes is None:
         n_processes = cfg.n_processes
@@ -3036,8 +3100,8 @@ def gdal_warping(
         )
         gdal.Warp(output, input_raster, options=to)
     except Exception as err:
-        cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end; output: %s' % output)
+        log.error(str(err))
+    log.debug('end; output: %s' % output)
     return True
 
 
@@ -3046,7 +3110,8 @@ def jpg_gdal(
         input_raster, output, quality=90, available_ram: int = None,
         stretch=True
 ):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     if available_ram is None:
         available_ram = cfg.available_ram
     # GDAL config
@@ -3062,7 +3127,7 @@ def jpg_gdal(
     try:
         _input_dataset = gdal.Open(input_raster)
         if _input_dataset is None:
-            cfg.logger.log.error('unable to open the input file')
+            log.error('unable to open the input file')
         else:
             _band_1 = _input_dataset.GetRasterBand(1)
             _band_2 = _input_dataset.GetRasterBand(2)
@@ -3104,13 +3169,14 @@ def jpg_gdal(
             _band_3 = None
             _input_dataset = None
     except Exception as err:
-        cfg.logger.log.error(str(err))
-    cfg.logger.log.debug('end; output: %s' % output)
+        log.error(str(err))
+    log.debug('end; output: %s' % output)
 
 
 # create polygon from coordinates
 def coordinates_to_polygon_gdal(coordinates, input_coordinates, output=None):
-    cfg.logger.log.debug('start')
+    log = cfg.logger.log
+    log.debug('start')
     if output is None:
         output = cfg.temp.temporary_file_path(name_suffix=cfg.gpkg_suffix)
     # create empty vector
@@ -3160,11 +3226,13 @@ def get_vector_fields(input_layer):
 def get_colored_raster(path, value_color_dictionary):
     if not files_directories.is_file(path):
         if cfg.logger is not None:
-            cfg.logger.log.warning('raster: %s' % path)
+            log = cfg.logger.log
+            log.warning('raster: %s' % path)
     _r_d = gdal.Open(path, gdal.GA_ReadOnly)
     if _r_d is None:
         if cfg.logger is not None:
-            cfg.logger.log.error('raster: %s' % path)
+            log = cfg.logger.log
+            log.error('raster: %s' % path)
         return False
     _band = _r_d.GetRasterBand(1)
     data = _band.ReadAsArray()
