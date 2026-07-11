@@ -217,7 +217,8 @@ class SpectralSignaturesCatalog(object):
             self.table['signature_id'] == signature_id].geometry[0]
         # geometry
         if geometry == 1:
-            if not files_directories.is_file(self.geometry_file):
+            if (not files_directories.is_file(self.geometry_file)
+                    and 'vsimem' not in self.geometry_file):
                 cfg.logger.log.error(
                     'geometry file not found: %s' % self.geometry_file
                 )
@@ -296,7 +297,8 @@ class SpectralSignaturesCatalog(object):
             except Exception as err:
                 str(err)
         if geometry == 1:
-            if not files_directories.is_file(self.geometry_file):
+            if (not files_directories.is_file(self.geometry_file)
+                    and 'vsimem' not in self.geometry_file):
                 cfg.logger.log.error(
                     'geometry file not found: %s' % self.geometry_file
                 )
@@ -343,7 +345,8 @@ class SpectralSignaturesCatalog(object):
                         ].signature[0]
                     # calculate signature
                     if calculate_signature is True and signature_check == 0:
-                        if not files_directories.is_file(self.geometry_file):
+                        if (not files_directories.is_file(self.geometry_file)
+                                and 'vsimem' not in self.geometry_file):
                             cfg.logger.log.error(
                                 'geometry file not found: %s'
                                 % self.geometry_file
@@ -715,7 +718,8 @@ class SpectralSignaturesCatalog(object):
         cfg.logger.log.debug('start')
         if files_directories.is_file(file_path):
             # check geometry vector
-            if not files_directories.is_file(self.geometry_file):
+            if (not files_directories.is_file(self.geometry_file)
+                    and 'vsimem' not in self.geometry_file):
                 if self.bandset is None:
                     cfg.logger.log.error('bandset not found')
                     raise Exception('bandset not found')
@@ -874,7 +878,7 @@ class SpectralSignaturesCatalog(object):
             if not cfg.action:
                 break
             temp_path = cfg.temp.temporary_file_path(
-                name_suffix=cfg.tif_suffix
+                name_suffix=cfg.vrt_suffix
             )
             virtual = raster_vector.create_virtual_raster(
                 input_raster_list=[path_p], output=temp_path,
@@ -925,7 +929,7 @@ class SpectralSignaturesCatalog(object):
             if not cfg.action:
                 break
             temp_path = cfg.temp.temporary_file_path(
-                name_suffix=cfg.tif_suffix
+                name_suffix=cfg.vrt_suffix
             )
             virtual = raster_vector.create_virtual_raster(
                 input_raster_list=[p], output=temp_path,
@@ -959,11 +963,17 @@ class SpectralSignaturesCatalog(object):
         # create temporary directory
         temp_dir = cfg.temp.create_temporary_directory()
         # geometry file
-        if files_directories.is_file(self.geometry_file):
+        if (files_directories.is_file(self.geometry_file)
+                or 'vsimem' in self.geometry_file):
             if signature_id_list is None:
-                files_directories.copy_file(
-                    self.geometry_file, '%s/geometry.gpkg' % temp_dir
-                )
+                if 'vsimem' in self.geometry_file:
+                    self.export_vector(
+                        '*', '%s/geometry.gpkg' % temp_dir
+                    )
+                else:
+                    files_directories.copy_file(
+                        self.geometry_file, '%s/geometry.gpkg' % temp_dir
+                    )
             else:
                 self.export_vector(
                     signature_id_list, '%s/geometry.gpkg' % temp_dir
@@ -1097,8 +1107,7 @@ class SpectralSignaturesCatalog(object):
             self, signature_id, plot_catalog=None
     ):
         cfg.logger.log.debug(
-            'export_signature_values_for_plot: %s'
-            % signature_id
+            'export_signature_values_for_plot: %s' % signature_id
         )
         # check signature
         try:
@@ -1119,7 +1128,8 @@ class SpectralSignaturesCatalog(object):
                 return False
             # geometry
             else:
-                if files_directories.is_file(self.geometry_file):
+                if (files_directories.is_file(self.geometry_file)
+                        or 'vsimem' in self.geometry_file):
                     # calculate signature
                     vector = raster_vector.get_polygon_from_vector(
                         vector_path=self.geometry_file,
@@ -1127,6 +1137,7 @@ class SpectralSignaturesCatalog(object):
                             cfg.uid_field_name, signature_id
                         )
                     )
+                    cfg.logger.log.debug('vector: %s' % vector)
                     try:
                         (value_list, standard_deviation_list, wavelength_list,
                          pixel_count) = self.calculate_signature(vector)
@@ -1135,12 +1146,12 @@ class SpectralSignaturesCatalog(object):
                         return False
                 else:
                     cfg.logger.log.error(
-                        'geometry file not found: %s'
-                        % self.geometry_file
+                        'geometry file not found: %s' % self.geometry_file
                     )
                     raise Exception('geometry file not found')
         else:
             value_list = self.signatures[signature_id].value
+            cfg.logger.log.debug('value_list: %s' % value_list)
             wavelength_list = self.signatures[signature_id].wavelength
             standard_deviation_list = self.signatures[
                 signature_id].standard_deviation

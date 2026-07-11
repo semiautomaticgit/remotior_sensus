@@ -1553,6 +1553,8 @@ def zonal_rasters(*argv):
 
 # calculate spectral signature
 def spectral_signature(*argv):
+    # noinspection PyPackageRequirements
+    from osgeo import gdal
     log = cfg.logger.log
     log.debug('start')
     array_function_placeholder = argv[1][0]
@@ -1561,12 +1563,13 @@ def spectral_signature(*argv):
     function_argument = argv[7]
     # reference path
     function_variable = argv[8]
-    temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    temp = cfg.temp.temporary_mem_path(name_suffix=cfg.tif_suffix)
     raster_vector.vector_to_raster(
         vector_path=function_argument, burn_values=1, output_path=temp,
         reference_raster_path=function_variable, extent=True
     )
     _a = raster_vector.read_raster(temp)
+    gdal.Unlink(temp)
     _a[nodata_mask == 1] = np.nan
     array_roi = array_function_placeholder[_a == 1]
     mean = np.nanmean(array_roi)
@@ -1578,6 +1581,8 @@ def spectral_signature(*argv):
 
 # get raster band values for scatter plot
 def get_values_for_scatter_plot(*argv):
+    # noinspection PyPackageRequirements
+    from osgeo import gdal
     log = cfg.logger.log
     log.debug('start')
     array_function_placeholder = argv[1][0]
@@ -1586,12 +1591,13 @@ def get_values_for_scatter_plot(*argv):
     function_argument = argv[7]
     # reference path
     function_variable = argv[8]
-    temp = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    temp = cfg.temp.temporary_mem_path(name_suffix=cfg.tif_suffix)
     raster_vector.vector_to_raster(
         vector_path=function_argument, burn_values=1, output_path=temp,
         reference_raster_path=function_variable, extent=True
     )
     _a = raster_vector.read_raster(temp)
+    gdal.Unlink(temp)
     _a[nodata_mask == 1] = np.nan
     array_roi = array_function_placeholder[_a == 1]
     log.debug('end')
@@ -1617,10 +1623,10 @@ def region_growing(*argv):
     log.debug('array_roi.shape: %s; seed_value: %s'
               % (str(array_roi.shape), str(seed_value)))
     # if nodata
-    if np.sum(np.isnan(seed_value)) > 0:
+    if np.isnan(seed_value):
         return seed_array
     seed_array.fill(seed_value)
-    difference_array = abs(array_roi - seed_array)
+    difference_array = abs(array_roi - seed_value)
     # calculate minimum difference
     unique_difference_array = np.unique(difference_array)
     unique_difference_distance = unique_difference_array[
@@ -1851,40 +1857,22 @@ def clip_raster(
                 cutline = d['vector_path']
                 _vector = ogr.Open(cutline)
                 _v_layer = _vector.GetLayer()
-                extent = _v_layer.GetExtent()
                 v_sr = _v_layer.GetSpatialRef()
                 if sr.IsSame(v_sr) != 1:
-                    c_t = osr.CoordinateTransformation(v_sr, sr)
-                    driver = ogr.GetDriverByName('GPKG')
+                    _v_layer = None
+                    _vector = None
                     # create temp vector
-                    cutline = cfg.temp.temporary_file_path(
+                    cutline = cfg.temp.temporary_mem_path(
                         name_suffix=cfg.gpkg_suffix
                     )
-                    _data_source = driver.CreateDataSource(cutline)
-                    spatial_reference = osr.SpatialReference()
-                    spatial_reference.ImportFromWkt(_r_d.GetProjectionRef())
-                    temp_layer = _data_source.CreateLayer(
-                        'temp', spatial_reference, ogr.wkbPolygon
+                    gdal.VectorTranslate(
+                        cutline, d['vector_path'], format='GPKG',
+                        dstSRS=sr.ExportToWkt(),
                     )
-                    _v_layerDefn = _v_layer.GetLayerDefn()
-                    for i in range(0, _v_layerDefn.GetFieldCount()):
-                        field_def = _v_layerDefn.GetFieldDefn(i)
-                        temp_layer.CreateField(field_def)
-                    temp_layer_def = temp_layer.GetLayerDefn()
-                    input_feature = _v_layer.GetNextFeature()
-                    while input_feature:
-                        geom = input_feature.GetGeometryRef().Clone()
-                        geom.Transform(c_t)
-                        _out_feature = ogr.Feature(temp_layer_def)
-                        _out_feature.SetGeometry(geom)
-                        for i in range(0, temp_layer_def.GetFieldCount()):
-                            _out_feature.SetField(
-                                temp_layer_def.GetFieldDefn(i).GetNameRef(),
-                                input_feature.GetField(i)
-                            )
-                        temp_layer.CreateFeature(_out_feature)
-                        _out_feature = None
-                        input_feature = _v_layer.GetNextFeature()
+                    _vector = ogr.Open(cutline)
+                    _v_layer = _vector.GetLayer()
+                extent = _v_layer.GetExtent()
+                _v_layer = None
                 _vector = None
                 crop = True
                 op = ' -co BIGTIFF=YES -co COMPRESS=%s' % d['compress_format']
@@ -1896,6 +1884,8 @@ def clip_raster(
                     cropToCutline=crop, cutlineWhere=d['where'],
                     srcNodata=no_data, dstNodata=no_data
                 )
+                if sr.IsSame(v_sr) != 1:
+                    gdal.Unlink(cutline)
             gdal.Warp(d['output'], d['input_raster'], options=to)
             _r_d = None
             results.append([d['output']])
@@ -2056,14 +2046,10 @@ def vector_to_raster_iter(
                 'grid_columns, grid_rows: %s,%s' % (grid_columns, grid_rows)
             )
             if grid_columns > 0 and grid_rows > 0:
-                temp_raster = cfg.temp.temporary_file_path(
-                    name_suffix=cfg.tif_suffix)
-                memory_driver = gdal.GetDriverByName('GTiff')
+                r_memory_driver = gdal.GetDriverByName('MEM')
                 # create raster _grid
-                _grid = memory_driver.Create(
-                    temp_raster, grid_columns, grid_rows, 1, gdal_format,
-                    options=['COMPRESS=DEFLATE', 'PREDICTOR=2',
-                             'ZLEVEL=1', 'BIGTIFF=YES']
+                _grid = r_memory_driver.Create(
+                    '', grid_columns, grid_rows, 1, gdal_format
                 )
                 if _grid is None:
                     cfg.logger.log.error('error output raster')
@@ -2156,7 +2142,7 @@ def vector_to_raster_iter(
             if progress_queue is not None and progress_queue.empty():
                 progress_queue.put([n, len(argument_list)], False)
         except Exception as err:
-            #errors = str(err)
+            str(err)
             feature = d['feature']
             idx = feature[3]
             results.append([idx])

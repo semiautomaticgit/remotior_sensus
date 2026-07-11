@@ -78,6 +78,7 @@ def prepare_input_list(
     xy_count_list = []
     box_coordinates_list = []
     warped = False
+    first_gt = first_xy_count = check_gt = check_xy_count = None
     for i, band_i in enumerate(band_list):
         info = raster_vector.raster_info(band_i)
         if info is not False:
@@ -138,13 +139,16 @@ def prepare_input_list(
         bottom = gt[3] + gt[5] * xy_count[1] + gt[4] * xy_count[0]
         right = gt[0] + gt[1] * xy_count[0] + gt[2] * xy_count[1]
         box_coordinates_list.append([left, top, right, bottom])
-    check_gt_list = all(g_item == gt_list[0] for g_item in gt_list)
-    check_xy_count_list = all(
-        xy_item == xy_count_list[0] for xy_item in xy_count_list
-    )
+        if first_gt is None:
+            first_gt = gt
+            first_xy_count = xy_count
+        else:
+            if gt != first_gt:
+                check_gt = False
+            if xy_count != first_xy_count:
+                check_xy_count = False
     # check if same geotransformation, x and y pixel count
-    if (check_gt_list is True and check_xy_count_list is True
-            and warped is False):
+    if check_gt is True and check_xy_count is True and warped is False:
         same_geotransformation = True
     else:
         same_geotransformation = False
@@ -262,7 +266,7 @@ def prepare_process_files(
                 if box_coordinate_list is None:
                     box_coordinate_list = box_coordinates_list[0]
                 for r in input_raster_list:
-                    if multiple_resolution is True:
+                    if multiple_resolution:
                         temporary_virtual_raster = (
                             raster_vector.create_temporary_virtual_raster(
                                 input_raster_list=[r],

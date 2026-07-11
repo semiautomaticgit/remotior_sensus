@@ -1,6 +1,11 @@
 Changelog
 ===============
 
+v0.7.6
+________
+
+* Minor bug fixing and optimization.
+
 v0.7.5
 ________
 

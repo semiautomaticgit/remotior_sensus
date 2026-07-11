@@ -81,6 +81,21 @@ class Temporary(object):
             files_directories.create_directory(directory)
         return directory
 
+    # create temporary mem path
+    @staticmethod
+    def temporary_mem_path(name_suffix=None, name_prefix=None,
+                           name=None):
+        times = dates_times.get_time_string()
+        if name is None:
+            r = str(random.randint(0, 10000))
+            name = 't{}_{}'.format(times, r)
+        if name_suffix is not None:
+            name = f'{name}{name_suffix}'
+        if name_prefix is not None:
+            name = f'{name_prefix}{name}'
+        path = f'/vsimem/{name}'
+        return path
+
     # create temporary file path
     def temporary_file_path(self, name_suffix=None, name_prefix=None,
                             name=None, directory=None, rank=None,

@@ -109,6 +109,8 @@ def relative_to_absolute_path(path, root=None):
 
 # create parent directory of a file path
 def create_parent_directory(file_path):
+    if '/vsimem/' in file_path:
+        return file_path
     try:
         path = os.path.dirname(file_path)
         if is_directory(path):

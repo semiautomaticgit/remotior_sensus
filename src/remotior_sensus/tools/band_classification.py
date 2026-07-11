@@ -529,6 +529,7 @@ class Classifier(object):
             pretrained_model_replace: pretrained model replace keys
             num_classes: number of classes for pretrained model
             n_processes: number of processes
+            feature_importance: optional feature importance for some algorithms
 
         Returns:
             :func:`Classifier` object.

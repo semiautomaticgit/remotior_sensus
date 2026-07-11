@@ -190,8 +190,8 @@ def get_spatial_reference(input_projection):
 
 # compare two crs
 def compare_crs(first_crs, second_crs):
-    log = cfg.logger.log
     if cfg.logger is not None:
+        log = cfg.logger.log
         log.debug(
             'first_crs: %s; second_crs: %s' % (first_crs, second_crs)
         )
@@ -205,23 +205,26 @@ def compare_crs(first_crs, second_crs):
         else:
             same = False
         if cfg.logger is not None:
+            log = cfg.logger.log
             log.debug('same: %s' % same)
         return same
     except Exception as err:
         if cfg.logger is not None:
+            log = cfg.logger.log
             log.error(str(err))
         return False
 
 
 # raster information
 def raster_info(path):
-    log = cfg.logger.log
     if not files_directories.is_file(path):
         if cfg.logger is not None:
+            log = cfg.logger.log
             log.warning('raster: %s' % path)
     _r_d = gdal.Open(path, gdal.GA_ReadOnly)
     if _r_d is None:
         if cfg.logger is not None:
+            log = cfg.logger.log
             log.error('raster: %s' % path)
         return False
     # x pixel count
@@ -250,6 +253,7 @@ def raster_info(path):
     except Exception as err:
         crs = None
         if cfg.logger is not None:
+            log = cfg.logger.log
             log.error(str(err))
     # band number and block size
     number_of_bands = _r_d.RasterCount
@@ -259,12 +263,14 @@ def raster_info(path):
     _band = None
     _r_d = None
     try:
-        log.debug(
-            '{} :{}'.format(
-                path, [gt, unit, [x_count, y_count], nd, number_of_bands,
-                       block_size, [scale, offset], data_type, crs]
+        if cfg.logger is not None:
+            log = cfg.logger.log
+            log.debug(
+                '{} :{}'.format(
+                    path, [gt, unit, [x_count, y_count], nd, number_of_bands,
+                           block_size, [scale, offset], data_type, crs]
+                )
             )
-        )
     except Exception as err:
         str(err)
     return info
@@ -1355,7 +1361,7 @@ def create_virtual_raster_2_mosaic(
         dst_nodata=False, relative_to_vrt=0, data_type=None,
         box_coordinate_list=None, override_box_coordinate_list=False,
         pixel_size=None, grid_reference=None, scale_offset_list=None,
-        resampling=None
+        resampling=None, min_progress=0, max_progress=100
 ):
     log = cfg.logger.log
     log.debug('start')
@@ -1555,8 +1561,16 @@ def create_virtual_raster_2_mosaic(
     # add virtual band
     v_rast.AddBand(gdal_format)
     band = v_rast.GetRasterBand(1)
+    feature_count = len(input_raster_list)
+    min_p = min_progress
+    max_p = int((max_progress - min_progress) / feature_count)
     # iterate bands
     for b, input_raster_b in enumerate(input_raster_list):
+        cfg.progress.update(
+            step=b, steps=feature_count,
+            minimum=min_p + max_p * b / feature_count,
+            maximum=max_progress, percentage=int(b / feature_count * 100)
+        )
         # open input_raster
         if band_number_list is None:
             band_number = 1
@@ -1793,6 +1807,45 @@ def project_point_coordinates(
 
 # reproject vector
 def reproject_vector(
+        input_vector, output, input_epsg=None, output_epsg=None,
+        vector_type='wkbMultiPolygon', output_drive=None
+):
+    if cfg.logger is not None:
+        log = cfg.logger.log
+        log.debug('start')
+    _input_epsg = input_epsg
+    _vector_type = vector_type
+    # output spatial reference
+    output_sr = osr.SpatialReference()
+    try:
+        output_sr.ImportFromEPSG(output_epsg)
+    except Exception as err:
+        str(err)
+        try:
+            output_sr.ImportFromWkt(output_epsg)
+        except Exception as err:
+            str(err)
+            output_sr = output_epsg
+    # create output vector
+    if output_drive is None:
+        if files_directories.file_extension(
+                output, lower=True
+        ) == cfg.shp_suffix:
+            output_drive = 'ESRI Shapefile'
+        else:
+            output_drive = 'GPKG'
+    gdal.VectorTranslate(
+        output, input_vector, format=output_drive,
+        dstSRS=output_sr.ExportToWkt(),
+    )
+    if cfg.logger is not None:
+        log = cfg.logger.log
+        log.debug('output: %s' % output)
+    return output
+
+
+# reproject vector
+def reproject_vector_old(
         input_vector, output, input_epsg=None, output_epsg=None,
         vector_type='wkbMultiPolygon', output_drive=None
 ):
@@ -2180,7 +2233,7 @@ def extract_vector_to_raster(
     same_crs = compare_crs(reference_crs, vector_crs)
     if vector_path is not None:
         if not same_crs:
-            input_vector = cfg.temp.temporary_file_path(
+            input_vector = cfg.temp.temporary_mem_path(
                 name_suffix=files_directories.file_extension(vector_path)
             )
             reproject_vector(
@@ -2865,10 +2918,13 @@ def save_polygons(
         _o_layer.CreateField(field_def)
     o_layer_def = _o_layer.GetLayerDefn()
     # get unique values
-    sql = 'SELECT * FROM %s WHERE %s IN (%s)' % (
-        i_layer_name, cfg.uid_field_name,
-        str(value_list).replace('[', '').replace(']', '')
-    )
+    if value_list == '*':
+        sql = 'SELECT * FROM %s' % i_layer_name
+    else:
+        sql = 'SELECT * FROM %s WHERE %s IN (%s)' % (
+            i_layer_name, cfg.uid_field_name,
+            str(value_list).replace('[', '').replace(']', '')
+        )
     output_values = _input_source.ExecuteSQL(sql, dialect='SQLITE')
     if output_values is not None:
         uv_feature = output_values.GetNextFeature()
@@ -2983,6 +3039,12 @@ def gdal_copy_raster(input_raster, output, output_format='GTiff'):
     return output
 
 
+# gdal copy vector
+def gdal_copy_vector(input_vector, output, output_format='GPKG'):
+    gdal.VectorTranslate(output, input_vector, format=output_format)
+    return output
+
+
 # gdal array to polygon using reference raster
 def array_to_polygon(input_array, reference_raster, output):
     out_dir = files_directories.parent_directory(output)
@@ -3001,7 +3063,7 @@ def array_to_polygon(input_array, reference_raster, output):
     _vector_layer.CreateField(field_definition)
     field = _vector_layer.GetLayerDefn().GetFieldIndex(field_name)
     # create raster from array
-    temp_raster = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
+    temp_raster = cfg.temp.temporary_mem_path(name_suffix=cfg.tif_suffix)
     _input_band = _r_d.GetRasterBand(1)
     data_type = _input_band.DataType
     raster_driver = gdal.GetDriverByName('GTiff')
@@ -3032,6 +3094,7 @@ def array_to_polygon(input_array, reference_raster, output):
     _r_d = None
     _data_source = None
     _vector_layer = None
+    gdal.Unlink(temp_raster)
     return output
 
 

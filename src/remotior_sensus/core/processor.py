@@ -1224,6 +1224,7 @@ def gdal_cluster(
                 cfg.gdal_path = d
             except Exception as err:
                 str(err)
+    # noinspection PyPackageRequirements
     from osgeo import gdal, ogr
     # GDAL config
     try:
@@ -1265,7 +1266,14 @@ def gdal_cluster(
         options=['SPATIAL_INDEX=YES']
     )
     index_layer_defn = index_layer.GetLayerDefn()
+    total_features = len(features)
+    start_time = datetime.datetime.now()
     for i, feat in enumerate(features):
+        now_time = datetime.datetime.now()
+        elapsed_time = (now_time - start_time).total_seconds()
+        if process_id == 0 and elapsed_time > 1:
+            start_time = now_time
+            progress_queue.put(int((i / total_features) * 30))
         f = ogr.Feature(index_layer_defn)
         # set fid same as i
         f.SetFID(i)
@@ -1310,25 +1318,37 @@ def gdal_cluster(
     # copy clusters in memory and dissolve
     v_layer_defn = _v_layer.GetLayerDefn()
     feature_list = []
+    total_clusters = len(clusters)
+    start_time = datetime.datetime.now()
     for c_id, cluster in enumerate(clusters):
+        now_time = datetime.datetime.now()
+        elapsed_time = (now_time - start_time).total_seconds()
+        if process_id == 0 and elapsed_time > 1:
+            start_time = now_time
+            progress_queue.put(30 + int((c_id / total_clusters) * 70))
         temp_cluster_path = f'/vsimem/cluster_{c_id}.gpkg'
+        gdal.Unlink(temp_cluster_path)
         # remove if exists
         gpkg_driver.DeleteDataSource(temp_cluster_path)
         _temp_cluster_source = gpkg_driver.CreateDataSource(temp_cluster_path)
         _temp_cluster_layer = _temp_cluster_source.CreateLayer(
             'cluster', v_sr,  geom_type=ogr.wkbMultiPolygon
         )
+        v_field_count = v_layer_defn.GetFieldCount()
         # copy features
-        for i in range(v_layer_defn.GetFieldCount()):
+        for i in range(v_field_count):
             _temp_cluster_layer.CreateField(v_layer_defn.GetFieldDefn(i))
         # write features
         temp_cluster_defn = _temp_cluster_layer.GetLayerDefn()
+        f = ogr.Feature(temp_cluster_defn)
         for f_id in cluster:
             src = features[f_id]
-            f = ogr.Feature(temp_cluster_defn)
-            for i in range(v_layer_defn.GetFieldCount()):
+            f.SetFID(-1)
+            for i in range(v_field_count):
                 f.SetField(i, src.GetField(i))
-            f.SetGeometry(src.GetGeometryRef())
+            geom = src.GetGeometryRef()
+            g = geom.Clone()
+            f.SetGeometry(g)
             _temp_cluster_layer.CreateFeature(f)
         _temp_cluster_layer = None
         _temp_cluster_source = None
@@ -1397,6 +1417,7 @@ def gdal_cluster_rank(
                 cfg.gdal_path = d
             except Exception as err:
                 str(err)
+    # noinspection PyPackageRequirements
     from osgeo import gdal, ogr
     # GDAL config
     try:
@@ -1929,9 +1950,9 @@ def vector_to_raster(
     (output_path, output_format, compress,
      compress_format) = output_parameters[:4]
     if background_value is None:
-        background_value = 0
+        _background_value = 0
     if nodata_value is None:
-        nodata_value = 0
+        _nodata_value = 0
     if output_format is None:
         output_format = 'GTiff'
     if gdal_path is not None:

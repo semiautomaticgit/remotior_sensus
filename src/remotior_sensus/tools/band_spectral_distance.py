@@ -168,7 +168,7 @@ def band_spectral_distance(
     )
     out_path = prepared['output_path']
     n_processes = prepared['n_processes']
-    vrt_path = prepared['temporary_virtual_raster']
+    vrt_path = prepared['input_raster_list']
     # calculate spectral distance
     cfg.multiprocess.run(
         raster_path=vrt_path, function=spectral_distance,

@@ -55,7 +55,8 @@ def vector_to_raster(
         output_path: Optional[str] = None,
         method: Optional[str] = None,
         area_precision: Optional[int] = 3,
-        subpixel_precision: Optional[Union[int, float]] = None, resampling='mode',
+        subpixel_precision: Optional[Union[int, float]] = None,
+        resampling='mode',
         nodata_value: Optional[int] = None,
         output_data_type: Optional[str] = 'Int32',
         minimum_extent: Optional[bool] = True,
@@ -130,7 +131,7 @@ def vector_to_raster(
         n_processes=n_processes, box_coordinate_list=extent_list,
         bandset_catalog=bandset_catalog
     )
-    reference_path = prepared['temporary_virtual_raster'][0]
+    reference_path = prepared['temporary_virtual_raster']
     # prepare output
     temp_path = cfg.temp.temporary_file_path(name_suffix=cfg.tif_suffix)
     if n_processes is None:
@@ -174,7 +175,8 @@ def vector_to_raster(
             # greatest common divisor
             try:
                 area_precision = numpy.gcd(
-                    ratio[1], x_y_size[0]) * 10 ** (len(str(area_precision)) - 1)
+                    ratio[1],
+                    x_y_size[0]) * 10 ** (len(str(area_precision)) - 1)
             except Exception as err:
                 str(err)
                 area_precision = numpy.gcd(
@@ -216,7 +218,7 @@ def vector_to_raster(
         # cluster by proximity then pass them for iteration
         output = cfg.multiprocess.gdal_vector_cluster(
             input_file=vector_path, attribute_field=vector_field,
-            threshold=x_y_size[0]*2, min_progress=1, max_progress=10
+            threshold=x_y_size[0]*2, min_progress=1, max_progress=39
         )
         features = [f for sub_list in output for f in sub_list]
         function_list = []
@@ -254,7 +256,7 @@ def vector_to_raster(
             virtual_raster_list.append(temporary_raster)
         cfg.multiprocess.run_iterative_process(
             function_list=function_list, argument_list=argument_list,
-            min_progress=10, max_progress=70, message='converting to raster'
+            min_progress=40, max_progress=69, message='converting to raster'
         )
         results = cfg.multiprocess.output
         output_raster_list = []
@@ -289,7 +291,7 @@ def vector_to_raster(
             # therefore the source nodata value must be the same as
             # destination nodata value)
             cfg.multiprocess.gdal_copy_raster(
-                virtual_path, output_path, min_progress=75, max_progress=100,
+                virtual_path, output_path, min_progress=70, max_progress=100,
                 skip_bcast=True
             )
     else:
