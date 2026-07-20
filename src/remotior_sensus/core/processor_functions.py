@@ -2052,15 +2052,35 @@ def vector_to_raster_iter(
                     '', grid_columns, grid_rows, 1, gdal_format
                 )
                 if _grid is None:
-                    cfg.logger.log.error('error output raster')
-                    results.append([None])
-                    raise 'error grid'
+                    # new attempt
+                    r_memory_driver = gdal.GetDriverByName('MEM')
+                    # create raster _grid
+                    _grid = r_memory_driver.Create(
+                        '', grid_columns, grid_rows, 1, gdal_format
+                    )
+                    if _grid is None:
+                        cfg.logger.log.error('error output raster')
+                        feature = d['feature']
+                        idx = feature[3]
+                        results.append([idx])
+                        raise 'error grid'
                 try:
                     _band = _grid.GetRasterBand(1)
                 except Exception as err:
-                    cfg.logger.log.error(err)
-                    results.append([None])
-                    raise err
+                    # new attempt
+                    r_memory_driver = gdal.GetDriverByName('MEM')
+                    # create raster _grid
+                    _grid = r_memory_driver.Create(
+                        '', grid_columns, grid_rows, 1, gdal_format
+                    )
+                    try:
+                        _band = _grid.GetRasterBand(1)
+                    except Exception as err:
+                        cfg.logger.log.error(err)
+                        feature = d['feature']
+                        idx = feature[3]
+                        results.append([idx])
+                        raise err
                 # set raster projection from reference
                 _grid.SetGeoTransform([orig_x, x_size, 0, orig_y, 0, -y_size])
                 _grid.SetProjection(reference_crs)

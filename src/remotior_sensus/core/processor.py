@@ -765,6 +765,7 @@ def function_initiator(
     return output_array_list, out_files, proc_error, logger
 
 
+# get raster band array
 def get_raster_band_array(
         gdal, band, calculation_datatype, _a, _a_mask, sec,
         input_nodata_as_value, value_as_nodata
@@ -782,19 +783,22 @@ def get_raster_band_array(
     data_type = gdal.GetDataTypeName(band.DataType)
     if data_type in data_types:
         _a_data_type = data_types[data_type]
+        check_dt = False
     else:
         _a_data_type = calculation_datatype
+        check_dt = True
     # get band nodata, scale and offset
     try:
         offs_b = band.GetOffset()
         scl_b = band.GetScale()
         if scl_b is None:
             scl_b = 1
-        # get scale for nodata value
-        if type(scl_b) is float:
-            if (_a_data_type is not np.float64
-                    or _a_data_type is not np.float32):
-                _a_data_type = np.float32
+        if check_dt:
+            # get scale for nodata value
+            if type(scl_b) is float:
+                if (_a_data_type is not np.float64
+                        or _a_data_type is not np.float32):
+                    _a_data_type = np.float32
         if offs_b is None:
             offs_b = 0
         nd_val = band.GetNoDataValue()
@@ -829,8 +833,11 @@ def get_raster_band_array(
     if value_as_nodata is not None:
         _a_mask[_a == np.asarray(value_as_nodata)] = True
     # rescale
-    np.multiply(_a, scl_b, out=_a)
-    np.add(_a, offs_b, out=_a)
+    try:
+        np.multiply(_a, scl_b, out=_a)
+        np.add(_a, offs_b, out=_a)
+    except Exception as err:
+        str(err)
     return _a.astype(calculation_datatype), _a_mask, _a_data_type, ndv_band
 
 
