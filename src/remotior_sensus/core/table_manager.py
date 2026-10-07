@@ -47,6 +47,7 @@ import io
 import inspect
 import itertools
 import os
+import re
 from typing import Union, Optional
 
 import numpy as np
@@ -72,6 +73,7 @@ except Exception as error:
 try:
     # noinspection PyPackageRequirements
     import pandas as pd
+
     run_pandas = True
 except Exception as error:
     str(error)
@@ -425,7 +427,7 @@ def pivot_matrix(
                                                 nodata_value)
             if field_names:
                 if secondary_row_field_list is None:
-                    output = [(f'{col}_{func}', matrix_1[col].dtype) 
+                    output = [(f'{col}_{func}', matrix_1[col].dtype)
                               for col, func, *dtype in column_function_list]
                     output = mpi_bcast(output)
                     return output
@@ -434,7 +436,7 @@ def pivot_matrix(
                                 in secondary_row_field_list]
                     combinations = list(itertools.product(*sec_vals))
                     names = []
-                    for (column, column_function_c, 
+                    for (column, column_function_c,
                          *dtype) in column_function_list:
                         for comb in combinations:
                             if cross_matrix:
@@ -650,7 +652,7 @@ def pivot_matrix(
 
                 assert r.shape
                 d = 0
-                for (column, 
+                for (column,
                      column_function_c) in enumerate(column_function_list):
                     if not cfg.action:
                         break
@@ -901,7 +903,7 @@ def calculate_multi(
         # synch bcast
         _ = mpi_bcast(None)
         return _
-    
+
 
 # create new matrix selecting columns by name and optionally rename output
 # columns
@@ -922,7 +924,7 @@ def redefine_matrix_columns(
         cfg.logger.log.info('start')
         if progress_message:
             cfg.progress.update(
-                process='redefine_matrix_columns', message='starting', 
+                process='redefine_matrix_columns', message='starting',
                 start=True
             )
         field_list = []
@@ -938,15 +940,16 @@ def redefine_matrix_columns(
                 cfg.logger.log.error('field %s not found' % field)
         matrix_f = define_fields(matrix, field_list)
         if output_field_names is not None:
+            new_names = list(matrix_f.dtype.names)
             for f, output_field_name in enumerate(output_field_names):
                 if not cfg.action:
                     break
                 try:
-                    matrix_f = rename_field(
-                        matrix_f, input_field_names[f], output_field_name
-                    )
+                    new_names[new_names.index(
+                        input_field_names[f])] = output_field_name
                 except Exception as err:
-                    cfg.logger.log.error(str(err))
+                    cfg.logger.log.debug(str(err))
+            matrix_f.dtype.names = tuple(new_names)
         if progress_message:
             cfg.progress.update(end=True)
     matrix_f = mpi_bcast(matrix_f)
@@ -985,7 +988,7 @@ def matrix_to_csv(
     separator = separator or cfg.tab_delimiter
     dtypes = [
         (name, 'int64' if np.issubdtype(matrix[name].dtype, np.integer)
-            else matrix[name].dtype) for name in matrix.dtype.names
+        else matrix[name].dtype) for name in matrix.dtype.names
     ]
     matrix_c = define_fields(np.copy(matrix), dtypes)
     # list of field formats
@@ -1003,13 +1006,9 @@ def matrix_to_csv(
         field_list.append((field, data_type))
         # replace nodata integer fields
         if np.issubdtype(data_type, np.integer):
-            matrix_c[field][matrix[field]
-                            == nodata_value] = cfg.nodata_val_Int64
             format_list.append('%s')
         # replace nodata floating fields
         elif np.issubdtype(data_type, np.floating):
-            matrix_c[field][matrix[field]
-                            == nodata_value] = cfg.nodata_val_Int64
             try:
                 fd = (field_decimals[c] if isinstance(field_decimals, list)
                       else field_decimals)
@@ -1019,8 +1018,6 @@ def matrix_to_csv(
                 format_list.append('%1.2f')
         # replace nodata string fields
         else:
-            matrix_c[field][matrix[field]
-                            == str(nodata_value)] = str(cfg.nodata_val_Int64)
             format_list.append('%s')
     header = separator.join(fields) + cfg.new_line
     matrix_format = define_fields(matrix_c, field_list)
@@ -1032,7 +1029,9 @@ def matrix_to_csv(
         csv = csv.replace('.', decimal_separator)
     # replace nodata values
     if nodata_value_output is not None:
-        csv = csv.replace(str(cfg.nodata_val_Int64), str(nodata_value_output))
+        csv = re.sub(
+            rf'{re.escape(str(nodata_value))}[^{re.escape(separator)}\r\n]*',
+            str(nodata_value_output), csv)
     files_directories.create_parent_directory(output_path)
     try:
         with open(output_path, 'w') as file:

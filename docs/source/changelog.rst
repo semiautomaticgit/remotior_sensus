@@ -1,6 +1,13 @@
 Changelog
 ===============
 
+v0.8.0
+________
+
+* In "Table manager" the export to csv has been improved for managing custom
+  nodata values.
+* Minor bug fixing and optimization.
+
 v0.7.7
 ________
 

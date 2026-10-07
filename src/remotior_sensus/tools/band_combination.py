@@ -165,7 +165,7 @@ def band_combination(
         elif cfg.uint16_dt in info[8]:
             numpy_data_type = np.uint16
         elif cfg.byte_dt in info[8]:
-            numpy_data_type = np.int8
+            numpy_data_type = np.uint8
         else:
             numpy_data_type = np.uint64
         d_types_list.append(numpy_data_type)
@@ -381,7 +381,6 @@ def band_combination(
         _output = shared_tools.mpi_bcast(None)
         return OutputManager(check=False)
     sum_val = cfg.multiprocess.output
-    tbl_out = None
     if not output_table:
         r_out = OutputManager(
             paths=[vrt_path], extra={
